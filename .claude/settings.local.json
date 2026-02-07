@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm show:*)",
+      "Bash(node test-transcript.mjs:*)",
+      "Bash(npm uninstall:*)",
+      "WebFetch(domain:webservice.rakuten.co.jp)",
+      "WebFetch(domain:digital-style.jp)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(__NEW_LINE_daa9a1e70260d9ee__ echo \"=== /list/occupation/engineer/keyboard タイトル ===\")",
+      "Bash(__NEW_LINE_ed168be66a21a60a__ echo \"=== /list/setup/remote-work タイトル ===\")",
+      "Bash(pkill -f \"next\" sleep 1 lsof -ti:3000)",
+      "Bash(xargs kill -9 lsof -ti:3001)",
+      "Bash(xargs kill -9 sleep 1 echo \"Done cleaning up processes\")",
+      "Bash(__NEW_LINE_49839b3a3ade34b3__ echo \"=== /occupation/engineer タイトル ===\")",
+      "Bash(__NEW_LINE_710b40f26dea3235__ echo \"=== /occupation/engineer/keyboard タイトル ===\")",
+      "Bash(__NEW_LINE_5910a9ab4c1023b7__ echo \"=== /setup/minimalist タイトル ===\")",
+      "Bash(npx ts-node:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(pkill:*)",
+      "Bash(source:*)",
+      "Bash(export SUPABASE_URL=\"https://jagvcxlpfirmhxypixlp.supabase.co\")",
+      "Bash(export SUPABASE_ANON_KEY=\"sb_publishable_greVEWiQ1W7BFRbT-B_PVw_8WbVT1Y_\")",
+      "Bash(npm ls:*)",
+      "WebFetch(domain:qiita.com)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

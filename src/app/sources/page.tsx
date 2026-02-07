@@ -1,0 +1,329 @@
+import { Metadata } from "next";
+import { unstable_cache } from "next/cache";
+import { getVideos, getArticles, getSourceTagCounts, getSiteStats, supabase } from "@/lib/supabase";
+import { STYLE_TAGS, ENVIRONMENT_TAGS, OCCUPATION_TAGS } from "@/lib/constants";
+import { SourcesClient } from "./SourcesClient";
+import { Breadcrumb } from "@/components/Breadcrumb";
+
+// 【最適化】ソースページのデータをキャッシュ（5分間）
+const getCachedSourcesData = unstable_cache(
+  async () => {
+    console.log("[Sources] Fetching fresh data from Supabase...");
+    const [videosResult, articlesResult, tagCounts, siteStats, influencersResult] = await Promise.all([
+      getVideos({ page: 1, limit: 1000 }),
+      getArticles({ page: 1, limit: 1000 }),
+      getSourceTagCounts(),
+      getSiteStats(),
+      supabase.from("influencers").select("channel_id, author_id, occupation_tags"),
+    ]);
+
+    return {
+      videosResult,
+      articlesResult,
+      tagCounts,
+      siteStats,
+      influencersData: influencersResult.data || [],
+    };
+  },
+  ["sources-page-data"],
+  { revalidate: 300 } // 5分間キャッシュ
+);
+
+interface PageProps {
+  searchParams: {
+    tags?: string;
+    page?: string;
+    occupation?: string;
+    environment?: string;
+    style?: string;  // スタイルフィルター（単一選択）
+    sort?: string; // "newest" | "oldest"
+  };
+}
+
+// 【SEO最適化】フィルター適用時の動的メタデータ生成（単一フィルターのみ対応）
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const occupation = searchParams.occupation;
+  const environment = searchParams.environment;
+  const style = searchParams.style;
+
+  // ベースURL（本番環境のURLに変更してください）
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
+
+  // デフォルトのメタデータ
+  let title = "デスクツアー動画・記事一覧 | YouTube・ブログ人気コレクション";
+  let description = "Youtubeで5,000回以上再生されているデスクツアー動画やnote、ブログなどのデスクツアー記事をまとめています。参考になるデスクセットアップを効率よく探しましょう！";
+  let canonicalUrl = `${baseUrl}/sources`;
+
+  // 職業フィルターが適用されている場合
+  if (occupation && OCCUPATION_TAGS.includes(occupation as typeof OCCUPATION_TAGS[number])) {
+    title = `${occupation}のデスクツアー動画・記事一覧 | デスクツアーDB`;
+    description = `${occupation}が公開しているデスクツアー動画・記事をまとめています。${occupation}のデスク環境やおすすめガジェットを参考にしましょう。`;
+    canonicalUrl = `${baseUrl}/sources?occupation=${encodeURIComponent(occupation)}`;
+  }
+  // 環境フィルターが適用されている場合
+  else if (environment && ENVIRONMENT_TAGS.includes(environment as typeof ENVIRONMENT_TAGS[number])) {
+    title = `${environment}のデスクツアー動画・記事一覧 | デスクツアーDB`;
+    description = `${environment}環境のデスクツアー動画・記事をまとめています。${environment}のデスクセットアップを参考にしましょう。`;
+    canonicalUrl = `${baseUrl}/sources?environment=${encodeURIComponent(environment)}`;
+  }
+  // スタイルフィルターが適用されている場合
+  else if (style && STYLE_TAGS.includes(style as typeof STYLE_TAGS[number])) {
+    title = `${style}のデスクツアー動画・記事一覧 | デスクツアーDB`;
+    description = `${style}スタイルのデスクツアー動画・記事をまとめています。${style}なデスクセットアップを参考にしましょう。`;
+    canonicalUrl = `${baseUrl}/sources?style=${encodeURIComponent(style)}`;
+  }
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title: title.replace(" | デスクツアーDB", "").replace(" | YouTube・ブログ人気コレクション", ""),
+      description,
+      type: "website",
+      url: canonicalUrl,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: title.replace(" | デスクツアーDB", "").replace(" | YouTube・ブログ人気コレクション", ""),
+      description,
+    },
+  };
+}
+
+// 混合アイテム型
+export type SourceItem = {
+  type: "video" | "article";
+  id: string;
+  title: string;
+  thumbnail_url: string | null;
+  published_at: string | null;
+  summary: string;
+  product_count?: number;
+  tags?: string[];
+  occupation_tags?: string[]; // 職業タグ
+  // video用
+  channel_title?: string;
+  channel_id?: string;
+  video_id?: string;
+  subscriber_count?: number;
+  // article用
+  author?: string | null;
+  url?: string;
+  site_name?: string | null;
+};
+
+export default async function SourcesPage({ searchParams }: PageProps) {
+  // フィルターは1つだけ有効（occupation, environment, style のいずれか）
+  const selectedOccupation = searchParams.occupation || undefined;
+  const selectedEnvironment = searchParams.environment || undefined;
+  const selectedStyle = searchParams.style || undefined;
+  const sortOrder = (searchParams.sort as "newest" | "oldest") || "newest";
+  const page = parseInt(searchParams.page || "1", 10);
+  const limit = 30;
+
+  // 後方互換性のためtags対応は残すが、基本はstyleを使用
+  const selectedTags = searchParams.tags ? searchParams.tags.split(",") : [];
+
+  // 【最適化】キャッシュからデータ取得（5分間有効）
+  const { videosResult, articlesResult, tagCounts, siteStats, influencersData } = await getCachedSourcesData();
+
+  // channel_id → occupation_tags のマップ（動画用）
+  const channelToOccupation = new Map<string, string[]>(
+    influencersData
+      .filter((i: { channel_id?: string; occupation_tags?: string[] }) => i.channel_id && i.occupation_tags)
+      .map((i: { channel_id: string; occupation_tags: string[] }) => [i.channel_id, i.occupation_tags])
+  );
+
+  // 記事用: influencersリストを保持（author_idからドメインを抽出してマッチング）
+  const influencersList = influencersData.filter(
+    (i: { author_id?: string; occupation_tags?: string[] }) => i.author_id && i.occupation_tags
+  );
+
+  // 動画・記事を混合してSourceItem型に変換
+  const videoItems: SourceItem[] = videosResult.videos.map((v) => ({
+    type: "video" as const,
+    id: v.video_id,
+    title: v.title,
+    thumbnail_url: v.thumbnail_url,
+    published_at: v.published_at,
+    summary: v.summary,
+    product_count: v.product_count,
+    tags: v.tags,
+    occupation_tags: channelToOccupation.get(v.channel_id) || [],
+    channel_title: v.channel_title,
+    channel_id: v.channel_id,
+    video_id: v.video_id,
+    subscriber_count: v.subscriber_count,
+  }));
+
+  const articleItems: SourceItem[] = articlesResult.articles.map((a) => {
+    // occupation_tagsを取得
+    // author_idは "ドメイン:著者名" 形式なので、記事URLのドメイン部分でマッチング
+    let occupationTags: string[] = [];
+    const matchedInfluencer = influencersList.find((inf) => {
+      if (!inf.author_id) return false;
+      // author_idからドメイン部分を抽出（例: "ritalog0317.com:リタ" → "ritalog0317.com"）
+      const domain = inf.author_id.split(":")[0];
+      return a.url?.includes(domain);
+    });
+
+    if (matchedInfluencer?.occupation_tags) {
+      occupationTags = matchedInfluencer.occupation_tags;
+    }
+
+    return {
+      type: "article" as const,
+      id: a.url,
+      title: a.title,
+      thumbnail_url: a.thumbnail_url,
+      published_at: a.published_at,
+      summary: a.summary,
+      product_count: a.product_count,
+      tags: a.tags,
+      occupation_tags: occupationTags,
+      author: a.author,
+      url: a.url,
+      site_name: a.site_name,
+    };
+  });
+
+  // 投稿日順でソート（sortOrderに応じて）
+  let allItems = [...videoItems, ...articleItems].sort((a, b) => {
+    const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
+    return sortOrder === "oldest" ? dateA - dateB : dateB - dateA;
+  });
+
+  // フィルターは1つだけ適用（優先順位: occupation > environment > style）
+  if (selectedOccupation) {
+    allItems = allItems.filter((item) =>
+      item.occupation_tags?.includes(selectedOccupation)
+    );
+  } else if (selectedEnvironment) {
+    allItems = allItems.filter((item) =>
+      item.tags?.includes(selectedEnvironment)
+    );
+  } else if (selectedStyle) {
+    allItems = allItems.filter((item) =>
+      item.tags?.includes(selectedStyle)
+    );
+  }
+
+  // ページネーション
+  const total = allItems.length;
+  const offset = (page - 1) * limit;
+  const paginatedItems = allItems.slice(offset, offset + limit);
+
+  // スタイルタグ（定義済みタグをすべて表示）
+  const availableStyleTags = [...STYLE_TAGS];
+
+  // 環境タグ（定義済みタグをすべて表示）
+  const availableEnvironmentTags = [...ENVIRONMENT_TAGS];
+
+  // JSON-LD 構造化データ
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "デスクツアー動画・記事まとめ",
+    "description": "人気YouTuberやブロガーのデスクツアー動画・記事を一覧で紹介。エンジニア、デザイナー、ゲーマーなど職業別の素敵なデスク環境から、おすすめPC周辺機器やセットアップのヒントが見つかります。",
+    "mainEntity": {
+      "@type": "ItemList",
+      "numberOfItems": siteStats.total_videos + siteStats.total_articles,
+      "itemListElement": videosResult.videos.slice(0, 10).map((video, index) => ({
+        "@type": "VideoObject",
+        "position": index + 1,
+        "name": video.title,
+        "description": video.summary || "",
+        "thumbnailUrl": video.thumbnail_url,
+        "uploadDate": video.published_at,
+      })),
+    },
+    "breadcrumb": {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "ホーム", "item": "/" },
+        { "@type": "ListItem", "position": 2, "name": "デスクツアー一覧" },
+      ],
+    },
+  };
+
+  // DB登録数（動画 + 記事）
+  const dbCount = siteStats.total_videos + siteStats.total_articles;
+
+  // 【SEO最適化】フィルター適用時の動的タイトル・説明文（単一フィルターのみ）
+  let pageTitle = "デスクツアー動画・記事一覧";
+  let pageDescription = "Youtubeで5,000回以上再生されているデスクツアー動画やnote、ブログなどのデスクツアー記事をまとめています。参考になるデスクセットアップを効率よく探しましょう！";
+  let breadcrumbItems: { label: string; href?: string }[] = [{ label: "デスクツアー" }];
+
+  // 職業フィルターが適用されている場合
+  if (selectedOccupation && OCCUPATION_TAGS.includes(selectedOccupation as typeof OCCUPATION_TAGS[number])) {
+    pageTitle = `${selectedOccupation}のデスクツアー動画・記事一覧`;
+    pageDescription = `${selectedOccupation}が公開しているデスクツアー動画・記事をまとめています。${selectedOccupation}のデスク環境やおすすめガジェットを参考にしましょう。`;
+    breadcrumbItems = [
+      { label: "デスクツアー", href: "/sources" },
+      { label: selectedOccupation },
+    ];
+  }
+  // 環境フィルターが適用されている場合
+  else if (selectedEnvironment && ENVIRONMENT_TAGS.includes(selectedEnvironment as typeof ENVIRONMENT_TAGS[number])) {
+    pageTitle = `${selectedEnvironment}のデスクツアー動画・記事一覧`;
+    pageDescription = `${selectedEnvironment}環境のデスクツアー動画・記事をまとめています。${selectedEnvironment}のデスクセットアップを参考にしましょう。`;
+    breadcrumbItems = [
+      { label: "デスクツアー", href: "/sources" },
+      { label: selectedEnvironment },
+    ];
+  }
+  // スタイルフィルターが適用されている場合
+  else if (selectedStyle && STYLE_TAGS.includes(selectedStyle as typeof STYLE_TAGS[number])) {
+    pageTitle = `${selectedStyle}のデスクツアー動画・記事一覧`;
+    pageDescription = `${selectedStyle}スタイルのデスクツアー動画・記事をまとめています。${selectedStyle}なデスクセットアップを参考にしましょう。`;
+    breadcrumbItems = [
+      { label: "デスクツアー", href: "/sources" },
+      { label: selectedStyle },
+    ];
+  }
+
+  return (
+    <>
+      {/* JSON-LD 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      {/* Main Content */}
+      <div className="max-w-[1080px] mx-auto px-4 py-8">
+        <Breadcrumb items={breadcrumbItems} />
+
+        {/* ページタイトル */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {pageTitle}
+          </h1>
+          <p className="text-gray-600">
+            {pageDescription}
+          </p>
+        </div>
+
+        <SourcesClient
+          items={paginatedItems}
+          total={total}
+          availableTags={availableStyleTags as string[]}
+          tagCounts={tagCounts}
+          selectedTags={selectedTags}
+          occupationTags={[...OCCUPATION_TAGS]}
+          selectedOccupation={selectedOccupation}
+          environmentTags={[...ENVIRONMENT_TAGS]}
+          selectedEnvironment={selectedEnvironment}
+          selectedStyle={selectedStyle}
+          sortOrder={sortOrder}
+          currentPage={page}
+          limit={limit}
+        />
+      </div>
+    </>
+  );
+}

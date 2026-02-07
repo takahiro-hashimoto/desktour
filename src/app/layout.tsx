@@ -1,0 +1,33 @@
+import type { Metadata } from "next";
+import { Zen_Kaku_Gothic_New } from "next/font/google";
+import "./globals.css";
+import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
+
+const zenKaku = Zen_Kaku_Gothic_New({
+  weight: ["400", "500", "700"],
+  subsets: ["latin"],
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "デスクツアーDB - デスクツアー商品データベース",
+  description: "YouTubeデスクツアー動画・ブログ記事から収集した商品データベース",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ja">
+      {/* 【最適化】Font Awesome CDNを削除 → lucide-reactに統一 */}
+      <body className={`${zenKaku.className} bg-gray-50 min-h-screen flex flex-col`}>
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </body>
+    </html>
+  );
+}
