@@ -1,44 +1,51 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { getSiteStats, supabase } from "@/lib/supabase";
-import { PRODUCT_CATEGORIES, SUBCATEGORIES, categoryToSlug } from "@/lib/constants";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { getSiteStats, searchProducts } from "@/lib/supabase";
+import { PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
+import "../detail-styles.css";
+import "../listing-styles.css";
 
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "商品カテゴリー一覧 | デスクツアーDB",
+  title: "デスク環境セットアップの商品カテゴリーまとめ | デスクツアーDB",
   description: "キーボード、マウス、モニター、デスク、チェアなどカテゴリー別にデスクツアーで紹介された商品を確認できます。",
 };
 
-// カテゴリーごとのアイコン
+// カテゴリーごとのアイコン（Font Awesome）
 const CATEGORY_ICONS: Record<string, string> = {
-  "キーボード": "⌨️",
-  "マウス": "🖱️",
-  "ディスプレイ/モニター": "🖥️",
-  "デスク": "🪑",
-  "チェア": "💺",
-  "マイク": "🎙️",
-  "ウェブカメラ": "📷",
-  "ヘッドホン/イヤホン": "🎧",
-  "スピーカー": "🔊",
-  "照明・ライト": "💡",
-  "PCスタンド/ノートPCスタンド": "📱",
-  "モニターアーム": "🦾",
-  "モニター台": "📺",
-  "ケーブル/ハブ": "🔌",
-  "USBハブ": "🔌",
-  "デスクマット": "🖼️",
-  "収納/整理": "📦",
-  "PC本体": "💻",
-  "タブレット": "📱",
-  "ペンタブ": "✏️",
-  "充電器/電源": "🔋",
-  "オーディオインターフェース": "🎛️",
-  "ドッキングステーション": "🔗",
-  "左手デバイス": "🎮",
-  "HDD/SSD": "💾",
-  "その他デスクアクセサリー": "🧩",
+  "キーボード": "fa-solid fa-keyboard",
+  "マウス": "fa-solid fa-computer-mouse",
+  "ディスプレイ/モニター": "fa-solid fa-desktop",
+  "デスク": "fa-solid fa-table",
+  "チェア": "fa-solid fa-chair",
+  "マイク": "fa-solid fa-microphone",
+  "ウェブカメラ": "fa-solid fa-video",
+  "ヘッドホン/イヤホン": "fa-solid fa-headphones",
+  "スピーカー": "fa-solid fa-volume-high",
+  "照明・ライト": "fa-solid fa-lightbulb",
+  "PCスタンド/ノートPCスタンド": "fa-solid fa-laptop",
+  "モニターアーム": "fa-solid fa-up-down-left-right",
+  "モニター台": "fa-solid fa-display",
+  "ケーブル/ハブ": "fa-solid fa-plug",
+  "USBハブ": "fa-solid fa-plug",
+  "デスクマット": "fa-solid fa-border-all",
+  "収納/整理": "fa-solid fa-box",
+  "PC本体": "fa-solid fa-computer",
+  "タブレット": "fa-solid fa-tablet-screen-button",
+  "ペンタブ": "fa-solid fa-pen-nib",
+  "充電器/電源": "fa-solid fa-charging-station",
+  "オーディオインターフェース": "fa-solid fa-sliders",
+  "ドッキングステーション": "fa-solid fa-hard-drive",
+  "左手デバイス": "fa-solid fa-gamepad",
+  "HDD/SSD": "fa-solid fa-hard-drive",
+  "コントローラー": "fa-solid fa-gamepad",
+  "ストリームデッキ": "fa-solid fa-grid",
+  "キャプチャーボード": "fa-solid fa-video",
+  "NAS": "fa-solid fa-server",
+  "その他デスクアクセサリー": "fa-solid fa-puzzle-piece",
 };
 
 // カテゴリーごとの説明文
@@ -68,152 +75,154 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   "ドッキングステーション": "ノートPCの拡張性を高める。",
   "左手デバイス": "ショートカットを効率化。",
   "HDD/SSD": "データ保存とバックアップ。",
+  "コントローラー": "ゲームプレイを快適にするコントローラー。",
+  "ストリームデッキ": "配信や作業を効率化するカスタマイズ可能デバイス。",
+  "キャプチャーボード": "ゲーム配信や録画に必須のキャプチャーデバイス。",
+  "NAS": "ネットワーク経由でアクセスできる大容量ストレージ。",
   "その他デスクアクセサリー": "デスクをより便利に。",
 };
 
-interface CategoryWithCount {
-  category: string;
-  count: number;
-}
-
 export default async function CategoryIndexPage() {
   const stats = await getSiteStats();
+  const totalSources = stats.total_videos + stats.total_articles;
 
-  // DBから各カテゴリの商品数を取得
-  const { data: categoryCounts } = await supabase
-    .from("products")
-    .select("category");
+  // 各カテゴリーごとにトップ4商品を取得
+  const categoryProducts = await Promise.all(
+    PRODUCT_CATEGORIES.map(async (category) => {
+      const { products, total } = await searchProducts({
+        category,
+        sortBy: "mention_count",
+        limit: 4,
+      });
 
-  // カテゴリごとの商品数をカウント
-  const categoryCountMap = new Map<string, number>();
-  for (const item of categoryCounts || []) {
-    if (item.category) {
-      categoryCountMap.set(item.category, (categoryCountMap.get(item.category) || 0) + 1);
-    }
-  }
+      return {
+        category,
+        products: products.map((product) => ({
+          id: product.id || "",
+          asin: product.asin,
+          slug: product.slug,
+          slug: product.slug,
+          name: product.name,
+          brand: product.brand,
+          image_url: product.amazon_image_url,
+          amazon_url: product.amazon_url,
+          rakuten_url: product.rakuten_url,
+          price: product.amazon_price,
+          price_updated_at: product.updated_at,
+          mention_count: product.mention_count,
+          user_comment: product.comments?.[0]?.comment,
+        })),
+        total,
+      };
+    })
+  );
 
-  // PRODUCT_CATEGORIESに登録されているカテゴリの情報を取得
-  const categories: CategoryWithCount[] = PRODUCT_CATEGORIES.map((category) => ({
-    category,
-    count: categoryCountMap.get(category) || 0,
-  }));
+  // 商品があるカテゴリーのみ表示
+  const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
 
-  // 商品数でソート（多い順）、0件は除外
-  const sortedCategories = [...categories]
-    .filter((c) => c.count > 0)
-    .sort((a, b) => b.count - a.count);
+  // 構造化データ - パンくずリスト
+  const breadcrumbData = generateBreadcrumbStructuredData([
+    { name: "ホーム", url: "/" },
+    { name: "商品カテゴリー" },
+  ]);
 
   return (
-    <div className="max-w-[1080px] mx-auto px-4 py-12">
-      <Breadcrumb items={[{ label: "カテゴリー" }]} />
+    <>
+      {/* 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <PageHeaderSection
+        label="Database Report"
+        title="デスクツアーに登場する人気のガジェットまとめ"
+        description={
+          <>
+            {totalSources}件の
+            <Link href="/sources" className="link">
+              デスクツアー動画・記事
+            </Link>
+            から人気のデスク周りガジェットをカテゴリー別にまとめています。デスク環境構築の参考にご活用ください。
+          </>
+        }
+        breadcrumbCurrent="カテゴリー"
+        icon="fa-layer-group"
+      />
 
-      {/* Hero Section */}
-      <div className="text-center mb-16">
-        <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-          DATABASE REPORT
-        </p>
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-          商品カテゴリー一覧
-        </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          {stats.total_videos}件のデスクツアー動画から、{PRODUCT_CATEGORIES.length}種類のカテゴリー別に商品を分析しました。
-          探している商品カテゴリーを選択してください。
-        </p>
-      </div>
-
-      {/* Category Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedCategories.map(({ category, count }) => (
-          <Link
-            key={category}
-            href={`/category/${categoryToSlug(category)}`}
-            className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">
-                {CATEGORY_ICONS[category] || "📦"}
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                    {category}
-                  </h3>
-                  <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                    {count}件
-                  </span>
-                </div>
+      <div className="detail-container" style={{ paddingTop: "48px" }}>
+        {filteredCategories.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-sub)" }}>
+            <i className="fa-solid fa-inbox" style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.3 }}></i>
+            <p style={{ fontSize: "15px" }}>商品がまだ登録されていません。</p>
+          </div>
+        ) : (
+          filteredCategories.map(({ category, products, total }) => (
+            <div key={category} style={{ marginBottom: "60px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+                <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
+                <Link
+                  href={`/category/${categoryToSlug(category)}`}
+                  style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
+                </Link>
               </div>
-            </div>
-            {SUBCATEGORIES[category] && SUBCATEGORIES[category].length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-3">
-                {SUBCATEGORIES[category].slice(0, 2).map((sub) => (
-                  <span
-                    key={sub}
-                    className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded"
-                  >
-                    {sub}
-                  </span>
+              <div className="detail-product-grid">
+                {products.map((product) => (
+                  <div key={product.id} className="detail-product-card">
+                    <a
+                      href={product.amazon_url || product.rakuten_url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer sponsored"
+                      className="detail-product-img"
+                    >
+                      <div className="detail-product-img-inner">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.name} />
+                        ) : (
+                          <i className="fa-solid fa-cube img-placeholder"></i>
+                        )}
+                      </div>
+                    </a>
+                    <div className="detail-product-body">
+                      <div className="detail-product-brand">{product.brand || "ブランド不明"}</div>
+                      <div className="detail-product-name">{product.name}</div>
+                      <div className="detail-product-meta">
+                        <span className="detail-mention-badge">
+                          <i className="fa-solid fa-circle-check"></i> {product.mention_count}回登場
+                        </span>
+                        {product.price && (
+                          <div className="detail-product-price">
+                            <div className="price">¥{product.price.toLocaleString("ja-JP")}</div>
+                          </div>
+                        )}
+                      </div>
+                      {product.user_comment && <p className="detail-product-desc">{product.user_comment}</p>}
+                      {product.slug && (
+                        <Link href={`/product/${product.slug}`} className="detail-product-cta">
+                          詳細を見る
+                        </Link>
+                      )}
+                      <div className="detail-product-links">
+                        {product.amazon_url && (
+                          <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" className="amazon">
+                            <i className="fa-brands fa-amazon"></i> Amazonで探す
+                          </a>
+                        )}
+                        {product.rakuten_url && (
+                          <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer" className="rakuten">
+                            楽天で探す
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-            )}
-            <p className="text-xs text-gray-600 mt-3 line-clamp-2">
-              {CATEGORY_DESCRIPTIONS[category] || "デスクツアーで紹介された商品一覧"}
-            </p>
-            <div className="mt-3 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
-              詳細を見る
-              <svg
-                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
             </div>
-          </Link>
-        ))}
+          ))
+        )}
       </div>
-
-      {/* FAQ Section */}
-      <section className="mt-20 bg-white rounded-lg shadow-sm p-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
-          よくある質問
-        </h2>
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              商品情報はどこから収集していますか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              YouTubeのデスクツアー動画やブログ記事から、実際に使用されている商品情報を収集しています。
-              動画内の説明や概要欄のリンクから商品を特定しています。
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              カテゴリーはどのように分類されていますか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              デスク周りで使用される商品を{PRODUCT_CATEGORIES.length}のカテゴリーに分類しています。
-              一部のカテゴリーにはサブカテゴリーがあり、より詳細な絞り込みが可能です。
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              「使用者数」とは何ですか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              その商品がデスクツアーで紹介された回数を示しています。
-              多くの人に選ばれている商品ほど使用者数が多くなります。
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
+    </>
   );
 }

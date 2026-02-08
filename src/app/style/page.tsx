@@ -2,7 +2,10 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { getSiteStats, searchProducts } from "@/lib/supabase";
 import { STYLE_TAGS, styleTagToSlug } from "@/lib/constants";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { ListingGrid } from "@/components/listing/ListingGrid";
+import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
+import "../listing-styles.css";
 
 export const revalidate = 3600; // 1時間キャッシュ
 
@@ -11,18 +14,18 @@ export const metadata: Metadata = {
   description: "ミニマリスト、ゲーミング、おしゃれ、ホワイト、ブラックなどスタイル別にデスクツアーで紹介された商品を確認できます。",
 };
 
-// スタイルごとのアイコン
+// スタイルごとのアイコン（Font Awesome）
 const STYLE_ICONS: Record<string, string> = {
-  "ミニマリスト": "✨",
-  "ゲーミング": "🎮",
-  "おしゃれ": "💫",
-  "ホワイト": "🤍",
-  "ブラック": "🖤",
-  "モノトーン": "⬛",
-  "ナチュラル": "🌿",
-  "北欧風": "🏔️",
-  "インダストリアル": "⚙️",
-  "かわいい": "🎀",
+  "ミニマリスト": "fa-solid fa-minus",
+  "ゲーミング": "fa-solid fa-gamepad",
+  "おしゃれ": "fa-solid fa-wand-magic-sparkles",
+  "ホワイト": "fa-solid fa-circle",
+  "ブラック": "fa-solid fa-circle",
+  "モノトーン": "fa-solid fa-square",
+  "ナチュラル": "fa-solid fa-leaf",
+  "北欧風": "fa-solid fa-mountain",
+  "インダストリアル": "fa-solid fa-gears",
+  "かわいい": "fa-solid fa-heart",
 };
 
 // スタイルごとの説明文
@@ -58,100 +61,49 @@ export default async function StyleIndexPage() {
     .filter((s) => s.count > 0)
     .sort((a, b) => b.count - a.count);
 
+  const listingItems = sortedStyles.map(({ style, count }) => ({
+    href: `/style/${styleTagToSlug(style)}`,
+    icon: STYLE_ICONS[style] || "fa-solid fa-palette",
+    title: style,
+    count,
+    description: STYLE_DESCRIPTIONS[style] || "デスクツアーで紹介された商品一覧",
+  }));
+
+  const totalSources = stats.total_videos + stats.total_articles;
+
+  // 構造化データ - パンくずリスト
+  const breadcrumbData = generateBreadcrumbStructuredData([
+    { name: "ホーム", url: "/" },
+    { name: "スタイル別" },
+  ]);
+
   return (
-    <div className="max-w-[1080px] mx-auto px-4 py-12">
-      <Breadcrumb items={[{ label: "スタイル別" }]} />
-
-      {/* Hero Section */}
-      <div className="text-center mb-16">
-        <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-          DATABASE REPORT
-        </p>
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-          スタイル別デスクセットアップ
-        </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          {stats.total_videos}件のデスクツアー動画から、{STYLE_TAGS.length}種類のスタイル別に商品を分析しました。
-          あなたの好みに合ったデスク環境を見つけましょう。
-        </p>
-      </div>
-
-      {/* Style Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sortedStyles.map(({ style, count }) => (
-          <Link
-            key={style}
-            href={`/style/${styleTagToSlug(style)}`}
-            className="group bg-white border border-gray-200 rounded-xl p-5 hover:border-blue-300 hover:shadow-lg transition-all"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-2xl">
-                {STYLE_ICONS[style] || "🖥️"}
-              </span>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-                  {style}
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">
-                  {count}件の商品
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-gray-600 mt-3 line-clamp-2">
-              {STYLE_DESCRIPTIONS[style] || "デスクツアーで紹介された商品一覧"}
-            </p>
-            <div className="mt-3 flex items-center text-sm text-blue-600 group-hover:text-blue-700">
-              詳細を見る
-              <svg
-                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* FAQ Section */}
-      <section className="mt-20 bg-white rounded-lg shadow-sm p-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">
-          よくある質問
-        </h2>
-        <div className="space-y-6">
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              スタイルはどのように判定していますか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              デスクツアー動画やブログの内容、デスクの見た目や配色を元に自動分類しています。
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              同じ商品が複数のスタイルに含まれることはありますか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              はい、同じ商品が異なるスタイルのデスクで使われている場合があります。
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900 mb-2">
-              ランキングの基準は何ですか？
-            </h3>
-            <p className="text-gray-600 text-sm">
-              各スタイルのデスクツアーで紹介された回数を基準にランキングを作成しています。
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
+    <>
+      {/* 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <PageHeaderSection
+        label="Database Report"
+        title="スタイル別デスクセットアップ"
+        description={
+          <>
+            {totalSources}件の
+            <Link href="/sources" className="link">
+              デスクツアー
+            </Link>
+            から、スタイル別に人気のガジェットを掲載。全スタイルの総合ランキングは
+            <Link href="/category" className="link">
+              デスク周りのガジェット
+            </Link>
+            で紹介しています。
+          </>
+        }
+        breadcrumbCurrent="スタイル別"
+        icon="fa-wand-magic-sparkles"
+      />
+      <ListingGrid items={listingItems} />
+    </>
   );
 }

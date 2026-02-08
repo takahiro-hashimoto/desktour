@@ -11,6 +11,8 @@ import {
 import { searchAmazonProduct, getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct, findBestMatch } from "@/lib/description-links";
 import { ProductInfo } from "@/lib/product-search";
+import { inferSubcategory } from "@/lib/subcategoryInference";
+import { extractProductTags } from "@/lib/productTags";
 
 // URLからauthor_idを生成（note.comの場合はユーザーID、それ以外はドメイン+著者名）
 function generateAuthorId(url: string, author: string | null): string {
@@ -188,7 +190,35 @@ export async function POST(request: NextRequest) {
       }
 
       // サブカテゴリ: Geminiの結果を優先、なければAmazon検索結果から
-      const finalSubcategory = product.subcategory || amazonInfo?.subcategory || null;
+      let finalSubcategory = product.subcategory || amazonInfo?.subcategory || null;
+
+      // Amazon情報があればサブカテゴリを推論（動画解析と同じロジック）
+      if (!finalSubcategory && amazonInfo) {
+        finalSubcategory = inferSubcategory({
+          category: product.category,
+          title: amazonInfo.title,
+          features: amazonInfo.features,
+          technicalInfo: amazonInfo.technicalInfo,
+        });
+        if (finalSubcategory) {
+          console.log(`  [SubcategoryInferred] ${product.name} → ${finalSubcategory}`);
+        }
+      }
+
+      // タグを抽出（Amazon情報があれば）
+      let productTags: string[] | undefined;
+      if (amazonInfo) {
+        productTags = extractProductTags({
+          category: product.category,
+          subcategory: finalSubcategory,
+          title: amazonInfo.title,
+          features: amazonInfo.features,
+          technicalInfo: amazonInfo.technicalInfo,
+        });
+        if (productTags.length > 0) {
+          console.log(`  [TagsExtracted] ${product.name} → [${productTags.join(", ")}]`);
+        }
+      }
 
       matchedProducts.push({
         name: product.name,
@@ -197,6 +227,7 @@ export async function POST(request: NextRequest) {
         subcategory: finalSubcategory,
         reason: product.reason,
         confidence: product.confidence,
+        tags: productTags,
         amazon: amazonInfo ? {
           asin: amazonInfo.id,
           title: amazonInfo.title,

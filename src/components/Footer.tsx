@@ -1,117 +1,99 @@
 import Link from "next/link";
+import {
+  OCCUPATION_TAGS,
+  occupationToSlug,
+  PRODUCT_CATEGORIES,
+  categoryToSlug,
+  STYLE_TAGS,
+  styleTagToSlug,
+} from "@/lib/constants";
+import { getTopBrandsByProductCount } from "@/lib/supabase";
 
-export function Footer() {
+export async function Footer() {
+  // TOP10ブランドを取得
+  const topBrands = await getTopBrandsByProductCount(10);
+
   return (
     <footer className="bg-gray-800 text-gray-400 py-8 mt-12">
       <div className="max-w-[1080px] mx-auto px-4">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-8">
-          {/* デスクツアー */}
+        {/* 1段目: 主要リンク（横並び） */}
+        <div className="flex flex-wrap gap-6 justify-center mb-8 pb-8 border-b border-gray-700">
+          <Link href="/sources" className="text-white font-bold hover:text-gray-300">
+            デスクツアー
+          </Link>
+          <Link href="/about" className="text-white font-bold hover:text-gray-300">
+            運営者情報
+          </Link>
+          <Link href="/policy" className="text-white font-bold hover:text-gray-300">
+            コンテンツ制作ポリシー
+          </Link>
+          <Link href="/contact" className="text-white font-bold hover:text-gray-300">
+            お問い合わせ
+          </Link>
+        </div>
+
+        {/* 2段目: カテゴリ別リンク */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+          {/* 製品カテゴリ */}
           <div>
-            <h3 className="text-white font-bold mb-3">デスクツアー</h3>
+            <p className="text-white font-bold mb-3">
+              <Link href="/category" className="hover:text-white">
+                製品カテゴリ
+              </Link>
+            </p>
             <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="/sources" className="hover:text-white">
-                  動画・記事一覧
-                </Link>
-              </li>
+              {PRODUCT_CATEGORIES.slice(0, 10).map((category) => (
+                <li key={category}>
+                  <Link
+                    href={`/category/${categoryToSlug(category)}`}
+                    className="hover:text-white"
+                  >
+                    {category}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* 職業別 */}
           <div>
-            <h3 className="text-white font-bold mb-3">職業別</h3>
+            <p className="text-white font-bold mb-3">
+              <Link href="/occupation" className="hover:text-white">
+                職業別
+              </Link>
+            </p>
             <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="/occupation/engineer" className="hover:text-white">
-                  エンジニア
-                </Link>
-              </li>
-              <li>
-                <Link href="/occupation/designer" className="hover:text-white">
-                  デザイナー
-                </Link>
-              </li>
-              <li>
-                <Link href="/occupation/creator" className="hover:text-white">
-                  クリエイター
-                </Link>
-              </li>
-              <li>
-                <Link href="/occupation/gamer" className="hover:text-white">
-                  ゲーマー
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* カテゴリ */}
-          <div>
-            <h3 className="text-white font-bold mb-3">カテゴリ</h3>
-            <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="/category/keyboard" className="hover:text-white">
-                  キーボード
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/mouse" className="hover:text-white">
-                  マウス
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/monitor" className="hover:text-white">
-                  モニター
-                </Link>
-              </li>
-              <li>
-                <Link href="/category/desk" className="hover:text-white">
-                  デスク
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* スタイル別 */}
-          <div>
-            <h3 className="text-white font-bold mb-3">スタイル別</h3>
-            <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="/style/minimalist" className="hover:text-white">
-                  ミニマリスト
-                </Link>
-              </li>
-              <li>
-                <Link href="/style/gaming" className="hover:text-white">
-                  ゲーミング
-                </Link>
-              </li>
-              <li>
-                <Link href="/style/natural" className="hover:text-white">
-                  ナチュラル
-                </Link>
-              </li>
+              {OCCUPATION_TAGS.map((occupation) => (
+                <li key={occupation}>
+                  <Link
+                    href={`/occupation/${occupationToSlug(occupation)}`}
+                    className="hover:text-white"
+                  >
+                    {occupation}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* ブランド別 */}
           <div>
-            <h3 className="text-white font-bold mb-3">ブランド別</h3>
+            <p className="text-white font-bold mb-3">
+              <Link href="/brand" className="hover:text-white">
+                ブランド別
+              </Link>
+            </p>
             <ul className="space-y-1 text-sm">
-              <li>
-                <Link href="/brand/flexispot" className="hover:text-white">
-                  FlexiSpot
-                </Link>
-              </li>
-              <li>
-                <Link href="/brand/logicool" className="hover:text-white">
-                  Logicool
-                </Link>
-              </li>
-              <li>
-                <Link href="/brand/keychron" className="hover:text-white">
-                  Keychron
-                </Link>
-              </li>
+              {topBrands.map((brand) => (
+                <li key={brand.slug}>
+                  <Link
+                    href={`/brand/${brand.slug}`}
+                    className="hover:text-white"
+                  >
+                    {brand.brand}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

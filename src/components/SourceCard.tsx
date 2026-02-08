@@ -1,13 +1,10 @@
 "use client";
 
-import { Play, FileText, Package } from "lucide-react";
 import type { Video, Article } from "@/lib/supabase";
 
-// 拡張されたソースタイプ（商品数含む）
 type ExtendedVideo = Video & { product_count?: number };
 type ExtendedArticle = Article & { product_count?: number };
 
-// 汎用的なソースタイプ（page.tsxのSourceItem用）
 type GenericSource = {
   title: string;
   thumbnail_url?: string | null;
@@ -15,12 +12,10 @@ type GenericSource = {
   tags?: string[];
   published_at?: string | null;
   product_count?: number;
-  occupation_tags?: string[]; // 職業タグ
-  // video用
+  occupation_tags?: string[];
   video_id?: string;
   channel_title?: string;
   subscriber_count?: number;
-  // article用
   url?: string;
   author?: string | null;
   site_name?: string | null;
@@ -30,7 +25,7 @@ interface SourceCardProps {
   source: ExtendedVideo | ExtendedArticle | GenericSource;
   type: "video" | "article";
   onClick: () => void;
-  highlightedTag?: string; // 選択中のフィルタータグ（先頭にハイライト表示）
+  highlightedTag?: string;
 }
 
 export function SourceCard({ source, type, onClick, highlightedTag }: SourceCardProps) {
@@ -44,20 +39,16 @@ export function SourceCard({ source, type, onClick, highlightedTag }: SourceCard
   const productCount = source.product_count;
   const occupationTags = "occupation_tags" in source ? source.occupation_tags : undefined;
 
-  // summaryをクリーンアップ（記事の場合、「この記事の著者...」部分を除去）
   let cleanSummary = summary;
   if (!isVideo && summary) {
-    // 「この記事では、」以降を抽出
     const articleContentMatch = summary.match(/この記事では[、,]?\s*(.+)/s);
     if (articleContentMatch) {
       cleanSummary = articleContentMatch[1].trim();
     } else if (summary.startsWith("この記事の著者")) {
-      // 「この記事の著者...」で始まるが「この記事では」がない場合は表示しない
       cleanSummary = undefined;
     }
   }
 
-  // メディア名の取得（動画: チャンネル名、記事: サイト名）
   let mediaName: string | undefined | null;
   if (isVideo) {
     mediaName = "channel_title" in source ? source.channel_title : undefined;
@@ -66,99 +57,72 @@ export function SourceCard({ source, type, onClick, highlightedTag }: SourceCard
   }
 
   return (
-    <button
-      onClick={onClick}
-      className="bg-white border border-gray-200 rounded-lg overflow-hidden text-left hover:border-blue-300 hover:shadow-md cursor-pointer transition-all w-full group"
-    >
+    <button onClick={onClick} className="sources-card">
       {/* サムネイル */}
-      <div className="relative aspect-video bg-gray-100">
+      <div className="sources-card__thumb">
         {thumbnailUrl ? (
           <img
             src={thumbnailUrl}
             alt={title}
-            className="w-full h-full object-cover"
+            className="sources-card__img"
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            {isVideo ? (
-              <Play className="w-12 h-12" />
-            ) : (
-              <FileText className="w-12 h-12" />
-            )}
+          <div className="sources-card__placeholder">
+            <i className={`fas ${isVideo ? 'fa-play' : 'fa-file-text'} sources-card__placeholder-icon`}></i>
           </div>
         )}
-        {/* タイプバッジ */}
-        <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-medium text-white ${
-          isVideo ? "bg-red-500" : "bg-blue-500"
-        }`}>
+        <span className={`sources-card__badge ${isVideo ? 'sources-card__badge--video' : 'sources-card__badge--article'}`}>
           {isVideo ? "動画" : "記事"}
-        </div>
+        </span>
       </div>
 
       {/* コンテンツ */}
-      <div className="p-4">
-        {/* タイトル */}
-        <h2 className="font-medium text-gray-900 text-sm line-clamp-2 mb-2 group-hover:text-blue-600 transition-colors">
-          {title}
-        </h2>
+      <div className="sources-card__body">
+        <h3 className="sources-card__title">{title}</h3>
 
-        {/* メディア名・職業タグ・日付 */}
-        <p className="text-xs text-gray-500 mb-2">
-          {mediaName && <span>{mediaName}</span>}
+        <div className="sources-card__meta">
+          {mediaName && <span className="sources-card__author">{mediaName}</span>}
           {occupationTags && occupationTags.length > 0 && (
-            <span className="ml-1.5 font-medium">
-              {occupationTags[0]}
-            </span>
+            <>
+              {mediaName && <span className="sources-card__dot"></span>}
+              <span className="sources-card__occupation">{occupationTags[0]}</span>
+            </>
           )}
-          {(mediaName || (occupationTags && occupationTags.length > 0)) && publishedAt && <span> • </span>}
           {publishedAt && (
-            <span>
-              {new Date(publishedAt).toLocaleDateString("ja-JP", {
+            <>
+              {(mediaName || (occupationTags && occupationTags.length > 0)) && <span className="sources-card__dot"></span>}
+              <span>{new Date(publishedAt).toLocaleDateString("ja-JP", {
                 year: "numeric",
-                month: "short",
+                month: "numeric",
                 day: "numeric",
-              })}
-            </span>
+              })}</span>
+            </>
           )}
-        </p>
+        </div>
 
-        {/* サマリー */}
         {cleanSummary && (
-          <p className="text-xs text-gray-600 line-clamp-2 mb-3 leading-relaxed">
-            {cleanSummary}
-          </p>
+          <p className="sources-card__excerpt">{cleanSummary}</p>
         )}
 
-        {/* 商品数バッジ（新規追加） */}
         {productCount !== undefined && productCount > 0 && (
-          <div className="mb-3">
-            <span className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
-              <Package className="w-3 h-3" />
-              紹介商品: {productCount}件
-            </span>
+          <div className="sources-card__products">
+            <i className="fas fa-link"></i> 紹介商品: {productCount}件
           </div>
         )}
 
-        {/* タグ（SEO対策: 全タグをHTML出力、4個目以降は視覚的に非表示） */}
         {tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {tags.map((tag, index) => (
+          <div className="sources-card__tags">
+            {tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className={`text-xs px-2 py-0.5 rounded ${
-                  index >= 3 ? "sr-only" : ""
-                } ${
-                  tag === highlightedTag
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600"
-                }`}
+                className={`sources-card__tag ${tag === highlightedTag ? 'sources-card__tag--highlighted' : ''}`}
               >
                 {tag}
               </span>
             ))}
             {tags.length > 3 && (
-              <span className="text-xs text-gray-400">+{tags.length - 3}</span>
+              <span className="sources-card__more">+{tags.length - 3}</span>
             )}
           </div>
         )}

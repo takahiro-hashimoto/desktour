@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { normalizeProductName } from "./product-normalize";
+import { generateProductSlug } from "./productSlug";
+import { inferSubcategory } from "./subcategoryInference";
+import { extractProductTags } from "./productTags";
 
 const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_ANON_KEY!;
@@ -43,6 +46,7 @@ export interface Product {
   brand?: string;
   category: string;
   subcategory?: string; // サブカテゴリ（メカニカルキーボード、4Kモニター等）
+  tags?: string[]; // 商品タグ（ワイヤレス、静音、ゲーミング等）
   reason: string;
   confidence: "high" | "medium" | "low";
   video_id?: string;
@@ -212,10 +216,17 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
     return existing as Product;
   }
 
-  // 新規商品を保存（正規化名も一緒に保存）
+  // 新規商品を保存（正規化名とslugも一緒に保存）
+  const slug = generateProductSlug({
+    name: product.name,
+    brand: product.brand,
+    asin: product.asin,
+  });
+
   const productWithNormalized = {
     ...product,
     normalized_name: normalizedName,
+    slug,
   };
 
   const { data, error } = await supabase
@@ -239,7 +250,7 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
     confidence: product.confidence,
   });
 
-  console.log(`[saveProduct] Created new product: "${data.name}" (normalized: "${normalizedName}")`);
+  console.log(`[saveProduct] Created new product: "${data.name}" (normalized: "${normalizedName}", slug: "${slug}")`);
   return data as Product;
 }
 
@@ -354,13 +365,53 @@ export async function updateProductWithAmazon(
     }
   }
 
+  // Amazon情報からサブカテゴリーとタグを推論
+  let inferredSubcategory = productInfo.subcategory;
+  let extractedTags: string[] | undefined;
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("category, subcategory")
+    .eq("id", productId)
+    .single();
+
+  if (product) {
+    // サブカテゴリー推論
+    if (!inferredSubcategory) {
+      inferredSubcategory = inferSubcategory({
+        category: product.category,
+        title: productInfo.amazon_title,
+        features: productInfo.amazon_features,
+        technicalInfo: productInfo.amazon_technical_info,
+        currentSubcategory: product.subcategory,
+      });
+    }
+
+    // タグ抽出
+    extractedTags = extractProductTags({
+      category: product.category,
+      subcategory: inferredSubcategory || product.subcategory,
+      title: productInfo.amazon_title,
+      features: productInfo.amazon_features,
+      technicalInfo: productInfo.amazon_technical_info,
+    });
+  }
+
   const updateData: Record<string, unknown> = { ...productInfo };
   if (priceRange) {
     updateData.price_range = priceRange;
   }
-  // subcategoryがundefinedの場合は既存の値を保持（更新しない）
-  if (productInfo.subcategory === undefined) {
+  // 推論されたサブカテゴリーがあれば設定
+  if (inferredSubcategory) {
+    updateData.subcategory = inferredSubcategory;
+  } else if (productInfo.subcategory === undefined) {
+    // subcategoryがundefinedの場合は既存の値を保持（更新しない）
     delete updateData.subcategory;
+  }
+  // 抽出されたタグがあれば設定
+  if (extractedTags && extractedTags.length > 0) {
+    updateData.tags = extractedTags;
+    console.log(`[updateProductWithAmazon] Extracted tags for ${productId}:`, extractedTags);
   }
 
   const { error } = await supabase
@@ -575,7 +626,7 @@ import type {
   SourceDetail,
   SourceProduct,
 } from "@/types";
-import { OCCUPATION_TAG_GROUPS, getCompatibleCategories } from "@/lib/constants";
+import { getCompatibleCategories, getDisplayName } from "@/lib/constants";
 
 // 商品検索（一覧ページ用）
 export async function searchProducts(params: SearchParams): Promise<{
@@ -619,15 +670,14 @@ export async function searchProducts(params: SearchParams): Promise<{
 
   // occupationTagフィルタリング用のID取得
   if (occupationTag) {
-    // グループに含まれる全タグを取得（例: "エンジニア" → ["エンジニア", "Webエンジニア", ...]）
-    const targetTags = OCCUPATION_TAG_GROUPS[occupationTag] || [occupationTag];
-    console.log(`[searchProducts] occupationTag: ${occupationTag}, targetTags:`, targetTags);
+    // 指定されたタグを持つインフルエンサーのchannel_idを取得
+    console.log(`[searchProducts] occupationTag: ${occupationTag}`);
 
-    // いずれかのタグを持つインフルエンサーのchannel_idを取得（overlapsで部分一致）
+    // 指定されたタグを持つインフルエンサーのchannel_idを取得（containsで完全一致）
     const { data: taggedInfluencers, error: infError } = await supabase
       .from("influencers")
       .select("channel_id, occupation_tags")
-      .overlaps("occupation_tags", targetTags);
+      .contains("occupation_tags", [occupationTag]);
 
     if (infError) {
       console.error("Error fetching influencers by occupation_tags:", infError);
@@ -664,16 +714,7 @@ export async function searchProducts(params: SearchParams): Promise<{
   let query = supabase
     .from("products")
     .select(`
-      id,
-      name,
-      brand,
-      category,
-      subcategory,
-      price_range,
-      amazon_url,
-      amazon_image_url,
-      amazon_price,
-      amazon_title,
+      *,
       product_mentions!inner (
         id,
         reason,
@@ -683,7 +724,8 @@ export async function searchProducts(params: SearchParams): Promise<{
         confidence
       )
     `, { count: "exact" })
-    .neq("product_mentions.confidence", "low");
+    .neq("product_mentions.confidence", "low")
+    .not("asin", "is", null); // ASINがない商品を除外
 
   // カテゴリフィルタ
   if (category) {
@@ -754,15 +796,22 @@ export async function searchProducts(params: SearchParams): Promise<{
 
     return {
       id: product.id,
+      asin: product.asin,
+      slug: product.slug,
       name: product.name,
       brand: product.brand,
-      category: product.category,
+      category: getDisplayName(product.category), // DB値を表示名に変換
       subcategory: product.subcategory,
       price_range: product.price_range,
       amazon_url: product.amazon_url,
       amazon_image_url: product.amazon_image_url,
       amazon_price: product.amazon_price,
       amazon_title: product.amazon_title,
+      rakuten_url: product.rakuten_url,
+      rakuten_image_url: product.rakuten_image_url,
+      official_url: product.official_url,
+      product_source: product.product_source,
+      updated_at: product.updated_at,
       mention_count: mentions.length,
       comments,
     };
@@ -806,6 +855,62 @@ export async function getProductCountByCategory(): Promise<Record<string, number
   return counts;
 }
 
+// ASINで商品詳細を取得
+export async function getProductDetailByAsin(asin: string): Promise<ProductDetail | null> {
+  // 商品基本情報（confidence: low を除外）
+  const { data: product, error } = await supabase
+    .from("products")
+    .select(`
+      *,
+      product_mentions (
+        id,
+        reason,
+        source_type,
+        video_id,
+        article_id,
+        confidence
+      )
+    `)
+    .eq("asin", asin)
+    .neq("product_mentions.confidence", "low")
+    .single();
+
+  if (error || !product) {
+    console.error("Error fetching product detail by ASIN:", error);
+    return null;
+  }
+
+  return getProductDetailCommon(product);
+}
+
+// スラッグで商品詳細を取得
+export async function getProductDetailBySlug(slug: string): Promise<ProductDetail | null> {
+  // 商品基本情報（confidence: low を除外）
+  const { data: product, error } = await supabase
+    .from("products")
+    .select(`
+      *,
+      product_mentions (
+        id,
+        reason,
+        source_type,
+        video_id,
+        article_id,
+        confidence
+      )
+    `)
+    .eq("slug", slug)
+    .neq("product_mentions.confidence", "low")
+    .single();
+
+  if (error || !product) {
+    console.error(`Error fetching product detail by slug "${slug}":`, error);
+    return null;
+  }
+
+  return getProductDetailCommon(product);
+}
+
 // 商品詳細を取得
 export async function getProductDetail(productId: string): Promise<ProductDetail | null> {
   // 商品基本情報（confidence: low を除外）
@@ -830,6 +935,13 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     console.error("Error fetching product detail:", error);
     return null;
   }
+
+  return getProductDetailCommon(product);
+}
+
+// 商品詳細の共通処理
+async function getProductDetailCommon(product: any): Promise<ProductDetail | null> {
+  const productId = product.id;
 
   const mentions = product.product_mentions || [];
 
@@ -860,29 +972,31 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     if (m.video_id) {
       const video = videoMap.get(m.video_id);
       return {
-        reason: m.reason,
+        comment: m.reason || "",
         source_type: "video" as const,
-        source_id: m.video_id,
+        source_video_id: m.video_id,
+        source_url: `https://www.youtube.com/watch?v=${m.video_id}`,
         source_title: video?.title || "",
-        thumbnail_url: video?.thumbnail_url || undefined,
+        source_thumbnail_url: video?.thumbnail_url || undefined,
         channel_title: video?.channel_title,
         occupation_tags: [],
       };
     } else if (m.article_id) {
       const article = articleMap.get(m.article_id);
       return {
-        reason: m.reason,
+        comment: m.reason || "",
         source_type: "article" as const,
         source_id: m.article_id,
+        source_url: m.article_id,
         source_title: article?.title || "",
-        thumbnail_url: article?.thumbnail_url || undefined,
+        source_thumbnail_url: article?.thumbnail_url || undefined,
         author: article?.author || undefined,
         occupation_tags: [],
       };
     } else {
       // video_idもarticle_idもない場合
       return {
-        reason: m.reason,
+        comment: m.reason || "",
         source_type: m.source_type,
         source_id: undefined,
         source_title: "",
@@ -905,9 +1019,12 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
 
   return {
     id: product.id,
+    slug: product.slug,
     name: product.name,
     brand: product.brand,
-    category: product.category,
+    category: getDisplayName(product.category), // DB値を表示名に変換
+    subcategory: product.subcategory,
+    tags: product.tags,
     price_range: product.price_range,
     amazon_url: product.amazon_url,
     amazon_image_url: product.amazon_image_url,
@@ -938,7 +1055,7 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
   };
 }
 
-// カテゴリ内順位を取得
+// カテゴリ内順位を取得（同じmention_countは同順位）
 async function getCategoryRank(productId: string, category: string): Promise<{ categoryRank: number; totalInCategory: number }> {
   // 同じカテゴリの全商品を言及数でソートして取得
   const { data: products } = await supabase
@@ -961,7 +1078,32 @@ async function getCategoryRank(productId: string, category: string): Promise<{ c
     count: Array.isArray(p.product_mentions) ? p.product_mentions.length : (p.product_mentions?.[0]?.count || 0),
   })).sort((a, b) => b.count - a.count);
 
-  const rank = sorted.findIndex((p) => p.id === productId) + 1;
+  // 対象商品のmention_countを取得
+  const targetProduct = sorted.find((p) => p.id === productId);
+  if (!targetProduct) {
+    return { categoryRank: 0, totalInCategory: products.length };
+  }
+
+  // 同じcount値の場合は同順位として計算
+  let rank = 1;
+  let previousCount: number | null = null;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const product = sorted[i];
+
+    if (previousCount !== null && product.count < previousCount) {
+      rank = i + 1;
+    }
+
+    if (product.id === productId) {
+      return {
+        categoryRank: rank,
+        totalInCategory: products.length,
+      };
+    }
+
+    previousCount = product.count;
+  }
 
   return {
     categoryRank: rank,
@@ -1120,7 +1262,7 @@ export async function getCoOccurrenceProducts(
   // 商品情報を取得
   const { data: products, error: productError } = await supabase
     .from("products")
-    .select("id, name, brand, category, amazon_image_url")
+    .select("id, asin, slug, name, brand, category, amazon_image_url")
     .in("id", sortedProductIds);
 
   if (productError || !products) {
@@ -1136,6 +1278,8 @@ export async function getCoOccurrenceProducts(
   const result = products
     .map((p) => ({
       id: p.id,
+      asin: p.asin,
+      slug: p.slug,
       name: p.name,
       brand: p.brand,
       category: p.category,
@@ -1478,6 +1622,7 @@ export async function getSourceDetail(
         product_id,
         products (
           id,
+          slug,
           name,
           brand,
           category,
@@ -1516,6 +1661,7 @@ export async function getSourceDetail(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((m: any) => ({
         id: m.products.id,
+        slug: m.products.slug,
         name: m.products.name,
         brand: m.products.brand,
         category: m.products.category,
@@ -1525,6 +1671,14 @@ export async function getSourceDetail(
         reason: m.reason,
         mention_count: countMap.get(m.product_id) || 1,
       }));
+
+    // デバッグ: slug が null の商品を確認
+    const productsWithoutSlug = products.filter(p => !p.slug);
+    if (productsWithoutSlug.length > 0) {
+      console.warn(`[getSourceDetail] Products without slug (${productsWithoutSlug.length}):`,
+        productsWithoutSlug.map(p => ({ id: p.id, name: p.name, brand: p.brand }))
+      );
+    }
 
     // influencers テーブルから occupation_tags を取得
     let occupationTags: string[] = [];
@@ -1591,6 +1745,7 @@ export async function getSourceDetail(
         product_id,
         products (
           id,
+          slug,
           name,
           brand,
           category,
@@ -1629,6 +1784,7 @@ export async function getSourceDetail(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .map((m: any) => ({
         id: m.products.id,
+        slug: m.products.slug,
         name: m.products.name,
         brand: m.products.brand,
         category: m.products.category,
@@ -1638,6 +1794,14 @@ export async function getSourceDetail(
         reason: m.reason,
         mention_count: countMap.get(m.product_id) || 1,
       }));
+
+    // デバッグ: slug が null の商品を確認（記事）
+    const productsWithoutSlugArticle = products.filter(p => !p.slug);
+    if (productsWithoutSlugArticle.length > 0) {
+      console.warn(`[getSourceDetail Article] Products without slug (${productsWithoutSlugArticle.length}):`,
+        productsWithoutSlugArticle.map(p => ({ id: p.id, name: p.name, brand: p.brand }))
+      );
+    }
 
     // 記事著者の職業タグを取得
     // author_idは "ドメイン:著者名" 形式なので、記事URLのドメイン部分でマッチング
@@ -1675,7 +1839,7 @@ export async function getSourceDetail(
 
 // 動画一覧取得
 // 拡張Video型（商品数含む）
-export type VideoWithProductCount = Video & { product_count?: number };
+export type VideoWithProductCount = Video & { product_count?: number; occupation_tags?: string[] };
 
 export async function getVideos(params: {
   tags?: string[];
@@ -1921,4 +2085,55 @@ export async function findBrandInDatabase(brandName: string): Promise<string | n
     .limit(1);
 
   return data && data.length > 0 ? data[0].brand : null;
+}
+
+// 最新のデスクツアー動画を取得（TOPページ用）
+export async function getLatestVideos(limit: number = 3): Promise<VideoWithProductCount[]> {
+  const { data: videos } = await supabase
+    .from("videos")
+    .select("*")
+    .order("published_at", { ascending: false })
+    .limit(limit);
+
+  if (!videos || videos.length === 0) {
+    return [];
+  }
+
+  // 各動画の商品数を取得（confidence lowを除外）
+  const videoIds = videos.map((v) => v.video_id);
+  const { data: mentions } = await supabase
+    .from("product_mentions")
+    .select("video_id")
+    .in("video_id", videoIds)
+    .neq("confidence", "low");
+
+  // video_idごとにカウント
+  const countMap: Record<string, number> = {};
+  (mentions || []).forEach((m) => {
+    if (m.video_id) {
+      countMap[m.video_id] = (countMap[m.video_id] || 0) + 1;
+    }
+  });
+
+  // インフルエンサー情報を取得してタグを付与
+  const channelIds = videos.map((v) => v.channel_id).filter(Boolean);
+  const { data: influencers } = channelIds.length > 0
+    ? await supabase
+        .from("influencers")
+        .select("channel_id, occupation_tags")
+        .in("channel_id", channelIds)
+    : { data: [] };
+
+  const influencerMap = new Map(
+    (influencers || []).map((inf) => [inf.channel_id, inf.occupation_tags || []])
+  );
+
+  // 動画に商品数とタグを付与
+  const videosWithCount: VideoWithProductCount[] = videos.map((v) => ({
+    ...v,
+    product_count: countMap[v.video_id] || 0,
+    occupation_tags: influencerMap.get(v.channel_id) || [],
+  }));
+
+  return videosWithCount;
 }

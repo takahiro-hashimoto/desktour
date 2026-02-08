@@ -2,128 +2,177 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { slugToCategory, SUBCATEGORIES } from "@/lib/constants";
-import { SortSelect } from "@/components/SortSelect";
-import { SubcategoryFilter } from "@/components/SubcategoryFilter";
-import { ProductCard } from "@/components/ProductCard";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PRODUCT_CATEGORIES, SUBCATEGORIES, slugToCategory } from "@/lib/constants";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { FilterSection } from "@/components/detail/FilterSection";
+import { ResultsBar } from "@/components/detail/ResultsBar";
+import { ProductGrid } from "@/components/detail/ProductGrid";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { assignRanks } from "@/lib/rankUtils";
+import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
+import "../../detail-styles.css";
+import "../../listing-styles.css";
+
+export const revalidate = 3600;
 
 interface PageProps {
   params: { slug: string };
-  searchParams: { sort?: string; subcategory?: string };
-}
-
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const category = slugToCategory(params.slug);
-  if (!category) {
-    return { title: "Not Found" };
-  }
-
-  return {
-    title: `デスク環境構築におすすめの${category} | デスクツアーDB`,
-    description: `デスク環境構築におすすめの${category}。実際に使用しているユーザーのコメント付き。`,
+  searchParams: {
+    subcategory?: string;
+    sort?: string;
+    page?: string;
   };
 }
 
-export default async function CategoryPage({ params, searchParams }: PageProps) {
-  const category = slugToCategory(params.slug);
+// カテゴリー名を取得
+function getCategoryFromSlug(slug: string): string | null {
+  const category = slugToCategory(slug);
+  return PRODUCT_CATEGORIES.includes(category) ? category : null;
+}
 
-  if (!category) {
-    notFound();
-  }
+// カテゴリーアイコンマッピング
+function getCategoryIcon(category: string): string {
+  const iconMap: { [key: string]: string } = {
+    "キーボード": "fa-keyboard",
+    "マウス": "fa-computer-mouse",
+    "ディスプレイ・モニター": "fa-display",
+    "デスク": "fa-table",
+    "チェア": "fa-chair",
+    "マイク": "fa-microphone",
+    "ウェブカメラ": "fa-video",
+    "ヘッドホン・イヤホン": "fa-headphones",
+    "スピーカー": "fa-volume-high",
+    "照明・ライト": "fa-lightbulb",
+    "ケーブルハブ": "fa-plug",
+    "充電器・電源": "fa-battery-full",
+    "その他デスクアクセサリー": "fa-puzzle-piece",
+  };
+  return iconMap[category] || "fa-cube";
+}
 
-  const sort = searchParams.sort || "mention_count";
-  const subcategory = searchParams.subcategory;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const category = getCategoryFromSlug(params.slug);
+  if (!category) return { title: "カテゴリーが見つかりません" };
 
-  // このカテゴリのサブカテゴリ一覧を取得
-  const subcategories = SUBCATEGORIES[category] || [];
+  return {
+    title: `デスクツアーに登場した${category}一覧 | デスクツアーDB`,
+    description: `デスクツアー動画・記事で実際に使用されている${category}を、使用者のコメント付きでまとめています。`,
+  };
+}
 
+export default async function CategoryDetailPage({ params, searchParams }: PageProps) {
+  const category = getCategoryFromSlug(params.slug);
+  if (!category) notFound();
+
+  const subcategoryFilter = searchParams.subcategory;
+  const sort = searchParams.sort || "mention";
+  const page = parseInt(searchParams.page || "1");
+  const limit = 20;
+
+  // 商品データ取得
   const { products, total } = await searchProducts({
     category,
-    subcategory,
-    sortBy: sort as "mention_count" | "price_asc" | "price_desc",
-    limit: 50,
+    subcategory: subcategoryFilter,
+    sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
+    page,
+    limit,
   });
 
+  // デスクツアー動画・記事の件数を取得
   const stats = await getSiteStats();
+  const totalSources = stats.total_videos + stats.total_articles;
+
+  // 商品データを整形
+  const formattedProducts = products.map((product) => ({
+    id: product.id || "",
+    asin: product.asin,
+    slug: product.slug,
+    name: product.name,
+    brand: product.brand,
+    image_url: product.amazon_image_url,
+    amazon_url: product.amazon_url,
+    rakuten_url: product.rakuten_url,
+    price: product.amazon_price,
+    price_updated_at: product.updated_at,
+    mention_count: product.mention_count,
+    user_comment: product.comments?.[0]?.comment,
+  }));
+
+  // ランク付け（mention_countソート時のみ、同じmention_countは同順位）
+  const productsWithRank = sort === "mention"
+    ? assignRanks(formattedProducts, { page, limit })
+    : formattedProducts.map(p => ({ ...p, rank: undefined }));
+
+  // サブカテゴリ一覧
+  const subcategories = SUBCATEGORIES[category] || [];
+
+  // FAQデータ
+  const faqItems = [
+    {
+      question: "このデータはどこから収集していますか？",
+      answer: "YouTubeのデスクツアー動画およびブログ記事から、実際に使用されている商品情報を収集しています。",
+    },
+    {
+      question: "「使用者数」とは何ですか？",
+      answer: "その商品を使用しているデスクツアーの数を示しています。",
+    },
+    {
+      question: "価格情報は正確ですか？",
+      answer: "価格情報はAmazon Product Advertising APIから取得しており、実際の販売価格と異なる場合があります。購入の際はリンク先で最新の価格をご確認ください。",
+    },
+  ];
+
+  // 構造化データ - パンくずリスト
+  const breadcrumbData = generateBreadcrumbStructuredData([
+    { name: "ホーム", url: "/" },
+    { name: "商品カテゴリー", url: "/category" },
+    { name: category },
+  ]);
 
   return (
-    <div className="max-w-[1080px] mx-auto px-4 py-8">
-      <Breadcrumb items={[{ label: "商品カテゴリー", href: "/category" }, { label: category }]} />
+    <>
+      {/* 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <PageHeaderSection
+        label="Database Report"
+        title={`デスクツアーに登場した${category}一覧`}
+        description={
+          <>
+            {totalSources}件の
+            <Link href="/sources" className="link">
+              デスクツアー
+            </Link>
+            で実際に使用されている{category}を使用者のコメント付きで紹介。その他カテゴリーが気になる方は
+            <Link href="/category" className="link">
+              デスク周りのガジェット
+            </Link>
+            をご覧ください。
+          </>
+        }
+        breadcrumbCurrent={category}
+        breadcrumbMiddle={{ label: "商品カテゴリー", href: "/category" }}
+        icon={getCategoryIcon(category)}
+      />
 
-      {/* タイトルセクション（SEO最適化） */}
-      <div className="mb-8">
-        <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-          DATABASE REPORT
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-          デスク環境構築におすすめの{category}
-        </h1>
-        <p className="text-gray-600">
-          {stats.total_videos}件の
-          <Link href="/sources" className="text-blue-600 hover:underline">
-            デスクツアー動画・記事
-          </Link>
-          から分析した、デスク環境でよく使用されている{category}一覧です。
-        </p>
-      </div>
-
-      {/* サブカテゴリフィルター */}
-      {subcategories.length > 0 && (
-        <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
-          <SubcategoryFilter
-            subcategories={subcategories}
-            currentSubcategory={subcategory}
+      <div className="detail-container">
+        {subcategories.length > 0 && (
+          <FilterSection
+            label="種類別に絞り込み"
+            filterKey="subcategory"
+            tags={subcategories}
+            currentFilter={subcategoryFilter}
           />
-        </div>
-      )}
+        )}
 
-      {/* Sort */}
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">表示件数：{total}件</p>
-        <SortSelect defaultValue={sort} />
+        <ResultsBar total={total} currentSort={sort} />
+
+        <ProductGrid products={productsWithRank} />
+
+        <FAQSection items={faqItems} />
       </div>
-
-      {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {products.map((product) => (
-          <ProductCard key={product.id} product={product} maxComments={1} />
-        ))}
-      </div>
-
-      {products.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg">
-          <p className="text-gray-500 mb-4">該当する商品がありません</p>
-          <Link href="/" className="text-blue-600 hover:underline">
-            トップページへ戻る
-          </Link>
-        </div>
-      )}
-
-      {/* FAQ */}
-      <section className="mt-12 bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">
-          よくある質問
-        </h2>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-medium text-gray-900">
-              このデータはどこから収集していますか？
-            </h3>
-            <p className="text-gray-600 text-sm mt-1">
-              YouTubeのデスクツアー動画およびブログ記事から、実際に使用されている商品情報を収集しています。
-            </p>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900">
-              「使用者数」とは何ですか？
-            </h3>
-            <p className="text-gray-600 text-sm mt-1">
-              その商品を使用しているデスクツアーの数を示しています。
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
+    </>
   );
 }

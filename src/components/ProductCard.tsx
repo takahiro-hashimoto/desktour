@@ -82,7 +82,7 @@ export function ProductCard({
             {/* 商品名 */}
             <h3 className="font-medium text-gray-900 line-clamp-2 mb-2">
               <Link
-                href={`/product/${product.id}`}
+                href={`/product/${product.slug || product.id}`}
                 className="hover:text-blue-600"
               >
                 {product.name}
@@ -138,7 +138,7 @@ export function ProductCard({
           {/* リンク - 常に最下部 */}
           <div className="flex items-center gap-2 mt-auto pt-3 border-t border-gray-100">
             <Link
-              href={`/product/${product.id}`}
+              href={`/product/${product.slug || product.id}`}
               className="text-xs text-blue-600 hover:underline"
             >
               詳細を見る

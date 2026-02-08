@@ -1,23 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { SourceCard } from "@/components/SourceCard";
-import { SourceModal } from "@/components/SourceModal";
+import { SourceDetailModal } from "@/components/sources/SourceDetailModal";
+import "@/components/sources/source-modal.css";
 import type { SourceItem } from "./page";
+import "./sources-styles.css";
 
 interface SourcesClientProps {
   items: SourceItem[];
   total: number;
-  availableTags: string[];       // スタイルタグ
+  availableTags: string[];
   tagCounts: Record<string, number>;
   selectedTags: string[];
   occupationTags: string[];
   selectedOccupation?: string;
-  environmentTags: string[];     // 環境タグ
-  selectedEnvironment?: string;  // 選択中の環境タグ
-  selectedStyle?: string;        // 選択中のスタイルタグ（単一選択）
+  environmentTags: string[];
+  selectedEnvironment?: string;
+  selectedStyle?: string;
   sortOrder: "newest" | "oldest";
   currentPage: number;
   limit: number;
@@ -27,7 +28,6 @@ export function SourcesClient({
   items,
   total,
   availableTags,
-  selectedTags,
   occupationTags,
   selectedOccupation,
   environmentTags,
@@ -48,16 +48,31 @@ export function SourcesClient({
 
   const totalPages = Math.ceil(total / limit);
 
-  // ページトップへスクロール
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#video-')) {
+      const videoId = hash.replace('#video-', '');
+      const video = items.find(item => item.type === 'video' && item.id === videoId);
+      if (video) {
+        openModal('video', videoId);
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    } else if (hash.startsWith('#article-')) {
+      const articleId = hash.replace('#article-', '');
+      const article = items.find(item => item.type === 'article' && item.id === articleId);
+      if (article) {
+        openModal('article', articleId);
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    }
+  }, [items]);
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // URL更新（フィルターは1つだけ: occupation, environment, style のいずれか）
   const updateUrl = (params: { style?: string | null; occupation?: string | null; environment?: string | null; sort?: "newest" | "oldest"; page?: number }, shouldScroll = false) => {
     const newParams = new URLSearchParams();
-
-    // ソート順を維持
     const currentSort = searchParams.get("sort");
     if (params.sort !== undefined) {
       if (params.sort === "oldest") {
@@ -67,12 +82,10 @@ export function SourcesClient({
       newParams.set("sort", "oldest");
     }
 
-    // ページを設定
     if (params.page !== undefined && params.page > 1) {
       newParams.set("page", params.page.toString());
     }
 
-    // フィルターは1つだけ（新しく選択されたものを優先）
     if (params.style !== undefined && params.style !== null) {
       newParams.set("style", params.style);
     } else if (params.occupation !== undefined && params.occupation !== null) {
@@ -89,38 +102,32 @@ export function SourcesClient({
     }
   };
 
-  // 職業選択（他のフィルターをクリアして切り替え）
-  const handleOccupationChange = (occupation: string | null) => {
-    if (occupation === null || selectedOccupation === occupation) {
-      // 解除
+  const handleOccupationChange = (occupation: string) => {
+    if (selectedOccupation === occupation) {
       updateUrl({ occupation: null, style: null, environment: null, page: 1 });
     } else {
-      // 新しい選択（他のフィルターは自動クリア）
       updateUrl({ occupation, page: 1 });
     }
   };
 
-  // 環境選択（他のフィルターをクリアして切り替え）
-  const handleEnvironmentChange = (environment: string | null) => {
-    if (environment === null || selectedEnvironment === environment) {
+  const handleEnvironmentChange = (environment: string) => {
+    if (selectedEnvironment === environment) {
       updateUrl({ environment: null, style: null, occupation: null, page: 1 });
     } else {
       updateUrl({ environment, page: 1 });
     }
   };
 
-  // スタイル選択（他のフィルターをクリアして切り替え）
-  const handleStyleChange = (style: string | null) => {
-    if (style === null || selectedStyle === style) {
+  const handleStyleChange = (style: string) => {
+    if (selectedStyle === style) {
       updateUrl({ style: null, occupation: null, environment: null, page: 1 });
     } else {
       updateUrl({ style, page: 1 });
     }
   };
 
-  // ソート順変更
-  const handleSortChange = (sort: "newest" | "oldest") => {
-    // 現在のフィルターを維持
+  const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const sort = e.target.value as "newest" | "oldest";
     const newParams = new URLSearchParams(searchParams.toString());
     if (sort === "oldest") {
       newParams.set("sort", "oldest");
@@ -128,11 +135,11 @@ export function SourcesClient({
       newParams.delete("sort");
     }
     newParams.delete("page");
-    router.push(`/sources?${newParams.toString()}`);
+    const queryString = newParams.toString();
+    router.push(queryString ? `/sources?${queryString}` : "/sources");
     scrollToTop();
   };
 
-  // フィルタークリア
   const handleClearFilters = () => {
     const newParams = new URLSearchParams();
     const currentSort = searchParams.get("sort");
@@ -144,186 +151,225 @@ export function SourcesClient({
     scrollToTop();
   };
 
-  // ページ変更
   const handlePageChange = (page: number) => {
     updateUrl({ page }, true);
   };
 
-  // モーダル表示
   const openModal = (type: "video" | "article", id: string) => {
     setModalSource({ type, id });
     setModalOpen(true);
   };
 
-  // スタイルタグ（全件表示）
   const styleTags = availableTags;
-
-  // フィルターが何か選択されているか（単一選択のみ）
   const hasActiveFilters = selectedOccupation || selectedEnvironment || selectedStyle;
-
-  // 現在選択中のフィルター（カード表示用）
   const activeFilter = selectedOccupation || selectedEnvironment || selectedStyle;
+  const [filterOpen, setFilterOpen] = useState(false);
 
   return (
-    <div>
-      {/* フィルターカード */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-8">
-        {/* 3カラムレイアウト: 職業・スタイル・環境 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* 職業（10個すべて表示） */}
-          <div>
-            <p className="text-sm font-medium text-gray-900 mb-3">職業</p>
-            <div className="flex flex-wrap gap-2">
-              {occupationTags.map((occupation) => (
-                <button
-                  key={occupation}
-                  onClick={() => handleOccupationChange(selectedOccupation === occupation ? null : occupation)}
-                  className={`px-3 py-1.5 rounded-full transition-colors ${
-                    selectedOccupation === occupation
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  {occupation}
-                </button>
-              ))}
+    <div className="sources-container">
+      {/* FILTER */}
+      <div className="sources-filter-section">
+        <button
+          onClick={() => setFilterOpen(!filterOpen)}
+          className="sources-filter-toggle"
+          data-open={filterOpen ? "true" : "false"}
+        >
+          好みの動画・記事を絞り込む
+        </button>
+        {filterOpen && (
+          <div className="sources-filter-box">
+          <div className="sources-filter-columns">
+            {/* 職業 */}
+            <div>
+              <div className="sources-filter-group-label">職業</div>
+              <div className="sources-filter-tags">
+                {occupationTags.map((occupation) => (
+                  <button
+                    key={occupation}
+                    onClick={() => handleOccupationChange(occupation)}
+                    className={`sources-filter-tag ${selectedOccupation === occupation ? 'active' : ''}`}
+                  >
+                    {occupation}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* スタイル */}
+            <div>
+              <div className="sources-filter-group-label">スタイル</div>
+              <div className="sources-filter-tags">
+                {styleTags.map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => handleStyleChange(tag)}
+                    className={`sources-filter-tag ${selectedStyle === tag ? 'active' : ''}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 環境 */}
+            <div>
+              <div className="sources-filter-group-label">環境</div>
+              <div className="sources-filter-tags">
+                {environmentTags.map((env) => (
+                  <button
+                    key={env}
+                    onClick={() => handleEnvironmentChange(env)}
+                    className={`sources-filter-tag ${selectedEnvironment === env ? 'active' : ''}`}
+                  >
+                    {env}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* スタイル */}
-          <div>
-            <p className="text-sm font-medium text-gray-900 mb-3">スタイル</p>
-            <div className="flex flex-wrap gap-2">
-              {styleTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => handleStyleChange(selectedStyle === tag ? null : tag)}
-                  className={`px-3 py-1.5 rounded-full transition-colors ${
-                    selectedStyle === tag
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  {tag}
-                </button>
-              ))}
+          {hasActiveFilters && (
+            <div className="sources-filter-clear">
+              <button onClick={handleClearFilters} className="sources-filter-clear-btn">
+                フィルターをクリア
+              </button>
             </div>
-          </div>
-
-          {/* 環境 */}
-          <div>
-            <p className="text-sm font-medium text-gray-900 mb-3">環境</p>
-            <div className="flex flex-wrap gap-2">
-              {environmentTags.map((env) => (
-                <button
-                  key={env}
-                  onClick={() => handleEnvironmentChange(selectedEnvironment === env ? null : env)}
-                  className={`px-3 py-1.5 rounded-full transition-colors ${
-                    selectedEnvironment === env
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                  style={{ fontSize: "0.8rem" }}
-                >
-                  {env}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* クリアボタン */}
-        {hasActiveFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <button
-              onClick={handleClearFilters}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              フィルターをクリア
-            </button>
+          )}
           </div>
         )}
       </div>
 
-      {/* 表示件数とソートセレクター */}
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">
-          表示件数：{total}件{hasActiveFilters && "（絞り込み中）"}
-        </p>
-        <select
-          value={sortOrder}
-          onChange={(e) => handleSortChange(e.target.value as "newest" | "oldest")}
-          className="px-3 py-1.5 rounded border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="newest">投稿日が新しい順</option>
-          <option value="oldest">投稿日が古い順</option>
-        </select>
+      {/* RESULTS BAR */}
+      <div className="sources-results-bar">
+        <div className="sources-results-count">
+          表示件数：<strong>{total}</strong>件
+        </div>
+        <div className="sources-sort-select">
+          <select value={sortOrder} onChange={handleSortChange}>
+            <option value="newest">投稿日が新しい順</option>
+            <option value="oldest">投稿日が古い順</option>
+          </select>
+        </div>
       </div>
 
-      {/* カードグリッド（動画・記事混在） */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+      {/* ARTICLE GRID */}
+      <div className="sources-article-grid">
         {items.map((item) => {
-          // 選択されたフィルターを先頭に並べ替え
+          const isVideo = item.type === "video";
           let sortedTags = item.tags || [];
           if (activeFilter && sortedTags.includes(activeFilter)) {
             sortedTags = [activeFilter, ...sortedTags.filter(t => t !== activeFilter)];
           }
 
+          let cleanSummary = item.summary;
+          if (!isVideo && item.summary) {
+            const articleContentMatch = item.summary.match(/この記事では[、,]?\s*(.+)/s);
+            if (articleContentMatch) {
+              cleanSummary = articleContentMatch[1].trim();
+            } else if (item.summary.startsWith("この記事の著者")) {
+              cleanSummary = undefined;
+            }
+          }
+
+          const mediaName = isVideo ? item.channel_title : item.site_name;
+          const occupationTag = item.occupation_tags && item.occupation_tags.length > 0 ? item.occupation_tags[0] : undefined;
+
           return (
-            <SourceCard
+            <button
               key={item.id}
-              source={{
-                title: item.title,
-                thumbnail_url: item.thumbnail_url,
-                summary: item.summary,
-                tags: sortedTags,
-                published_at: item.published_at,
-                occupation_tags: item.occupation_tags,
-                // video用
-                video_id: item.video_id,
-                channel_title: item.channel_title,
-                subscriber_count: item.subscriber_count,
-                // article用
-                url: item.url,
-                author: item.author,
-                site_name: item.site_name,
-                // 商品数
-                product_count: item.product_count,
-              }}
-              type={item.type}
               onClick={() => openModal(item.type, item.id)}
-              highlightedTag={activeFilter}
-            />
+              className="sources-article-card"
+            >
+              <div className="sources-article-thumb">
+                {item.thumbnail_url ? (
+                  <img src={item.thumbnail_url} alt={item.title} loading="lazy" />
+                ) : (
+                  <div className="sources-thumb-placeholder">DESK TOUR</div>
+                )}
+                <span className={`sources-type-badge ${isVideo ? 'video' : 'article'}`}>
+                  {isVideo ? "動画" : "記事"}
+                </span>
+              </div>
+              <div className="sources-article-body">
+                <h3 className="sources-article-title">
+                  {!isVideo && item.url ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="sources-article-link"
+                    >
+                      {item.title}
+                    </a>
+                  ) : (
+                    item.title
+                  )}
+                </h3>
+                <div className="sources-article-meta">
+                  {mediaName && <span className="author">{mediaName}</span>}
+                  {occupationTag && (
+                    <>
+                      {mediaName && <span className="dot"></span>}
+                      <span>{occupationTag}</span>
+                    </>
+                  )}
+                  {item.published_at && (
+                    <>
+                      {(mediaName || occupationTag) && <span className="dot"></span>}
+                      <span>
+                        {new Date(item.published_at).toLocaleDateString("ja-JP", {
+                          year: "numeric",
+                          month: "numeric",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </>
+                  )}
+                </div>
+                {cleanSummary && (
+                  <p className="sources-article-excerpt">{cleanSummary}</p>
+                )}
+                {item.product_count !== undefined && item.product_count > 0 && (
+                  <div className="sources-article-products">
+                    <i className="fa-solid fa-link"></i> 紹介商品: {item.product_count}件
+                  </div>
+                )}
+                {sortedTags.length > 0 && (
+                  <div className="sources-article-tags">
+                    {sortedTags.slice(0, 3).map((tag) => (
+                      <span key={tag} className={tag === activeFilter ? 'highlighted' : ''}>
+                        {tag}
+                      </span>
+                    ))}
+                    {sortedTags.length > 3 && (
+                      <span className="more-tags">+{sortedTags.length - 3}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </button>
           );
         })}
       </div>
 
-      {/* 空状態 */}
       {items.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg">
-          <p className="text-gray-500 mb-4">
-            該当するコンテンツがありません
-          </p>
+        <div className="sources-empty-state">
+          <p className="sources-empty-text">該当するコンテンツがありません</p>
           {hasActiveFilters && (
-            <button
-              onClick={handleClearFilters}
-              className="text-blue-600 hover:underline"
-            >
+            <button onClick={handleClearFilters} className="sources-empty-btn">
               フィルターをクリア
             </button>
           )}
         </div>
       )}
 
-      {/* ページネーション */}
+      {/* PAGINATION */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-8">
+        <div className="sources-pagination">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             前へ
           </button>
@@ -342,11 +388,7 @@ export function SourcesClient({
               <button
                 key={pageNum}
                 onClick={() => handlePageChange(pageNum)}
-                className={`px-3 py-1 rounded text-sm ${
-                  currentPage === pageNum
-                    ? "bg-gray-900 text-white"
-                    : "border border-gray-300 hover:bg-gray-50"
-                }`}
+                className={currentPage === pageNum ? 'active' : ''}
               >
                 {pageNum}
               </button>
@@ -355,78 +397,49 @@ export function SourcesClient({
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="px-3 py-1 rounded border border-gray-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
           >
             次へ
           </button>
         </div>
       )}
 
-      {/* 関連コンテンツ（内部リンク） */}
-      <section className="mt-12 pt-8 border-t border-gray-200">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">関連コンテンツ</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Link
-            href="/category/keyboard"
-            className="block p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <span className="text-2xl mb-2 block">⌨️</span>
-            <span className="text-sm font-medium text-gray-900">キーボード人気ランキング</span>
+      {/* RELATED CONTENT */}
+      <div className="sources-related-section">
+        <div className="sources-related-title">関連コンテンツ</div>
+        <div className="sources-related-grid">
+          <Link href="/category" className="sources-related-card">
+            <div className="sources-related-card-icon">
+              <i className="fa-solid fa-layer-group"></i>
+            </div>
+            <div className="sources-related-card-name">デスク周りのガジェット</div>
           </Link>
-          <Link
-            href="/category/mouse"
-            className="block p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <span className="text-2xl mb-2 block">🖱️</span>
-            <span className="text-sm font-medium text-gray-900">マウス人気ランキング</span>
+          <Link href="/occupation" className="sources-related-card">
+            <div className="sources-related-card-icon">
+              <i className="fa-solid fa-briefcase"></i>
+            </div>
+            <div className="sources-related-card-name">職業別デスクセットアップ</div>
           </Link>
-          <Link
-            href="/occupation/engineer"
-            className="block p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <span className="text-2xl mb-2 block">💻</span>
-            <span className="text-sm font-medium text-gray-900">エンジニアのデスク</span>
+          <Link href="/style" className="sources-related-card">
+            <div className="sources-related-card-icon">
+              <i className="fa-solid fa-palette"></i>
+            </div>
+            <div className="sources-related-card-name">スタイル別デスクセットアップ</div>
           </Link>
-          <Link
-            href="/occupation/designer"
-            className="block p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all"
-          >
-            <span className="text-2xl mb-2 block">🎨</span>
-            <span className="text-sm font-medium text-gray-900">デザイナーのデスク</span>
+          <Link href="/brand" className="sources-related-card">
+            <div className="sources-related-card-icon">
+              <i className="fa-solid fa-star"></i>
+            </div>
+            <div className="sources-related-card-name">デスク周り商品の人気ブランド</div>
           </Link>
         </div>
+      </div>
 
-        {/* 人気のデスクスタイル */}
-        <div className="mt-6">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">人気のデスクスタイル</h3>
-          <div className="flex flex-wrap gap-2">
-            {["ミニマリスト", "ゲーミング", "おしゃれ", "ホワイト", "ブラック"].map((tag) => (
-              <button
-                key={tag}
-                onClick={() => handleStyleChange(selectedStyle === tag ? null : tag)}
-                className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                  selectedStyle === tag
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* モーダル */}
-      {modalSource && (
-        <SourceModal
+      {modalOpen && modalSource && (
+        <SourceDetailModal
           isOpen={modalOpen}
-          onClose={() => {
-            setModalOpen(false);
-            setModalSource(null);
-          }}
           sourceType={modalSource.type}
           sourceId={modalSource.id}
+          onClose={() => setModalOpen(false)}
         />
       )}
     </div>

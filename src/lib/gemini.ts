@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { PRODUCT_CATEGORIES, SUBCATEGORIES_FOR_PROMPT } from "./constants";
+import { PRODUCT_CATEGORIES, SUBCATEGORIES_FOR_PROMPT, OCCUPATION_TAGS } from "./constants";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -134,21 +134,7 @@ const DESK_SETUP_TAGS = [
   "Windows環境",
 ];
 
-// 職業タグ（サイトで使用する10カテゴリに限定）
-const OCCUPATION_TAGS = [
-  "エンジニア",
-  "デザイナー",
-  "クリエイター",
-  "イラストレーター",
-  "配信者",
-  "ゲーマー",
-  "学生",
-  "会社員",
-  "経営者",
-  "フォトグラファー",
-];
-
-// SUBCATEGORIES_FOR_PROMPT は constants.ts からインポート済み
+// OCCUPATION_TAGS と SUBCATEGORIES_FOR_PROMPT は constants.ts からインポート済み
 
 export async function analyzeTranscript(
   transcript: string,
@@ -183,8 +169,8 @@ ${transcript.slice(0, 15000)}
   "influencerOccupationTags": ["該当する職業タグをすべて選択: ${OCCUPATION_TAGS.join(", ")}"],
   "products": [
     {
-      "name": "商品名（メーカー名と型番が分かれば含める）",
-      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。不明な場合は空文字）",
+      "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
+      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
       "subcategory": "サブカテゴリ（該当する場合のみ。後述のリストから選択。なければnull）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
@@ -217,9 +203,15 @@ ${transcript.slice(0, 15000)}
 - 全く推測できない場合のみnullと空配列を設定
 
 【商品名の記述ルール】★重要★
-- 商品名は「ブランド名 + 製品シリーズ名 + 型番」の形式で正確に記述
-- 型番（英数字の組み合わせ）は必ず含める
-- 例：「Logicool ERGO M575S」「Dell U2720QM」「HHKB Professional HYBRID Type-S」「コクヨ ing ING」
+- 商品名フィールド(name)にはブランド名を含めず、「製品シリーズ名 + 型番」の形式で記述
+- ブランド名は別フィールド(brand)に必ず記載すること
+- 型番（英数字の組み合わせ）があれば必ず含める
+- 例：
+  - name: "ERGO M575S", brand: "Logicool"
+  - name: "U2720QM", brand: "Dell"
+  - name: "Professional HYBRID Type-S", brand: "HHKB"
+  - name: "ing ING", brand: "コクヨ"
+  - name: "EF-1", brand: "FLEXISPOT"
 - 概要欄のAmazon/楽天リンクから正確な商品名を取得できる場合はそれを優先使用
 
 【ブランド名の記述ルール】★重要★
@@ -246,7 +238,56 @@ ${transcript.slice(0, 15000)}
   ${SUBCATEGORIES_FOR_PROMPT}
 - 商品の特徴に該当するサブカテゴリがある場合のみ設定
 - 該当するものがなければnullを設定
-- 例：HHKBは「静電容量無接点」、Logicool MX ERGOは「トラックボール」、Dell U2723QXは「4Kモニター」
+
+【サブカテゴリ判定の具体例】★商品名・型番・特徴から判断★
+キーボード:
+  Cherry MX/Gateron/Kailh/赤軸/青軸/茶軸 → メカニカルキーボード
+  HHKB/Realforce/静電容量/無接点 → 静電容量無接点
+  パンタグラフ/Pantograph/シザー/Magic Keyboard/Apple Keyboard → パンタグラフ
+  分割/Split/Ergodox/Kinesis → 分割キーボード
+  TKL/テンキーレス/87キー → テンキーレス
+  60%/65%/66キー/68キー → 60%・65%キーボード
+  フルサイズ/108キー/テンキー付き → フルサイズキーボード
+  ロープロファイル/薄型/Low Profile → ロープロファイル
+
+マウス:
+  MX ERGO/M575/SW-M570/トラックボール → トラックボール
+  MX Master/MX Vertical/エルゴノミクス → エルゴノミクスマウス
+  G Pro/DeathAdder/Viper/ゲーミング/Gaming → ゲーミングマウス
+  縦型/Vertical Mouse → 縦型マウス
+  ※ワイヤレス/Bluetoothのみの場合はnull（形状を優先）
+
+ディスプレイ・モニター:
+  4K/3840x2160/UHD/2160p → 4Kモニター
+  ウルトラワイド/21:9/34インチ曲面 → ウルトラワイドモニター
+  144Hz/240Hz/G-SYNC/FreeSync/ゲーミング → ゲーミングモニター
+  モバイル/ポータブル/持ち運び/13.3インチ → モバイルモニター
+  5K/6K/5120x2880 → 5K・6Kモニター
+
+ヘッドホン・イヤホン:
+  開放型/Open-back/音漏れ → 開放型ヘッドホン
+  密閉型/Closed-back/遮音 → 密閉型ヘッドホン
+  AirPods/完全ワイヤレス/TWS → ワイヤレスイヤホン
+  DTM/音楽制作/スタジオ/モニターヘッドホン → モニターヘッドホン
+  ゲーミングヘッドセット/マイク付き/7.1ch → ゲーミングヘッドセット
+
+チェア:
+  DXRacer/AKRacing/ゲーミングチェア → ゲーミングチェア
+  Herman Miller/Steelcase/エルゴノミクス/腰痛対策 → エルゴノミクスチェア
+  メッシュ/通気性 → メッシュチェア
+
+デスク:
+  昇降/電動/Standing/スタンディング → 昇降デスク
+  L字/L型/コーナー → L字デスク
+  DIY/自作/天板のみ → DIYデスク
+  ゲーミングデスク → ゲーミングデスク
+
+マイク:
+  コンデンサー/Condenser/配信 → コンデンサーマイク
+  ダイナミック/SM7B/RE20 → ダイナミックマイク
+  USB/Blue Yeti → USBマイク
+  XLR/ファンタム電源 → XLRマイク
+  ピンマイク/ラベリア → ピンマイク
 
 【注意事項】
 - 実際に動画内で紹介・言及されている商品のみを抽出
@@ -305,8 +346,8 @@ ${content.slice(0, 15000)}
   "influencerOccupationTags": ["該当する職業タグを選択（複数可）: ${OCCUPATION_TAGS.join(", ")}"],
   "products": [
     {
-      "name": "商品名（メーカー名と型番が分かれば含める）",
-      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。不明な場合は空文字）",
+      "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
+      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
       "subcategory": "サブカテゴリ（該当する場合のみ。後述のリストから選択。なければnull）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：

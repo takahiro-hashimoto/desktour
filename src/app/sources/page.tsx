@@ -1,9 +1,11 @@
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
+import Link from "next/link";
 import { getVideos, getArticles, getSourceTagCounts, getSiteStats, supabase } from "@/lib/supabase";
 import { STYLE_TAGS, ENVIRONMENT_TAGS, OCCUPATION_TAGS } from "@/lib/constants";
 import { SourcesClient } from "./SourcesClient";
-import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import "../listing-styles.css";
 
 // 【最適化】ソースページのデータをキャッシュ（5分間）
 const getCachedSourcesData = unstable_cache(
@@ -223,29 +225,52 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   // 環境タグ（定義済みタグをすべて表示）
   const availableEnvironmentTags = [...ENVIRONMENT_TAGS];
 
-  // JSON-LD 構造化データ
+  // JSON-LD 構造化データ（動画と記事を混合）
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
+  const topItems = allItems.slice(0, 10);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     "name": "デスクツアー動画・記事まとめ",
     "description": "人気YouTuberやブロガーのデスクツアー動画・記事を一覧で紹介。エンジニア、デザイナー、ゲーマーなど職業別の素敵なデスク環境から、おすすめPC周辺機器やセットアップのヒントが見つかります。",
+    "url": `${baseUrl}/sources`,
     "mainEntity": {
       "@type": "ItemList",
       "numberOfItems": siteStats.total_videos + siteStats.total_articles,
-      "itemListElement": videosResult.videos.slice(0, 10).map((video, index) => ({
-        "@type": "VideoObject",
-        "position": index + 1,
-        "name": video.title,
-        "description": video.summary || "",
-        "thumbnailUrl": video.thumbnail_url,
-        "uploadDate": video.published_at,
-      })),
+      "itemListElement": topItems.map((item, index) => {
+        if (item.type === "video") {
+          return {
+            "@type": "VideoObject",
+            "position": index + 1,
+            "name": item.title,
+            "description": item.summary || "",
+            "thumbnailUrl": item.thumbnail_url,
+            "uploadDate": item.published_at,
+            "contentUrl": `https://www.youtube.com/watch?v=${item.video_id}`,
+          };
+        } else {
+          return {
+            "@type": "Article",
+            "position": index + 1,
+            "headline": item.title,
+            "description": item.summary || "",
+            "image": item.thumbnail_url,
+            "datePublished": item.published_at,
+            "url": item.url,
+            "author": {
+              "@type": "Person",
+              "name": item.author || "Unknown",
+            },
+          };
+        }
+      }),
     },
     "breadcrumb": {
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "ホーム", "item": "/" },
-        { "@type": "ListItem", "position": 2, "name": "デスクツアー一覧" },
+        { "@type": "ListItem", "position": 1, "name": "ホーム", "item": baseUrl },
+        { "@type": "ListItem", "position": 2, "name": "デスクツアー一覧", "item": `${baseUrl}/sources` },
       ],
     },
   };
@@ -255,35 +280,46 @@ export default async function SourcesPage({ searchParams }: PageProps) {
 
   // 【SEO最適化】フィルター適用時の動的タイトル・説明文（単一フィルターのみ）
   let pageTitle = "デスクツアー動画・記事一覧";
-  let pageDescription = "Youtubeで5,000回以上再生されているデスクツアー動画やnote、ブログなどのデスクツアー記事をまとめています。参考になるデスクセットアップを効率よく探しましょう！";
-  let breadcrumbItems: { label: string; href?: string }[] = [{ label: "デスクツアー" }];
+  let pageDescription = (
+    <>
+      Youtubeで5,000回以上再生されているデスクツアー動画やnote、ブログなどのデスクツアー記事をまとめています。頻繁に登場するアイテムは
+      <Link href="/category" className="link">
+        デスク周りのガジェット
+      </Link>
+      で紹介中。
+    </>
+  );
+  let breadcrumbCurrent = "デスクツアー";
 
   // 職業フィルターが適用されている場合
   if (selectedOccupation && OCCUPATION_TAGS.includes(selectedOccupation as typeof OCCUPATION_TAGS[number])) {
     pageTitle = `${selectedOccupation}のデスクツアー動画・記事一覧`;
-    pageDescription = `${selectedOccupation}が公開しているデスクツアー動画・記事をまとめています。${selectedOccupation}のデスク環境やおすすめガジェットを参考にしましょう。`;
-    breadcrumbItems = [
-      { label: "デスクツアー", href: "/sources" },
-      { label: selectedOccupation },
-    ];
+    pageDescription = (
+      <>
+        {selectedOccupation}が公開しているデスクツアー動画・記事をまとめています。{selectedOccupation}のデスク環境やおすすめガジェットを参考にしましょう。
+      </>
+    );
+    breadcrumbCurrent = selectedOccupation;
   }
   // 環境フィルターが適用されている場合
   else if (selectedEnvironment && ENVIRONMENT_TAGS.includes(selectedEnvironment as typeof ENVIRONMENT_TAGS[number])) {
     pageTitle = `${selectedEnvironment}のデスクツアー動画・記事一覧`;
-    pageDescription = `${selectedEnvironment}環境のデスクツアー動画・記事をまとめています。${selectedEnvironment}のデスクセットアップを参考にしましょう。`;
-    breadcrumbItems = [
-      { label: "デスクツアー", href: "/sources" },
-      { label: selectedEnvironment },
-    ];
+    pageDescription = (
+      <>
+        {selectedEnvironment}環境のデスクツアー動画・記事をまとめています。{selectedEnvironment}のデスクセットアップを参考にしましょう。
+      </>
+    );
+    breadcrumbCurrent = selectedEnvironment;
   }
   // スタイルフィルターが適用されている場合
   else if (selectedStyle && STYLE_TAGS.includes(selectedStyle as typeof STYLE_TAGS[number])) {
     pageTitle = `${selectedStyle}のデスクツアー動画・記事一覧`;
-    pageDescription = `${selectedStyle}スタイルのデスクツアー動画・記事をまとめています。${selectedStyle}なデスクセットアップを参考にしましょう。`;
-    breadcrumbItems = [
-      { label: "デスクツアー", href: "/sources" },
-      { label: selectedStyle },
-    ];
+    pageDescription = (
+      <>
+        {selectedStyle}スタイルのデスクツアー動画・記事をまとめています。{selectedStyle}なデスクセットアップを参考にしましょう。
+      </>
+    );
+    breadcrumbCurrent = selectedStyle;
   }
 
   return (
@@ -294,36 +330,28 @@ export default async function SourcesPage({ searchParams }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Main Content */}
-      <div className="max-w-[1080px] mx-auto px-4 py-8">
-        <Breadcrumb items={breadcrumbItems} />
+      <PageHeaderSection
+        label="Database Report"
+        title={pageTitle}
+        description={pageDescription}
+        breadcrumbCurrent={breadcrumbCurrent}
+      />
 
-        {/* ページタイトル */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {pageTitle}
-          </h1>
-          <p className="text-gray-600">
-            {pageDescription}
-          </p>
-        </div>
-
-        <SourcesClient
-          items={paginatedItems}
-          total={total}
-          availableTags={availableStyleTags as string[]}
-          tagCounts={tagCounts}
-          selectedTags={selectedTags}
-          occupationTags={[...OCCUPATION_TAGS]}
-          selectedOccupation={selectedOccupation}
-          environmentTags={[...ENVIRONMENT_TAGS]}
-          selectedEnvironment={selectedEnvironment}
-          selectedStyle={selectedStyle}
-          sortOrder={sortOrder}
-          currentPage={page}
-          limit={limit}
-        />
-      </div>
+      <SourcesClient
+        items={paginatedItems}
+        total={total}
+        availableTags={availableStyleTags as string[]}
+        tagCounts={tagCounts}
+        selectedTags={selectedTags}
+        occupationTags={[...OCCUPATION_TAGS]}
+        selectedOccupation={selectedOccupation}
+        environmentTags={[...ENVIRONMENT_TAGS]}
+        selectedEnvironment={selectedEnvironment}
+        selectedStyle={selectedStyle}
+        sortOrder={sortOrder}
+        currentPage={page}
+        limit={limit}
+      />
     </>
   );
 }

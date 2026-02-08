@@ -1,6 +1,8 @@
 // 商品検索結果（一覧ページ用）
 export interface ProductWithStats {
   id: string;
+  asin?: string;
+  slug?: string;
   name: string;
   brand?: string;
   category: string;
@@ -10,18 +12,24 @@ export interface ProductWithStats {
   amazon_image_url?: string;
   amazon_price?: number;
   amazon_title?: string;
+  rakuten_url?: string;
+  rakuten_image_url?: string;
+  official_url?: string;
+  product_source?: "amazon" | "rakuten" | "official";
   mention_count: number;
   comments: ProductComment[];
+  updated_at?: string;
 }
 
 export interface ProductComment {
-  reason: string;
+  comment: string;
   source_type: "video" | "article";
   source_id?: string; // video_id or article_id
+  source_video_id?: string; // video_idの場合
+  source_url?: string; // YouTube URL or article URL
   source_title: string;
+  source_thumbnail_url?: string;
   occupation_tags?: string[];
-  // サムネイル情報
-  thumbnail_url?: string;
   channel_title?: string; // 動画の場合
   author?: string; // 記事の場合
 }
@@ -45,6 +53,7 @@ export interface SourceDetail {
 
 export interface SourceProduct {
   id: string;
+  slug?: string;
   name: string;
   brand?: string;
   category: string;
@@ -59,10 +68,12 @@ export interface SourceProduct {
 // 商品詳細（詳細ページ用）
 export interface ProductDetail {
   id: string;
+  slug?: string;
   name: string;
   brand?: string;
   category: string;
   subcategory?: string; // サブカテゴリ（メカニカルキーボード、4Kモニター等）
+  tags?: string[]; // 商品タグ（ワイヤレス、静音、ゲーミング等）
   price_range?: string;
   amazon_url?: string;
   amazon_image_url?: string;
@@ -104,6 +115,8 @@ export interface OccupationStat {
 
 export interface CoUsedProduct {
   id: string;
+  asin?: string;
+  slug?: string;
   name: string;
   brand?: string;
   category: string;

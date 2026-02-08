@@ -9,10 +9,10 @@ import {
   PRODUCT_CATEGORIES,
   occupationToSlug,
 } from "@/lib/constants";
-import { SortSelect } from "@/components/SortSelect";
-import { ProductCard } from "@/components/ProductCard";
-import { RankingProductCard } from "@/components/RankingProductCard";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
+import { CategorySection } from "@/components/CategorySection";
+import { ProductListSection } from "@/components/ProductListSection";
 import type { ProductWithStats } from "@/types";
 
 // 1時間キャッシュ
@@ -35,14 +35,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (category) {
     return {
-      title: `${occupation}のデスク環境でよく使用されている${category}一覧 | デスクツアーDB`,
-      description: `${occupation}がデスクツアーで紹介した${category}の一覧。実際に使用しているユーザーのコメント付き。`,
+      title: `${occupation}のPCデスク環境で使われている${category}一覧`,
+      description: `デスクツアーで${occupation}が実際に使用している${category}を掲載。コメント付きで使用実態を確認できます。`,
     };
   }
 
   return {
-    title: `${occupation}のデスク環境でよく使用されているガジェット一覧 | デスクツアーDB`,
-    description: `${occupation}がデスクツアーで紹介した商品の一覧。カテゴリ別ランキングで人気商品がわかります。`,
+    title: `${occupation}のPCデスク環境で使われているガジェット一覧`,
+    description: `デスクツアーで${occupation}が使用しているガジェットをカテゴリ別に掲載。実際の使用例とコメントを確認できます。`,
   };
 }
 
@@ -108,7 +108,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
       limit: 50,
     });
 
-    const pageTitle = `${occupation}のデスク環境でよく使用されている${category}一覧`;
+    const pageTitle = `${occupation}のPCデスク環境で使われている${category}一覧`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -120,43 +120,26 @@ export default async function OccupationPage({ params, searchParams }: PageProps
         />
 
         {/* タイトルセクション（SEO最適化） */}
-        <div className="mb-8">
-          <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-            DATABASE REPORT
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            {pageTitle}
-          </h1>
-          <p className="text-gray-600">
-            {stats.total_videos}件の
-            <Link href="/sources" className="text-blue-600 hover:underline">
-              デスクツアー動画・記事
-            </Link>
-            から分析した、{occupation}に実際に選ばれている{category}一覧です。
-          </p>
-        </div>
+        <PageHeader
+          title={pageTitle}
+          subtitle={
+            <>
+              {stats.total_videos}件の
+              <Link href="/sources" className="text-blue-600 hover:underline">
+                デスクツアー動画・記事
+              </Link>
+              から収集した、{occupation}が実際に使用している{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+            </>
+          }
+        />
 
-        {/* Sort */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-gray-500">表示件数：{total}件</p>
-          <SortSelect defaultValue={sort} />
-        </div>
-
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} maxComments={1} />
-          ))}
-        </div>
-
-        {products.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg">
-            <p className="text-gray-500 mb-4">該当する商品がありません</p>
-            <Link href={`/occupation/${occupationSlug}`} className="text-blue-600 hover:underline">
-              {occupation}の商品一覧へ戻る
-            </Link>
-          </div>
-        )}
+        <ProductListSection
+          products={products}
+          total={total}
+          sort={sort}
+          emptyLinkHref={`/occupation/${occupationSlug}`}
+          emptyLinkText={`${occupation}の商品一覧へ戻る`}
+        />
       </div>
     );
   }
@@ -199,73 +182,33 @@ export default async function OccupationPage({ params, searchParams }: PageProps
       <Breadcrumb items={[{ label: "職業別", href: "/occupation" }, { label: occupation }]} />
 
       {/* Hero Section */}
-      <div className="text-center mb-16">
-        <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-          DATABASE REPORT
-        </p>
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-          {occupation}のデスク環境でよく使用されているガジェット一覧
-        </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          {stats.total_videos}件の
-          <Link href="/sources" className="text-blue-600 hover:underline">
-            デスクツアー動画・記事
-          </Link>
-          から分析した、{occupation}に実際に選ばれているガジェット一覧です。
-        </p>
-      </div>
+      <PageHeader
+        title={`${occupation}のPCデスク環境で使われているガジェット一覧`}
+        subtitle={
+          <>
+            {stats.total_videos}件の
+            <Link href="/sources" className="text-blue-600 hover:underline">
+              デスクツアー動画・記事
+            </Link>
+            で{occupation}が実際に使用しているガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
+          </>
+        }
+      />
 
       {/* Category Sections */}
       <div className="space-y-16">
         {sortedCategories.map((categoryName) => {
           const categoryProducts = productsByCategory[categoryName];
-          const top3 = categoryProducts.slice(0, 3);
-          const totalInCategory = categoryProducts.length;
-
           return (
-            <section key={categoryName}>
-              {/* Category Header */}
-              <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {getCategoryEnglish(categoryName)}
-                  </h2>
-                  <span className="text-sm text-gray-500">{categoryName}</span>
-                </div>
-                <Link
-                  href={`/occupation/${occupationSlug}/${categoryToSlug(categoryName)}`}
-                  className="text-sm text-gray-600 hover:text-blue-600 flex items-center gap-1"
-                >
-                  View All
-                  <span className="text-gray-400">({totalInCategory}件)</span>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              </div>
-
-              {/* Top 3 Products */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {top3.map((product, index) => (
-                  <RankingProductCard
-                    key={product.id}
-                    product={product}
-                    rank={index + 1}
-                    adoptionText={`${product.mention_count}名の${occupation}が採用`}
-                  />
-                ))}
-              </div>
-            </section>
+            <CategorySection
+              key={categoryName}
+              categoryName={categoryName}
+              categoryEnglish={getCategoryEnglish(categoryName)}
+              products={categoryProducts}
+              viewAllHref={`/occupation/${occupationSlug}/${categoryToSlug(categoryName)}`}
+              totalCount={categoryProducts.length}
+              adoptionTextFn={(product) => `${product.mention_count}名の${occupation}が採用`}
+            />
           );
         })}
       </div>

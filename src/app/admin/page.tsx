@@ -12,6 +12,7 @@ interface Product {
   subcategory?: string | null;
   reason: string;
   confidence: "high" | "medium" | "low";
+  tags?: string[]; // 自動抽出されたタグ
   // プレビュー時のAmazon情報
   amazon?: {
     asin: string;
@@ -149,14 +150,18 @@ export default function AdminPage() {
     "RGBライティング", "コスパ重視", "ハイエンド",
   ];
 
-  // 利用可能な職業タグ
+  // 利用可能な職業タグ（10個のみ）
   const AVAILABLE_OCCUPATION_TAGS = [
-    "エンジニア", "Webエンジニア", "フロントエンドエンジニア", "バックエンドエンジニア",
-    "デザイナー", "UIデザイナー", "UXデザイナー", "Webデザイナー", "グラフィックデザイナー",
-    "クリエイター", "動画編集者", "映像クリエイター", "YouTuber", "ライター", "ブロガー",
-    "イラストレーター", "配信者", "VTuber", "ゲーマー",
-    "会社員", "フリーランス", "経営者", "学生", "研究者",
-    "フォトグラファー", "カメラマン", "音楽クリエイター", "DTMer",
+    "エンジニア",
+    "デザイナー",
+    "クリエイター",
+    "イラストレーター",
+    "配信者",
+    "ゲーマー",
+    "学生",
+    "会社員",
+    "経営者",
+    "フォトグラファー",
   ];
 
   // タグ追加
@@ -311,6 +316,38 @@ export default function AdminPage() {
       subcategory: newSubcategory || null,
     };
 
+    setPreviewResult({
+      ...previewResult,
+      products: updatedProducts,
+    });
+  };
+
+  // 商品タグを追加
+  const handleAddProductTag = (productIndex: number, tag: string) => {
+    if (!previewResult) return;
+    const updatedProducts = [...previewResult.products];
+    const currentTags = updatedProducts[productIndex].tags || [];
+    if (!currentTags.includes(tag)) {
+      updatedProducts[productIndex] = {
+        ...updatedProducts[productIndex],
+        tags: [...currentTags, tag],
+      };
+      setPreviewResult({
+        ...previewResult,
+        products: updatedProducts,
+      });
+    }
+  };
+
+  // 商品タグを削除
+  const handleRemoveProductTag = (productIndex: number, tag: string) => {
+    if (!previewResult) return;
+    const updatedProducts = [...previewResult.products];
+    const currentTags = updatedProducts[productIndex].tags || [];
+    updatedProducts[productIndex] = {
+      ...updatedProducts[productIndex],
+      tags: currentTags.filter(t => t !== tag),
+    };
     setPreviewResult({
       ...previewResult,
       products: updatedProducts,
@@ -966,6 +1003,40 @@ export default function AdminPage() {
                         <p className="text-gray-600 mt-1 text-xs line-clamp-2">
                           {product.reason}
                         </p>
+
+                        {/* 商品タグ編集（自動抽出されたタグ） */}
+                        {product.subcategory && (
+                          <div className="mt-2 pt-2 border-t border-gray-100">
+                            <p className="text-xs text-gray-500 mb-1">
+                              <span className="font-medium">自動判定サブカテゴリ:</span> {product.subcategory}
+                            </p>
+                          </div>
+                        )}
+                        {product.tags && product.tags.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                            <p className="text-xs text-gray-500 mb-1 font-medium">自動抽出タグ:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {product.tags.map((tag, tagIdx) => (
+                                <span
+                                  key={tagIdx}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-green-50 text-green-700 rounded"
+                                >
+                                  {tag}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveProductTag(productIndex, tag);
+                                    }}
+                                    className="hover:text-green-900 ml-0.5"
+                                    type="button"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                               {/* Amazon/楽天マッチング情報 */}
                               {product.amazon ? (

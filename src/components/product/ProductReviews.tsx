@@ -1,0 +1,93 @@
+"use client";
+
+import { useState } from "react";
+import { SourceModal } from "@/components/SourceModal";
+
+interface Comment {
+  comment: string;
+  source_url?: string;
+  source_title?: string;
+  source_thumbnail_url?: string;
+  source_video_id?: string;
+  source_type?: string;
+}
+
+interface ProductReviewsProps {
+  comments: Comment[];
+  productName: string;
+  productId: string;
+  sectionNumber: number;
+}
+
+export function ProductReviews({ comments, productName, productId, sectionNumber }: ProductReviewsProps) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalSource, setModalSource] = useState<{
+    type: "video" | "article";
+    id: string;
+  } | null>(null);
+
+  const handleReviewClick = (comment: Comment) => {
+    // videoタイプの場合はモーダルを開く
+    if (comment.source_type === "video" && comment.source_video_id) {
+      setModalSource({ type: "video", id: comment.source_video_id });
+      setModalOpen(true);
+    } else if (comment.source_type === "video" && comment.source_url) {
+      // フォールバック: URLから抽出（videoタイプの場合）
+      const videoId = extractVideoId(comment.source_url);
+      if (videoId) {
+        setModalSource({ type: "video", id: videoId });
+        setModalOpen(true);
+      }
+    } else if (comment.source_type === "article" && comment.source_url) {
+      // 記事の場合もモーダルで開く
+      setModalSource({ type: "article", id: comment.source_url });
+      setModalOpen(true);
+    }
+  };
+
+  const extractVideoId = (url: string): string | null => {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+    return match ? match[1] : null;
+  };
+
+  return (
+    <>
+      <div className="content-section product-reveal">
+        <div className="section-title">
+          <span className="section-number">{String(sectionNumber).padStart(2, "0")}</span>
+          {productName}の口コミ・実際の使用例
+        </div>
+        {comments.map((comment, index) => (
+          <div
+            key={index}
+            className="review-card"
+            onClick={() => handleReviewClick(comment)}
+          >
+            <div className="review-thumb">
+              {comment.source_thumbnail_url ? (
+                <img src={comment.source_thumbnail_url} alt={comment.source_title || ""} />
+              ) : (
+                <div className="review-thumb-placeholder">
+                  <i className="fa-solid fa-image"></i>
+                </div>
+              )}
+            </div>
+            <div className="review-body">
+              <p className="review-text">{comment.comment}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modalOpen && modalSource && (
+        <SourceModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          sourceType={modalSource.type}
+          sourceId={modalSource.id}
+          targetProductId={productId}
+        />
+      )}
+    </>
+  );
+}

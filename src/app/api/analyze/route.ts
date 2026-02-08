@@ -17,6 +17,8 @@ import { searchAmazonProduct, getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct, findBestMatch } from "@/lib/description-links";
 import { ProductInfo } from "@/lib/product-search";
 import { isExcludedBrand } from "@/lib/excluded-brands";
+import { inferSubcategory } from "@/lib/subcategoryInference";
+import { extractProductTags } from "@/lib/productTags";
 
 export async function POST(request: NextRequest) {
   try {
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
     console.log(`Found ${officialLinks.length} official site links with OGP info`);
 
     // 9. 商品のAmazon/楽天マッチング（プレビュー・保存共通）
-    console.log("Matching products with Amazon/Rakuten...");
+    console.log(`Matching ${analysisResult.products.length} products with Amazon/Rakuten...`);
 
     const matchedProducts: Array<{
       name: string;
@@ -138,6 +140,7 @@ export async function POST(request: NextRequest) {
       subcategory?: string | null;
       reason: string;
       confidence: "high" | "medium" | "low";
+      tags?: string[]; // 自動抽出されたタグ
       amazon?: {
         asin: string;
         title: string;
@@ -161,8 +164,9 @@ export async function POST(request: NextRequest) {
     // 使用済みASINを追跡（重複マッチ防止）
     const usedAsins = new Set<string>();
 
-    for (const product of analysisResult.products) {
-      console.log(`Processing product: ${product.name} (brand: ${product.brand})`);
+    for (let i = 0; i < analysisResult.products.length; i++) {
+      const product = analysisResult.products[i];
+      console.log(`[${i + 1}/${analysisResult.products.length}] Processing: ${product.name} (brand: ${product.brand}, confidence: ${product.confidence})`);
 
       let amazonInfo: ProductInfo | null = null;
       let matchScore = 0;
@@ -177,7 +181,12 @@ export async function POST(request: NextRequest) {
         matchReason = `Excluded: ${excludedBrand.name} (手動設定が必要)`;
         // 除外ブランドはamazonInfo = nullのままで、マッチング処理をスキップ
       }
-      // 高確度の商品のみ検索（除外ブランド以外）
+      // 低確度商品もスキップ（API呼び出し削減）
+      else if (product.confidence === "low") {
+        console.log(`  [Low Confidence] Skipping API search for "${product.name}" (confidence: low)`);
+        matchReason = "Low confidence (手動検索推奨)";
+      }
+      // 高・中確度の商品のみ検索
       else if (product.confidence === "high" || product.confidence === "medium") {
         // まず概要欄のASIN情報とマッチングを試みる（未使用のもののみ）
         const availableCandidates = candidates.filter(c => !usedAsins.has(c.asin));
@@ -196,7 +205,18 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // 概要欄でマッチしなかった場合、公式サイトリンクをチェック
+        // API検索を先に実行（公式サイトより優先）
+        if (!amazonInfo) {
+          console.log(`  [Search] Searching API for accurate product info...`);
+          amazonInfo = await searchAmazonProduct(product.name, product.brand || undefined, product.category);
+          if (amazonInfo) {
+            matchReason = "API Search";
+          }
+          // レート制限対策: Amazon無料プランは1req/秒なので1秒待機
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        // API検索でも見つからない場合のみ公式サイトを使用（フォールバック）
         if (!amazonInfo && officialLinks.length > 0) {
           // 商品名でマッチする公式サイトリンクを探す
           const normalizedProductName = product.name.toLowerCase();
@@ -206,7 +226,7 @@ export async function POST(request: NextRequest) {
             const productWords = normalizedProductName.split(/\s+/).filter(w => w.length > 2);
             const matchedWords = productWords.filter(w => officialTitle.includes(w));
             if (matchedWords.length >= Math.min(2, productWords.length)) {
-              console.log(`  [Official Match] ${official.officialInfo.domain}: ${official.officialInfo.title}`);
+              console.log(`  [Official Fallback] ${official.officialInfo.domain}: ${official.officialInfo.title}`);
               // 公式サイト情報をProductInfo形式で設定
               amazonInfo = {
                 id: `official-${official.officialInfo.domain}`,
@@ -215,24 +235,43 @@ export async function POST(request: NextRequest) {
                 imageUrl: official.officialInfo.image || "",
                 source: "amazon" as const, // 型の互換性のため
               };
-              matchReason = `Official: ${official.officialInfo.domain}`;
+              matchReason = `Official (fallback): ${official.officialInfo.domain}`;
               break;
             }
           }
         }
+      }
 
-        // それでもマッチしなかった場合のみAPI検索
-        if (!amazonInfo) {
-          console.log(`  [Search] Not found in description, searching API...`);
-          amazonInfo = await searchAmazonProduct(product.name, product.brand || undefined, product.category);
-          if (amazonInfo) {
-            matchReason = "API Search";
-          }
+      // サブカテゴリ: Geminiの結果を優先、なければAmazon情報から推論
+      let finalSubcategory = product.subcategory || amazonInfo?.subcategory || null;
+
+      // Amazon情報があればサブカテゴリを推論
+      if (!finalSubcategory && amazonInfo) {
+        finalSubcategory = inferSubcategory({
+          category: product.category,
+          title: amazonInfo.title,
+          features: amazonInfo.features,
+          technicalInfo: amazonInfo.technicalInfo,
+        });
+        if (finalSubcategory) {
+          console.log(`  [SubcategoryInferred] ${product.name} → ${finalSubcategory}`);
         }
       }
 
-      // サブカテゴリ: Geminiの結果を優先、なければAmazon検索結果から
-      const finalSubcategory = product.subcategory || amazonInfo?.subcategory || null;
+      // タグを抽出（Amazon情報があれば）
+      let productTags: string[] | undefined;
+      if (amazonInfo) {
+        productTags = extractProductTags({
+          category: product.category,
+          subcategory: finalSubcategory,
+          title: amazonInfo.title,
+          features: amazonInfo.features,
+          technicalInfo: amazonInfo.technicalInfo,
+        });
+        if (productTags.length > 0) {
+          console.log(`  [TagsExtracted] ${product.name} → [${productTags.join(", ")}]`);
+        }
+      }
 
       matchedProducts.push({
         name: product.name,
@@ -241,6 +280,7 @@ export async function POST(request: NextRequest) {
         subcategory: finalSubcategory,
         reason: product.reason,
         confidence: product.confidence,
+        tags: productTags,
         amazon: amazonInfo ? {
           asin: amazonInfo.id,
           title: amazonInfo.title,

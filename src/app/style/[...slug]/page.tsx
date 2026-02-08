@@ -9,10 +9,10 @@ import {
   styleTagToSlug,
   STYLE_TAGS,
 } from "@/lib/constants";
-import { SortSelect } from "@/components/SortSelect";
-import { ProductCard } from "@/components/ProductCard";
-import { RankingProductCard } from "@/components/RankingProductCard";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { PageHeader } from "@/components/PageHeader";
+import { CategorySection } from "@/components/CategorySection";
+import { ProductListSection } from "@/components/ProductListSection";
 import type { ProductWithStats } from "@/types";
 
 // 1時間キャッシュ
@@ -44,17 +44,15 @@ function getStyleTitle(styleTag: string, category?: string | null): string {
   // 「な」を付けるべきタグ
   const withNa = ["おしゃれ", "ナチュラル", "ナチュラル/木目調", "かわいい"];
 
-  const suffix = category
-    ? `${category}一覧`
-    : "ガジェット一覧";
+  const suffix = category ? category : "ガジェット";
 
   if (withNo.includes(styleTag)) {
-    return `${styleTag}のデスク環境でよく使用されている${suffix}`;
+    return `${styleTag}のデスク環境に登場する${suffix}一覧`;
   }
   if (withNa.includes(styleTag)) {
-    return `${styleTag}なデスク環境でよく使用されている${suffix}`;
+    return `${styleTag}なデスク環境に登場する${suffix}一覧`;
   }
-  return `${styleTag}デスク環境でよく使用されている${suffix}`;
+  return `${styleTag}のデスク環境に登場する${suffix}一覧`;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -69,14 +67,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (category) {
     return {
-      title: `${getStyleTitle(styleTag, category)} | デスクツアーDB`,
-      description: `${styleTag}スタイルのデスクセットアップで使われている${category}の一覧。実際に使用しているユーザーのコメント付き。`,
+      title: `${getStyleTitle(styleTag, category)}｜デスクツアー掲載環境`,
+      description: `デスクツアーで実際に使われている${styleTag}スタイルの${category}を掲載。使用者のコメントと掲載環境を確認できます。`,
     };
   }
 
   return {
-    title: `${getStyleTitle(styleTag)} | デスクツアーDB`,
-    description: `${styleTag}スタイルのデスクセットアップで使われている商品の一覧。カテゴリ別ランキングで人気商品がわかります。`,
+    title: `${getStyleTitle(styleTag)}｜デスクツアー掲載環境`,
+    description: `デスクツアーで実際に使われている${styleTag}スタイルのガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`,
   };
 }
 
@@ -154,43 +152,26 @@ export default async function StylePage({ params, searchParams }: PageProps) {
         />
 
         {/* タイトルセクション（SEO最適化） */}
-        <div className="mb-8">
-          <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-            DATABASE REPORT
-          </p>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            {pageTitle}
-          </h1>
-          <p className="text-gray-600">
-            {stats.total_videos}件の
-            <Link href="/sources" className="text-blue-600 hover:underline">
-              デスクツアー動画・記事
-            </Link>
-            から分析した、{styleTag}スタイルのデスクで使われている{category}一覧です。
-          </p>
-        </div>
+        <PageHeader
+          title={pageTitle}
+          subtitle={
+            <>
+              {stats.total_videos}件の
+              <Link href="/sources" className="text-blue-600 hover:underline">
+                デスクツアー動画・記事
+              </Link>
+              で実際に使われている{styleTag}スタイルの{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+            </>
+          }
+        />
 
-        {/* Sort */}
-        <div className="flex justify-between items-center mb-4">
-          <p className="text-sm text-gray-500">表示件数：{total}件</p>
-          <SortSelect defaultValue={sort} />
-        </div>
-
-        {/* Product Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} maxComments={1} />
-          ))}
-        </div>
-
-        {products.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg">
-            <p className="text-gray-500 mb-4">該当する商品がありません</p>
-            <Link href={`/style/${styleSlug}`} className="text-blue-600 hover:underline">
-              {styleTag}の商品一覧へ戻る
-            </Link>
-          </div>
-        )}
+        <ProductListSection
+          products={products}
+          total={total}
+          sort={sort}
+          emptyLinkHref={`/style/${styleSlug}`}
+          emptyLinkText={`${styleTag}の商品一覧へ戻る`}
+        />
       </div>
     );
   }
@@ -233,73 +214,33 @@ export default async function StylePage({ params, searchParams }: PageProps) {
       <Breadcrumb items={[{ label: "スタイル", href: "/style" }, { label: styleTag }]} />
 
       {/* Hero Section */}
-      <div className="text-center mb-16">
-        <p className="text-sm text-blue-600 font-medium tracking-wider mb-2">
-          DATABASE REPORT
-        </p>
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-          {getStyleTitle(styleTag)}
-        </h1>
-        <p className="text-gray-600 max-w-2xl mx-auto">
-          {stats.total_videos}件の
-          <Link href="/sources" className="text-blue-600 hover:underline">
-            デスクツアー動画・記事
-          </Link>
-          から分析した、{getStyleTitle(styleTag).replace("一覧", "")}です。
-        </p>
-      </div>
+      <PageHeader
+        title={getStyleTitle(styleTag)}
+        subtitle={
+          <>
+            {stats.total_videos}件の
+            <Link href="/sources" className="text-blue-600 hover:underline">
+              デスクツアー動画・記事
+            </Link>
+            で実際に使われている{styleTag}スタイルのガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
+          </>
+        }
+      />
 
       {/* Category Sections */}
       <div className="space-y-16">
         {sortedCategories.map((categoryName) => {
           const categoryProducts = productsByCategory[categoryName];
-          const top3 = categoryProducts.slice(0, 3);
-          const totalInCategory = categoryProducts.length;
-
           return (
-            <section key={categoryName}>
-              {/* Category Header */}
-              <div className="flex items-center justify-between mb-6 border-b border-gray-200 pb-4">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {getCategoryEnglish(categoryName)}
-                  </h2>
-                  <span className="text-sm text-gray-500">{categoryName}</span>
-                </div>
-                <Link
-                  href={`/style/${styleSlug}/${categoryToSlug(categoryName)}`}
-                  className="text-sm text-gray-600 hover:text-blue-600 flex items-center gap-1"
-                >
-                  View All
-                  <span className="text-gray-400">({totalInCategory}件)</span>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </Link>
-              </div>
-
-              {/* Top 3 Products */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {top3.map((product, index) => (
-                  <RankingProductCard
-                    key={product.id}
-                    product={product}
-                    rank={index + 1}
-                    adoptionText={`${styleTag}デスクで${product.mention_count}件採用`}
-                  />
-                ))}
-              </div>
-            </section>
+            <CategorySection
+              key={categoryName}
+              categoryName={categoryName}
+              categoryEnglish={getCategoryEnglish(categoryName)}
+              products={categoryProducts}
+              viewAllHref={`/style/${styleSlug}/${categoryToSlug(categoryName)}`}
+              totalCount={categoryProducts.length}
+              adoptionTextFn={(product) => `${styleTag}デスクで${product.mention_count}件採用`}
+            />
           );
         })}
       </div>

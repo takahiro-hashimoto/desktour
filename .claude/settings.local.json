@@ -28,7 +28,15 @@
       "Bash(export SUPABASE_ANON_KEY=\"sb_publishable_greVEWiQ1W7BFRbT-B_PVw_8WbVT1Y_\")",
       "Bash(npm ls:*)",
       "WebFetch(domain:qiita.com)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git push:*)",
+      "Bash(head:*)",
+      "Bash(npm run dev:*)",
+      "Bash(ls:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npx tsx:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)"
     ]
   }
 }

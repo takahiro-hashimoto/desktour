@@ -1,15 +1,12 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Package } from "lucide-react";
 import { cache } from "react";
 import { getProductDetail, getCoOccurrenceProducts } from "@/lib/supabase";
 import { categoryToSlug, occupationToSlug, styleTagToSlug, STYLE_TAGS } from "@/lib/constants";
 import { CoUsedProduct } from "@/types";
-import { Breadcrumb } from "@/components/Breadcrumb";
-import { ProductCommentWithModal } from "@/components/ProductCommentWithModal";
-import { resolveImageUrl } from "@/lib/imageUtils";
 import { getProductLinks } from "@/lib/affiliateLinks";
+import "../../product-detail-styles.css";
 
 // 単位変換ユーティリティ
 function convertSize(sizeStr: string): string {
@@ -48,18 +45,37 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const product = await getCachedProductDetail(params.id);
 
   if (!product) {
-    return { title: "商品が見つかりません | セットアップDB" };
+    return { title: "商品が見つかりません | デスクツアーDB" };
   }
 
-  // コメントが3つ未満の商品はnoindexに設定
   const commentsCount = product.all_comments?.length || 0;
   const shouldNoIndex = commentsCount < 3;
 
   return {
-    title: `${product.name}のリアルな口コミ・製品情報まとめ`,
+    title: `${product.name}の使用例・口コミ情報まとめ | デスクツアーDB`,
     description: `${product.name}を${product.mention_count}人のデスクツアーで確認。エンジニア・クリエイターの使用者コメントやデスク環境の傾向を紹介。`,
     robots: shouldNoIndex ? { index: false, follow: true } : undefined,
   };
+}
+
+// カテゴリーアイコンマッピング
+function getCategoryIcon(category: string): string {
+  const iconMap: { [key: string]: string } = {
+    "キーボード": "fa-keyboard",
+    "マウス": "fa-computer-mouse",
+    "ディスプレイ・モニター": "fa-display",
+    "デスク": "fa-table",
+    "チェア": "fa-chair",
+    "マイク": "fa-microphone",
+    "ウェブカメラ": "fa-video",
+    "ヘッドホン・イヤホン": "fa-headphones",
+    "スピーカー": "fa-volume-high",
+    "照明・ライト": "fa-lightbulb",
+    "ケーブルハブ": "fa-plug",
+    "充電器・電源": "fa-battery-full",
+    "その他デスクアクセサリー": "fa-puzzle-piece",
+  };
+  return iconMap[category] || "fa-cube";
 }
 
 export default async function ProductDetailPage({ params }: PageProps) {
@@ -143,7 +159,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <div className="md:w-3/5 p-8">
               {/* Page Title (SEO) */}
               <h1 className="text-gray-500 text-sm mb-2">
-                {product.name}のリアルな口コミ・製品情報まとめ
+                {product.name}の使用例・口コミ情報まとめ｜デスクツアー掲載環境
               </h1>
 
               {/* Product Name */}
@@ -395,7 +411,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   {String(1 + (hasFeatures ? 1 : 0) + (hasEnvironmentStats ? 1 : 0)).padStart(2, '0')}
                 </span>
                 <h2 className="text-lg font-bold text-gray-900">
-                  {product.name}を使用しているユーザーのコメント
+                  {product.name}の口コミ・実際の使用例
                 </h2>
               </div>
 

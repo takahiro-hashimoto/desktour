@@ -38,6 +38,7 @@ interface ProductToSave {
   subcategory?: string | null;
   reason: string;
   confidence: "high" | "medium" | "low";
+  tags?: string[]; // 自動抽出されたタグ
 }
 
 interface ArticleInfo {
@@ -215,6 +216,7 @@ export async function POST(request: NextRequest) {
         brand: product.brand || undefined,
         category: product.category,
         subcategory: product.subcategory || undefined,
+        tags: product.tags,
         reason: product.reason,
         confidence: product.confidence,
         article_id: sourceType === "article" ? sourceUrl : undefined,
