@@ -1,8 +1,7 @@
 /**
  * Amazon商品情報からサブカテゴリーを自動推論する
+ * データ駆動型: ルール定義からマッチングを自動実行
  */
-
-import { SUBCATEGORIES } from "./constants";
 
 interface ProductInfo {
   category: string;
@@ -12,11 +11,397 @@ interface ProductInfo {
   currentSubcategory?: string | null;
 }
 
+// マッチングルール: keywords は OR 条件、allOf は AND 条件（全て含む必要あり）
+interface SubcategoryRule {
+  result: string;
+  keywords?: string[];
+  allOf?: string[];
+}
+
+// カテゴリ別のサブカテゴリ推論ルール（順序が優先度に影響）
+const SUBCATEGORY_RULES: Record<string, SubcategoryRule[]> = {
+  "キーボード": [
+    {
+      result: "メカニカルキーボード",
+      keywords: ["mechanical", "メカニカル", "cherry mx", "gateron", "kailh", "赤軸", "青軸", "茶軸"],
+    },
+    {
+      result: "静電容量無接点",
+      keywords: ["hhkb", "realforce", "静電容量", "無接点", "capacitive"],
+    },
+    {
+      result: "パンタグラフ",
+      keywords: ["パンタグラフ", "pantograph", "シザー", "scissor", "magic keyboard", "apple keyboard"],
+    },
+    { result: "パンタグラフ", allOf: ["薄型", "キーボード"] },
+    {
+      result: "分割キーボード",
+      keywords: ["split", "分割", "ergodox", "kinesis"],
+    },
+    {
+      result: "テンキーレス",
+      keywords: ["tkl", "tenkeyless", "テンキーレス", "87キー", "87key"],
+    },
+    {
+      result: "60%・65%キーボード",
+      keywords: ["60%", "65%", "66キー", "68キー", "60 percent", "65 percent"],
+    },
+    {
+      result: "フルサイズキーボード",
+      keywords: ["フルサイズ", "full size", "108キー", "テンキー付き"],
+    },
+    {
+      result: "ロープロファイル",
+      keywords: ["ロープロファイル", "low profile", "薄型", "ultra slim"],
+    },
+  ],
+  "マウス": [
+    {
+      result: "トラックボール",
+      keywords: ["trackball", "トラックボール", "mx ergo", "m575", "sw-m570"],
+    },
+    {
+      result: "縦型マウス",
+      keywords: ["vertical", "縦型", "mx vertical"],
+    },
+    {
+      result: "ゲーミングマウス",
+      keywords: ["gaming", "ゲーミング", "g pro", "deathadder", "viper", "rival"],
+    },
+    {
+      result: "エルゴノミクスマウス",
+      keywords: ["ergonomic", "エルゴノミクス", "mx master", "mx anywhere"],
+    },
+    {
+      result: "ワイヤレスマウス",
+      keywords: ["wireless", "ワイヤレス", "bluetooth"],
+    },
+  ],
+  "ディスプレイ・モニター": [
+    {
+      result: "4Kモニター",
+      keywords: ["4k", "3840", "2160", "uhd"],
+    },
+    {
+      result: "ウルトラワイドモニター",
+      keywords: ["ultrawide", "ウルトラワイド", "21:9"],
+    },
+    { result: "ウルトラワイドモニター", allOf: ["34インチ", "曲面"] },
+    {
+      result: "ゲーミングモニター",
+      keywords: ["144hz", "165hz", "240hz", "g-sync", "freesync"],
+    },
+    { result: "ゲーミングモニター", allOf: ["gaming", "hz"] },
+    {
+      result: "モバイルモニター",
+      keywords: ["mobile", "モバイル", "portable", "ポータブル", "13.3", "15.6"],
+    },
+    {
+      result: "5K・6Kモニター",
+      keywords: ["5k", "6k", "5120"],
+    },
+  ],
+  "ヘッドホン・イヤホン": [
+    { result: "開放型ヘッドホン", allOf: ["open", "back"] },
+    { result: "開放型ヘッドホン", keywords: ["開放型", "音漏れ"] },
+    { result: "密閉型ヘッドホン", allOf: ["closed", "back"] },
+    { result: "密閉型ヘッドホン", keywords: ["密閉型", "遮音"] },
+    {
+      result: "ワイヤレスイヤホン",
+      keywords: ["airpods", "完全ワイヤレス", "true wireless", "tws"],
+    },
+    { result: "ワイヤレスイヤホン", allOf: ["bluetooth", "イヤホン"] },
+    { result: "有線イヤホン", keywords: ["有線イヤホン"] },
+    { result: "有線イヤホン", allOf: ["3.5mm", "イヤホン"] },
+    {
+      result: "モニターヘッドホン",
+      keywords: ["モニターヘッドホン", "dtm", "音楽制作", "studio monitor", "スタジオ"],
+    },
+    {
+      result: "ゲーミングヘッドセット",
+      keywords: ["gaming headset", "ゲーミングヘッドセット", "7.1ch"],
+    },
+    { result: "ゲーミングヘッドセット", allOf: ["マイク付き", "gaming"] },
+  ],
+  "チェア": [
+    {
+      result: "ゲーミングチェア",
+      keywords: ["gaming chair", "ゲーミングチェア", "dxracer", "akracing", "バケットシート"],
+    },
+    {
+      result: "エルゴノミクスチェア",
+      keywords: ["herman miller", "steelcase", "ergonomic", "エルゴノミクス", "腰痛対策", "ランバーサポート"],
+    },
+    {
+      result: "メッシュチェア",
+      keywords: ["mesh", "メッシュ", "通気性"],
+    },
+    {
+      result: "オフィスチェア",
+      keywords: ["office chair", "オフィスチェア", "事務椅子"],
+    },
+    {
+      result: "バランスチェア",
+      keywords: ["balance", "バランスチェア", "姿勢"],
+    },
+  ],
+  "デスク": [
+    {
+      result: "昇降デスク",
+      keywords: ["昇降", "standing", "電動", "height adjustable", "スタンディング"],
+    },
+    {
+      result: "L字デスク",
+      keywords: ["l字", "l型", "l-shaped", "コーナー"],
+    },
+    {
+      result: "DIYデスク",
+      keywords: ["diy", "自作", "天板のみ", "カスタム"],
+    },
+    {
+      result: "ゲーミングデスク",
+      keywords: ["gaming desk", "ゲーミングデスク"],
+    },
+    {
+      result: "PCデスク",
+      keywords: ["pcデスク", "パソコンデスク", "computer desk"],
+    },
+  ],
+  "マイク": [
+    {
+      result: "コンデンサーマイク",
+      keywords: ["condenser", "コンデンサー", "配信", "streaming"],
+    },
+    {
+      result: "ダイナミックマイク",
+      keywords: ["dynamic", "ダイナミック", "sm7b", "re20"],
+    },
+    {
+      result: "USBマイク",
+      keywords: ["usb mic", "usbマイク", "blue yeti", "fifine"],
+    },
+    {
+      result: "XLRマイク",
+      keywords: ["xlr", "ファンタム電源", "phantom power"],
+    },
+    {
+      result: "ピンマイク",
+      keywords: ["lavalier", "ピンマイク", "ラベリア", "襟元"],
+    },
+  ],
+  "スピーカー": [
+    {
+      result: "モニタースピーカー",
+      keywords: ["monitor speaker", "モニタースピーカー", "dtm", "studio", "音楽制作"],
+    },
+    {
+      result: "サウンドバー",
+      keywords: ["soundbar", "サウンドバー", "モニター下"],
+    },
+    {
+      result: "Bluetoothスピーカー",
+      keywords: ["bluetooth speaker", "bluetoothスピーカー", "ワイヤレススピーカー"],
+    },
+    {
+      result: "PCスピーカー",
+      keywords: ["pcスピーカー", "pc speaker", "デスクトップスピーカー"],
+    },
+  ],
+  "照明・ライト": [
+    {
+      result: "モニターライト",
+      keywords: ["screenbar", "モニターライト", "monitor light"],
+    },
+    {
+      result: "リングライト",
+      keywords: ["ring light", "リングライト", "撮影用"],
+    },
+    {
+      result: "LEDテープ",
+      keywords: ["led strip", "ledテープ", "led tape", "テープライト"],
+    },
+    {
+      result: "間接照明",
+      keywords: ["間接照明", "indirect lighting"],
+    },
+    {
+      result: "デスクライト",
+      keywords: ["desk lamp", "デスクライト", "卓上ライト"],
+    },
+  ],
+  "ウェブカメラ": [
+    {
+      result: "4Kウェブカメラ",
+      keywords: ["4k", "3840"],
+    },
+    {
+      result: "フルHDウェブカメラ",
+      keywords: ["1080p", "full hd", "フルhd"],
+    },
+    {
+      result: "広角ウェブカメラ",
+      keywords: ["wide angle", "広角", "ultra wide"],
+    },
+  ],
+  "PC本体": [
+    {
+      result: "デスクトップPC",
+      keywords: ["desktop", "デスクトップpc", "タワー型"],
+    },
+    {
+      result: "ノートPC",
+      keywords: ["laptop", "notebook", "ノートpc", "ノートパソコン"],
+    },
+    {
+      result: "ミニPC",
+      keywords: ["mini pc", "ミニpc", "nuc"],
+    },
+    {
+      result: "自作PC",
+      keywords: ["自作", "custom build", "btopパソコン"],
+    },
+    {
+      result: "Mac",
+      keywords: ["mac", "macbook", "imac"],
+    },
+  ],
+  "HDD・SSD": [
+    {
+      result: "外付けSSD",
+      keywords: ["外付けssd", "external ssd", "portable ssd"],
+    },
+    {
+      result: "外付けHDD",
+      keywords: ["外付けhdd", "external hdd", "portable hdd"],
+    },
+    {
+      result: "内蔵SSD",
+      keywords: ["内蔵ssd", "internal ssd", "m.2", "nvme"],
+    },
+    {
+      result: "内蔵HDD",
+      keywords: ["内蔵hdd", "internal hdd"],
+    },
+    {
+      result: "HDDケース",
+      keywords: ["hddケース", "enclosure", "ケース"],
+    },
+  ],
+  "コントローラー": [
+    {
+      result: "PlayStation用コントローラー",
+      keywords: ["playstation", "ps4", "ps5", "dualsense", "dualshock"],
+    },
+    {
+      result: "Xbox用コントローラー",
+      keywords: ["xbox", "elite"],
+    },
+    {
+      result: "Switch用コントローラー",
+      keywords: ["switch", "pro controller", "joy-con"],
+    },
+    {
+      result: "レーシングホイール",
+      keywords: ["racing wheel", "レーシングホイール", "ハンドル"],
+    },
+    {
+      result: "アーケードスティック",
+      keywords: ["arcade stick", "アーケードスティック", "fight stick"],
+    },
+    {
+      result: "PCゲーム用コントローラー",
+      keywords: ["pc game", "pcゲーム"],
+    },
+  ],
+  "左手デバイス": [
+    {
+      result: "ストリームデッキ",
+      keywords: ["stream deck", "elgato"],
+    },
+    {
+      result: "マクロパッド",
+      keywords: ["macro pad", "マクロパッド", "macropad"],
+    },
+    {
+      result: "左手キーボード",
+      keywords: ["左手", "left hand", "片手"],
+    },
+    {
+      result: "TourBox",
+      keywords: ["tourbox"],
+    },
+    {
+      result: "Orbital2",
+      keywords: ["orbital"],
+    },
+    {
+      result: "プログラマブルキーパッド",
+      keywords: ["プログラマブル", "programmable", "キーパッド", "keypad"],
+    },
+  ],
+  "キャプチャーボード": [
+    {
+      result: "外付けキャプチャーボード",
+      keywords: ["外付け", "external", "usb"],
+    },
+    {
+      result: "内蔵キャプチャーボード",
+      keywords: ["内蔵", "internal", "pcie"],
+    },
+    {
+      result: "4Kキャプチャーボード",
+      keywords: ["4k", "2160p"],
+    },
+    {
+      result: "HDMIキャプチャーボード",
+      keywords: ["hdmi"],
+    },
+  ],
+  "NAS": [
+    {
+      result: "2ベイNAS",
+      keywords: ["2bay", "2ベイ", "2台"],
+    },
+    {
+      result: "4ベイNAS",
+      keywords: ["4bay", "4ベイ", "4台"],
+    },
+    {
+      result: "ラックマウント型NAS",
+      keywords: ["rackmount", "ラックマウント"],
+    },
+    {
+      result: "デスクトップ型NAS",
+      keywords: ["desktop", "デスクトップ"],
+    },
+  ],
+};
+
+// カテゴリ名のエイリアス（DB値のバリエーション → ルールキー）
+const CATEGORY_ALIASES: Record<string, string> = {
+  "ディスプレイ/モニター": "ディスプレイ・モニター",
+  "ヘッドホン/イヤホン": "ヘッドホン・イヤホン",
+  "HDD/SSD": "HDD・SSD",
+};
+
+// ルールに対してテキストがマッチするかチェック
+function matchesRule(text: string, rule: SubcategoryRule): boolean {
+  // AND条件: 全てのキーワードが含まれていればマッチ
+  if (rule.allOf) {
+    return rule.allOf.every((kw) => text.includes(kw));
+  }
+  // OR条件: いずれかのキーワードが含まれていればマッチ
+  if (rule.keywords) {
+    return rule.keywords.some((kw) => text.includes(kw));
+  }
+  return false;
+}
+
 /**
  * 商品情報からサブカテゴリーを推論
  */
 export function inferSubcategory(data: ProductInfo): string | null {
-  const { category, title = "", features = [], technicalInfo = {}, currentSubcategory } = data;
+  const { category, title = "", features = [], currentSubcategory } = data;
 
   // 既にサブカテゴリーがあればそれを優先
   if (currentSubcategory) return currentSubcategory;
@@ -25,814 +410,17 @@ export function inferSubcategory(data: ProductInfo): string | null {
   const featuresText = features.join(" ").toLowerCase();
   const allText = (titleLower + " " + featuresText).toLowerCase();
 
-  // カテゴリー別の推論ロジック
-  if (category === "キーボード") {
-    return inferKeyboardSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "マウス") {
-    return inferMouseSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "ディスプレイ・モニター" || category === "ディスプレイ/モニター") {
-    return inferMonitorSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "ヘッドホン・イヤホン" || category === "ヘッドホン/イヤホン") {
-    return inferHeadphoneSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "チェア") {
-    return inferChairSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "デスク") {
-    return inferDeskSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "マイク") {
-    return inferMicSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "スピーカー") {
-    return inferSpeakerSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "照明・ライト") {
-    return inferLightSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "ウェブカメラ") {
-    return inferWebcamSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "PC本体") {
-    return inferPCSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "HDD・SSD" || category === "HDD/SSD") {
-    return inferStorageSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "コントローラー") {
-    return inferControllerSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "ストリームデッキ") {
-    return inferStreamDeckSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "キャプチャーボード") {
-    return inferCaptureCardSubcategory(allText, technicalInfo);
-  }
-
-  if (category === "NAS") {
-    return inferNASSubcategory(allText, technicalInfo);
-  }
-
-  return null;
-}
-
-// キーボードのサブカテゴリー推論
-function inferKeyboardSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("mechanical") ||
-    text.includes("メカニカル") ||
-    text.includes("cherry mx") ||
-    text.includes("gateron") ||
-    text.includes("kailh") ||
-    text.includes("赤軸") ||
-    text.includes("青軸") ||
-    text.includes("茶軸")
-  ) {
-    return "メカニカルキーボード";
-  }
-
-  if (
-    text.includes("hhkb") ||
-    text.includes("realforce") ||
-    text.includes("静電容量") ||
-    text.includes("無接点") ||
-    text.includes("capacitive")
-  ) {
-    return "静電容量無接点";
-  }
-
-  if (
-    text.includes("パンタグラフ") ||
-    text.includes("pantograph") ||
-    text.includes("シザー") ||
-    text.includes("scissor") ||
-    (text.includes("薄型") && text.includes("キーボード")) ||
-    text.includes("magic keyboard") ||
-    text.includes("apple keyboard")
-  ) {
-    return "パンタグラフ";
-  }
-
-  if (
-    text.includes("split") ||
-    text.includes("分割") ||
-    text.includes("ergodox") ||
-    text.includes("kinesis")
-  ) {
-    return "分割キーボード";
-  }
-
-  if (
-    text.includes("tkl") ||
-    text.includes("tenkeyless") ||
-    text.includes("テンキーレス") ||
-    text.includes("87キー") ||
-    text.includes("87key")
-  ) {
-    return "テンキーレス";
-  }
-
-  if (
-    text.includes("60%") ||
-    text.includes("65%") ||
-    text.includes("66キー") ||
-    text.includes("68キー") ||
-    text.includes("60 percent") ||
-    text.includes("65 percent")
-  ) {
-    return "60%・65%キーボード";
-  }
-
-  if (
-    text.includes("フルサイズ") ||
-    text.includes("full size") ||
-    text.includes("108キー") ||
-    text.includes("テンキー付き")
-  ) {
-    return "フルサイズキーボード";
-  }
-
-  if (
-    text.includes("ロープロファイル") ||
-    text.includes("low profile") ||
-    text.includes("薄型") ||
-    text.includes("ultra slim")
-  ) {
-    return "ロープロファイル";
-  }
-
-  return null;
-}
-
-// マウスのサブカテゴリー推論
-function inferMouseSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("trackball") ||
-    text.includes("トラックボール") ||
-    text.includes("mx ergo") ||
-    text.includes("m575") ||
-    text.includes("sw-m570")
-  ) {
-    return "トラックボール";
-  }
-
-  if (
-    text.includes("vertical") ||
-    text.includes("縦型") ||
-    text.includes("mx vertical")
-  ) {
-    return "縦型マウス";
-  }
-
-  if (
-    text.includes("gaming") ||
-    text.includes("ゲーミング") ||
-    text.includes("g pro") ||
-    text.includes("deathadder") ||
-    text.includes("viper") ||
-    text.includes("rival") ||
-    text.includes("dpi") && text.includes("16000")
-  ) {
-    return "ゲーミングマウス";
-  }
-
-  if (
-    text.includes("ergonomic") ||
-    text.includes("エルゴノミクス") ||
-    text.includes("mx master") ||
-    text.includes("mx anywhere")
-  ) {
-    return "エルゴノミクスマウス";
-  }
-
-  if (
-    text.includes("wireless") ||
-    text.includes("ワイヤレス") ||
-    text.includes("bluetooth")
-  ) {
-    return "ワイヤレスマウス";
-  }
-
-  return null;
-}
-
-// モニターのサブカテゴリー推論
-function inferMonitorSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("4k") ||
-    text.includes("3840") ||
-    text.includes("2160") ||
-    text.includes("uhd")
-  ) {
-    return "4Kモニター";
-  }
-
-  if (
-    text.includes("ultrawide") ||
-    text.includes("ウルトラワイド") ||
-    text.includes("21:9") ||
-    text.includes("34インチ") && text.includes("曲面")
-  ) {
-    return "ウルトラワイドモニター";
-  }
-
-  if (
-    text.includes("144hz") ||
-    text.includes("165hz") ||
-    text.includes("240hz") ||
-    text.includes("g-sync") ||
-    text.includes("freesync") ||
-    text.includes("gaming") && text.includes("hz")
-  ) {
-    return "ゲーミングモニター";
-  }
-
-  if (
-    text.includes("mobile") ||
-    text.includes("モバイル") ||
-    text.includes("portable") ||
-    text.includes("ポータブル") ||
-    text.includes("13.3") ||
-    text.includes("15.6")
-  ) {
-    return "モバイルモニター";
-  }
-
-  if (
-    text.includes("5k") ||
-    text.includes("6k") ||
-    text.includes("5120")
-  ) {
-    return "5K・6Kモニター";
-  }
-
-  return null;
-}
-
-// ヘッドホン・イヤホンのサブカテゴリー推論
-function inferHeadphoneSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("open") && text.includes("back") ||
-    text.includes("開放型") ||
-    text.includes("音漏れ")
-  ) {
-    return "開放型ヘッドホン";
-  }
-
-  if (
-    text.includes("closed") && text.includes("back") ||
-    text.includes("密閉型") ||
-    text.includes("遮音")
-  ) {
-    return "密閉型ヘッドホン";
-  }
-
-  if (
-    text.includes("airpods") ||
-    text.includes("完全ワイヤレス") ||
-    text.includes("true wireless") ||
-    text.includes("tws") ||
-    text.includes("bluetooth") && text.includes("イヤホン")
-  ) {
-    return "ワイヤレスイヤホン";
-  }
-
-  if (
-    text.includes("有線イヤホン") ||
-    text.includes("3.5mm") && text.includes("イヤホン")
-  ) {
-    return "有線イヤホン";
-  }
-
-  if (
-    text.includes("モニターヘッドホン") ||
-    text.includes("dtm") ||
-    text.includes("音楽制作") ||
-    text.includes("studio monitor") ||
-    text.includes("スタジオ")
-  ) {
-    return "モニターヘッドホン";
-  }
-
-  if (
-    text.includes("gaming headset") ||
-    text.includes("ゲーミングヘッドセット") ||
-    text.includes("7.1ch") ||
-    text.includes("マイク付き") && text.includes("gaming")
-  ) {
-    return "ゲーミングヘッドセット";
-  }
-
-  return null;
-}
-
-// チェアのサブカテゴリー推論
-function inferChairSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("gaming chair") ||
-    text.includes("ゲーミングチェア") ||
-    text.includes("dxracer") ||
-    text.includes("akracing") ||
-    text.includes("バケットシート")
-  ) {
-    return "ゲーミングチェア";
-  }
-
-  if (
-    text.includes("herman miller") ||
-    text.includes("steelcase") ||
-    text.includes("ergonomic") ||
-    text.includes("エルゴノミクス") ||
-    text.includes("腰痛対策") ||
-    text.includes("ランバーサポート")
-  ) {
-    return "エルゴノミクスチェア";
-  }
-
-  if (
-    text.includes("mesh") ||
-    text.includes("メッシュ") ||
-    text.includes("通気性")
-  ) {
-    return "メッシュチェア";
-  }
-
-  if (
-    text.includes("office chair") ||
-    text.includes("オフィスチェア") ||
-    text.includes("事務椅子")
-  ) {
-    return "オフィスチェア";
-  }
-
-  if (
-    text.includes("balance") ||
-    text.includes("バランスチェア") ||
-    text.includes("姿勢")
-  ) {
-    return "バランスチェア";
-  }
-
-  return null;
-}
-
-// デスクのサブカテゴリー推論
-function inferDeskSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("昇降") ||
-    text.includes("standing") ||
-    text.includes("電動") ||
-    text.includes("height adjustable") ||
-    text.includes("スタンディング")
-  ) {
-    return "昇降デスク";
-  }
-
-  if (
-    text.includes("l字") ||
-    text.includes("l型") ||
-    text.includes("l-shaped") ||
-    text.includes("コーナー")
-  ) {
-    return "L字デスク";
-  }
-
-  if (
-    text.includes("diy") ||
-    text.includes("自作") ||
-    text.includes("天板のみ") ||
-    text.includes("カスタム")
-  ) {
-    return "DIYデスク";
-  }
-
-  if (
-    text.includes("gaming desk") ||
-    text.includes("ゲーミングデスク")
-  ) {
-    return "ゲーミングデスク";
-  }
-
-  if (
-    text.includes("pcデスク") ||
-    text.includes("パソコンデスク") ||
-    text.includes("computer desk")
-  ) {
-    return "PCデスク";
-  }
-
-  return null;
-}
-
-// マイクのサブカテゴリー推論
-function inferMicSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("condenser") ||
-    text.includes("コンデンサー") ||
-    text.includes("配信") ||
-    text.includes("streaming")
-  ) {
-    return "コンデンサーマイク";
-  }
-
-  if (
-    text.includes("dynamic") ||
-    text.includes("ダイナミック") ||
-    text.includes("sm7b") ||
-    text.includes("re20")
-  ) {
-    return "ダイナミックマイク";
-  }
-
-  if (
-    text.includes("usb mic") ||
-    text.includes("usbマイク") ||
-    text.includes("blue yeti") ||
-    text.includes("fifine")
-  ) {
-    return "USBマイク";
-  }
-
-  if (
-    text.includes("xlr") ||
-    text.includes("ファンタム電源") ||
-    text.includes("phantom power")
-  ) {
-    return "XLRマイク";
-  }
-
-  if (
-    text.includes("lavalier") ||
-    text.includes("ピンマイク") ||
-    text.includes("ラベリア") ||
-    text.includes("襟元")
-  ) {
-    return "ピンマイク";
-  }
-
-  return null;
-}
-
-// スピーカーのサブカテゴリー推論
-function inferSpeakerSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("monitor speaker") ||
-    text.includes("モニタースピーカー") ||
-    text.includes("dtm") ||
-    text.includes("studio") ||
-    text.includes("音楽制作")
-  ) {
-    return "モニタースピーカー";
-  }
-
-  if (
-    text.includes("soundbar") ||
-    text.includes("サウンドバー") ||
-    text.includes("モニター下")
-  ) {
-    return "サウンドバー";
-  }
-
-  if (
-    text.includes("bluetooth speaker") ||
-    text.includes("bluetoothスピーカー") ||
-    text.includes("ワイヤレススピーカー")
-  ) {
-    return "Bluetoothスピーカー";
-  }
-
-  if (
-    text.includes("pcスピーカー") ||
-    text.includes("pc speaker") ||
-    text.includes("デスクトップスピーカー")
-  ) {
-    return "PCスピーカー";
-  }
-
-  return null;
-}
-
-// 照明のサブカテゴリー推論
-function inferLightSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("screenbar") ||
-    text.includes("モニターライト") ||
-    text.includes("monitor light")
-  ) {
-    return "モニターライト";
-  }
-
-  if (
-    text.includes("ring light") ||
-    text.includes("リングライト") ||
-    text.includes("撮影用")
-  ) {
-    return "リングライト";
-  }
-
-  if (
-    text.includes("led strip") ||
-    text.includes("ledテープ") ||
-    text.includes("led tape") ||
-    text.includes("テープライト")
-  ) {
-    return "LEDテープ";
-  }
-
-  if (
-    text.includes("間接照明") ||
-    text.includes("indirect lighting")
-  ) {
-    return "間接照明";
-  }
-
-  if (
-    text.includes("desk lamp") ||
-    text.includes("デスクライト") ||
-    text.includes("卓上ライト")
-  ) {
-    return "デスクライト";
-  }
-
-  return null;
-}
-
-// ウェブカメラのサブカテゴリー推論
-function inferWebcamSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (text.includes("4k") || text.includes("3840")) {
-    return "4Kウェブカメラ";
-  }
-
-  if (
-    text.includes("1080p") ||
-    text.includes("full hd") ||
-    text.includes("フルhd")
-  ) {
-    return "フルHDウェブカメラ";
-  }
-
-  if (
-    text.includes("wide angle") ||
-    text.includes("広角") ||
-    text.includes("ultra wide")
-  ) {
-    return "広角ウェブカメラ";
-  }
-
-  return null;
-}
-
-// PC本体のサブカテゴリー推論
-function inferPCSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("desktop") ||
-    text.includes("デスクトップpc") ||
-    text.includes("タワー型")
-  ) {
-    return "デスクトップPC";
-  }
-
-  if (
-    text.includes("laptop") ||
-    text.includes("notebook") ||
-    text.includes("ノートpc") ||
-    text.includes("ノートパソコン")
-  ) {
-    return "ノートPC";
-  }
-
-  if (
-    text.includes("mini pc") ||
-    text.includes("ミニpc") ||
-    text.includes("nuc")
-  ) {
-    return "ミニPC";
-  }
-
-  if (
-    text.includes("自作") ||
-    text.includes("custom build") ||
-    text.includes("btopパソコン")
-  ) {
-    return "自作PC";
-  }
-
-  if (
-    text.includes("mac") ||
-    text.includes("macbook") ||
-    text.includes("imac")
-  ) {
-    return "Mac";
-  }
-
-  return null;
-}
-
-// ストレージのサブカテゴリー推論
-function inferStorageSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("外付けssd") ||
-    text.includes("external ssd") ||
-    text.includes("portable ssd")
-  ) {
-    return "外付けSSD";
-  }
-
-  if (
-    text.includes("外付けhdd") ||
-    text.includes("external hdd") ||
-    text.includes("portable hdd")
-  ) {
-    return "外付けHDD";
-  }
-
-  if (
-    text.includes("内蔵ssd") ||
-    text.includes("internal ssd") ||
-    text.includes("m.2") ||
-    text.includes("nvme")
-  ) {
-    return "内蔵SSD";
-  }
-
-  if (
-    text.includes("内蔵hdd") ||
-    text.includes("internal hdd")
-  ) {
-    return "内蔵HDD";
-  }
-
-  if (
-    text.includes("hddケース") ||
-    text.includes("enclosure") ||
-    text.includes("ケース")
-  ) {
-    return "HDDケース";
-  }
-
-  return null;
-}
-
-// コントローラーのサブカテゴリー推論
-function inferControllerSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("playstation") ||
-    text.includes("ps4") ||
-    text.includes("ps5") ||
-    text.includes("dualsense") ||
-    text.includes("dualshock")
-  ) {
-    return "PlayStation用コントローラー";
-  }
-
-  if (
-    text.includes("xbox") ||
-    text.includes("elite")
-  ) {
-    return "Xbox用コントローラー";
-  }
-
-  if (
-    text.includes("switch") ||
-    text.includes("pro controller") ||
-    text.includes("joy-con")
-  ) {
-    return "Switch用コントローラー";
-  }
-
-  if (
-    text.includes("racing wheel") ||
-    text.includes("レーシングホイール") ||
-    text.includes("ハンドル")
-  ) {
-    return "レーシングホイール";
-  }
-
-  if (
-    text.includes("arcade stick") ||
-    text.includes("アーケードスティック") ||
-    text.includes("fight stick")
-  ) {
-    return "アーケードスティック";
-  }
-
-  if (
-    text.includes("pc game") ||
-    text.includes("pcゲーム")
-  ) {
-    return "PCゲーム用コントローラー";
-  }
-
-  return null;
-}
-
-// ストリームデッキのサブカテゴリー推論
-function inferStreamDeckSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("stream deck") ||
-    text.includes("elgato")
-  ) {
-    return "Elgato Stream Deck";
-  }
-
-  if (
-    text.includes("macro pad") ||
-    text.includes("マクロパッド")
-  ) {
-    return "マクロパッド";
-  }
-
-  if (
-    text.includes("カスタマイズ") ||
-    text.includes("programmable")
-  ) {
-    return "カスタマイズ可能デバイス";
-  }
-
-  return null;
-}
-
-// キャプチャーボードのサブカテゴリー推論
-function inferCaptureCardSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("外付け") ||
-    text.includes("external") ||
-    text.includes("usb")
-  ) {
-    return "外付けキャプチャーボード";
-  }
-
-  if (
-    text.includes("内蔵") ||
-    text.includes("internal") ||
-    text.includes("pcie")
-  ) {
-    return "内蔵キャプチャーボード";
-  }
-
-  if (
-    text.includes("4k") ||
-    text.includes("2160p")
-  ) {
-    return "4Kキャプチャーボード";
-  }
-
-  if (
-    text.includes("hdmi")
-  ) {
-    return "HDMIキャプチャーボード";
-  }
-
-  return null;
-}
-
-// NASのサブカテゴリー推論
-function inferNASSubcategory(text: string, specs: Record<string, string>): string | null {
-  if (
-    text.includes("2bay") ||
-    text.includes("2ベイ") ||
-    text.includes("2台")
-  ) {
-    return "2ベイNAS";
-  }
-
-  if (
-    text.includes("4bay") ||
-    text.includes("4ベイ") ||
-    text.includes("4台")
-  ) {
-    return "4ベイNAS";
-  }
-
-  if (
-    text.includes("rackmount") ||
-    text.includes("ラックマウント")
-  ) {
-    return "ラックマウント型NAS";
-  }
-
-  if (
-    text.includes("desktop") ||
-    text.includes("デスクトップ")
-  ) {
-    return "デスクトップ型NAS";
+  // カテゴリ名を正規化してルールを取得
+  const ruleKey = CATEGORY_ALIASES[category] || category;
+  const rules = SUBCATEGORY_RULES[ruleKey];
+
+  if (!rules) return null;
+
+  // 順番にルールを評価（最初にマッチしたものを返す）
+  for (const rule of rules) {
+    if (matchesRule(allText, rule)) {
+      return rule.result;
+    }
   }
 
   return null;

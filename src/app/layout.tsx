@@ -11,9 +11,23 @@ const zenKaku = Zen_Kaku_Gothic_New({
   display: "swap",
 });
 
+const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
+
 export const metadata: Metadata = {
-  title: "デスクツアーDB - デスクツアー商品データベース",
-  description: "YouTubeデスクツアー動画・ブログ記事から収集した商品データベース",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "デスクツアーDB - デスクツアー商品データベース",
+    template: "%s | デスクツアーDB",
+  },
+  description: "YouTubeデスクツアー動画・ブログ記事から収集した商品データベース。職業・スタイル・ブランド別に人気のデスク周りガジェットを探せます。",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    siteName: "デスクツアーDB",
+  },
+  twitter: {
+    card: "summary",
+  },
 };
 
 export default function RootLayout({

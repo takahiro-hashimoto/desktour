@@ -17,16 +17,21 @@ interface PageProps {
 // スタイル名を取得
 function getStyleFromSlug(slug: string): string | null {
   const style = slugToStyleTag(slug);
-  return STYLE_TAGS.includes(style) ? style : null;
+  return style && (STYLE_TAGS as readonly string[]).includes(style) ? style : null;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const style = getStyleFromSlug(params.slug);
   if (!style) return { title: "スタイルが見つかりません" };
 
+  const title = `${style}スタイルのデスクツアーに登場した商品一覧`;
+  const description = `${style}スタイルのデスク環境で実際に使用されている商品を、カテゴリー別にまとめています。`;
+
   return {
-    title: `${style}スタイルのデスクツアーに登場した商品一覧 | デスクツアーDB`,
-    description: `${style}スタイルのデスク環境で実際に使用されている商品を、カテゴリー別にまとめています。`,
+    title,
+    description,
+    alternates: { canonical: `/style/${params.slug}` },
+    openGraph: { title, description, url: `/style/${params.slug}` },
   };
 }
 
@@ -123,7 +128,7 @@ export default async function StyleDetailPage({ params }: PageProps) {
                     >
                       <div className="detail-product-img-inner">
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} />
+                          <img src={product.image_url} alt={product.name} width={200} height={200} loading="lazy" />
                         ) : (
                           <i className="fa-solid fa-cube img-placeholder"></i>
                         )}

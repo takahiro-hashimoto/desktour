@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import type { ProductWithStats } from "@/types";
 import { resolveImageUrl } from "@/lib/imageUtils";
@@ -44,13 +45,13 @@ function formatPriceDate(updatedAt?: string): string {
   return `${year}/${month}/${day}時点`;
 }
 
-export function RankingProductCard({
+export const RankingProductCard = memo(function RankingProductCard({
   product,
   rank,
   adoptionText,
 }: RankingProductCardProps) {
   // コメントを1件だけ取得
-  const comment = product.comments?.[0]?.reason;
+  const comment = product.comments?.[0]?.comment;
 
   // 画像URL
   const imageUrl = resolveImageUrl(product.amazon_image_url || product.rakuten_image_url);
@@ -202,4 +203,4 @@ export function RankingProductCard({
       </div>
     </div>
   );
-}
+});

@@ -17,16 +17,21 @@ interface PageProps {
 // ブランド名を取得
 function getBrandFromSlug(slug: string): string | null {
   const brand = slugToBrand(slug);
-  return BRAND_TAGS.includes(brand) ? brand : null;
+  return brand && (BRAND_TAGS as readonly string[]).includes(brand) ? brand : null;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const brand = getBrandFromSlug(params.slug);
   if (!brand) return { title: "ブランドが見つかりません" };
 
+  const title = `${brand}の商品がデスクツアーに登場した一覧`;
+  const description = `${brand}の商品がデスクツアー動画・記事で実際に使用されている様子を、カテゴリー別にまとめています。`;
+
   return {
-    title: `${brand}の商品がデスクツアーに登場した一覧 | デスクツアーDB`,
-    description: `${brand}の商品がデスクツアー動画・記事で実際に使用されている様子を、カテゴリー別にまとめています。`,
+    title,
+    description,
+    alternates: { canonical: `/brand/${params.slug}` },
+    openGraph: { title, description, url: `/brand/${params.slug}` },
   };
 }
 
@@ -118,7 +123,7 @@ export default async function BrandDetailPage({ params }: PageProps) {
                   <a href={product.amazon_url || product.rakuten_url || "#"} target="_blank" rel="noopener noreferrer sponsored" className="detail-product-img">
                     <div className="detail-product-img-inner">
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} />
+                        <img src={product.image_url} alt={product.name} width={200} height={200} loading="lazy" />
                       ) : (
                         <i className="fa-solid fa-cube img-placeholder"></i>
                       )}

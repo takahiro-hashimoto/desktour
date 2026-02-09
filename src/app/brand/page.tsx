@@ -10,8 +10,14 @@ import "../listing-styles.css";
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "デスクツアーに登場する人気ブランド一覧 | デスクツアーDB",
+  title: "デスクツアーに登場する人気ブランド一覧",
   description: "FlexiSpot、Logicool、Keychron、HHKBなど人気ブランドの商品をデスクツアーから分析。各ブランドの人気商品やレビューが確認できます。",
+  alternates: { canonical: "/brand" },
+  openGraph: {
+    title: "デスクツアーに登場する人気ブランド一覧",
+    description: "FlexiSpot、Logicool、Keychron、HHKBなど人気ブランドの商品をデスクツアーから分析。各ブランドの人気商品やレビューが確認できます。",
+    url: "/brand",
+  },
 };
 
 // ブランドごとのアイコン（Font Awesome）

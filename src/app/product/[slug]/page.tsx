@@ -6,6 +6,7 @@ import { getProductDetailBySlug, getCoOccurrenceProducts, getSiteStats } from "@
 import { categoryToSlug, occupationToSlug, styleTagToSlug, STYLE_TAGS } from "@/lib/constants";
 import { CoUsedProduct } from "@/types";
 import { getProductLinks } from "@/lib/affiliateLinks";
+import { isLowQualityFeatures } from "@/lib/featureQuality";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { generateBreadcrumbStructuredData, generateProductStructuredData } from "@/lib/structuredData";
 import "../../product-detail-styles.css";
@@ -53,10 +54,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const commentsCount = product.all_comments?.length || 0;
   const shouldNoIndex = commentsCount < 3;
 
+  const title = `${product.name}の使用例・口コミ情報まとめ`;
+  const description = `${product.name}を${product.mention_count}人のデスクツアーで確認。エンジニア・クリエイターの使用者コメントやデスク環境の傾向を紹介。`;
+
   return {
-    title: `${product.name}の使用例・口コミ情報まとめ | デスクツアーDB`,
-    description: `${product.name}を${product.mention_count}人のデスクツアーで確認。エンジニア・クリエイターの使用者コメントやデスク環境の傾向を紹介。`,
+    title,
+    description,
+    alternates: { canonical: `/product/${params.slug}` },
     robots: shouldNoIndex ? { index: false, follow: true } : undefined,
+    openGraph: {
+      title,
+      description,
+      url: `/product/${params.slug}`,
+      ...(product.amazon_image_url ? {
+        images: [{ url: product.amazon_image_url, width: 500, height: 500, alt: product.name }],
+      } : {}),
+    },
+    twitter: {
+      card: product.amazon_image_url ? "summary_large_image" : "summary",
+      title,
+      description,
+    },
   };
 }
 
@@ -76,7 +94,6 @@ function getCategoryIcon(category: string): string {
     "ケーブルハブ": "fa-plug",
     "充電器・電源": "fa-battery-full",
     "コントローラー": "fa-gamepad",
-    "ストリームデッキ": "fa-grid",
     "キャプチャーボード": "fa-video",
     "NAS": "fa-server",
     "その他デスクアクセサリー": "fa-puzzle-piece",
@@ -111,7 +128,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
     product.asin;
 
   // 商品の特徴があるかチェック
-  const hasFeatures = product.amazon_features && product.amazon_features.length > 0;
+  const hasFeatures = product.amazon_features && product.amazon_features.length > 0 && !isLowQualityFeatures(product.amazon_features);
 
   // セクション番号を動的に計算
   let sectionNumber = 0;
@@ -177,7 +194,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="product-hero">
             <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="product-image">
               {product.amazon_image_url ? (
-                <img src={product.amazon_image_url} alt={product.name} />
+                <img src={product.amazon_image_url} alt={product.name} width={400} height={400} />
               ) : (
                 <i className={`fa-solid ${getCategoryIcon(product.category)} img-placeholder`}></i>
               )}
@@ -354,7 +371,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                 <Link key={coProduct.id} href={`/product/${coProduct.slug}`} className="related-item">
                   <div className="related-item-img">
                     {coProduct.amazon_image_url ? (
-                      <img src={coProduct.amazon_image_url} alt={coProduct.name} />
+                      <img src={coProduct.amazon_image_url} alt={coProduct.name} width={120} height={120} loading="lazy" />
                     ) : (
                       <i className={`fa-solid ${getCategoryIcon(coProduct.category || "")}`}></i>
                     )}
@@ -404,15 +421,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   {product.asin && (
                     <tr><th>ASIN</th><td>{product.asin}</td></tr>
                   )}
-                  {(product.subcategory || (product.tags && product.tags.length > 0)) && (
+                  {product.tags && product.tags.length > 0 && (
                     <tr>
                       <th>特徴</th>
                       <td>
                         <div className="specs-features">
-                          {product.subcategory && (
-                            <span className="specs-feature-tag specs-feature-subcategory">{product.subcategory}</span>
-                          )}
-                          {product.tags && product.tags.map((tag, idx) => (
+                          {product.tags.map((tag, idx) => (
                             <span key={idx} className="specs-feature-tag">{tag}</span>
                           ))}
                         </div>

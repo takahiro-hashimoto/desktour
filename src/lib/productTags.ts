@@ -1,6 +1,9 @@
 /**
  * Amazon商品情報から商品タグを自動抽出する
+ * 種類タグ（旧サブカテゴリ）と特徴タグを統合して返す
  */
+
+import { inferSubcategory } from "./subcategoryInference";
 
 export interface ProductTagsResult {
   tags: string[];
@@ -8,23 +11,33 @@ export interface ProductTagsResult {
 
 interface ProductInfo {
   category: string;
-  subcategory?: string | null;
   title?: string;
   features?: string[];
   technicalInfo?: Record<string, string>;
 }
 
 /**
- * 商品情報からタグを自動抽出
+ * 商品情報からタグを自動抽出（種類タグ + 特徴タグ）
  */
 export function extractProductTags(data: ProductInfo): string[] {
-  const { category, subcategory, title = "", features = [], technicalInfo = {} } = data;
+  const { category, title = "", features = [], technicalInfo = {} } = data;
 
   const titleLower = title.toLowerCase();
   const featuresText = features.join(" ").toLowerCase();
   const allText = (titleLower + " " + featuresText).toLowerCase();
 
   const tags: Set<string> = new Set();
+
+  // 種類タグを検出・追加
+  const typeTag = inferSubcategory({
+    category,
+    title,
+    features,
+    technicalInfo,
+  });
+  if (typeTag) {
+    tags.add(typeTag);
+  }
 
   // 接続方式タグ
   if (allText.includes("wireless") || allText.includes("ワイヤレス") || allText.includes("bluetooth")) {

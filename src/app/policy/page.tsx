@@ -1,9 +1,12 @@
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import "@/app/listing-styles.css";
 
-export const metadata = {
-  title: "コンテンツ制作ポリシー | デスクツアーDB",
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "コンテンツ制作ポリシー",
   description: "デスクツアーDBのコンテンツ制作ポリシーをご紹介します。",
+  alternates: { canonical: "/policy" },
 };
 
 export default function PolicyPage() {

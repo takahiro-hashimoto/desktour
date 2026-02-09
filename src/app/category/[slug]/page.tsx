@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { PRODUCT_CATEGORIES, SUBCATEGORIES, slugToCategory } from "@/lib/constants";
+import { PRODUCT_CATEGORIES, TYPE_TAGS, slugToCategory } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -18,7 +18,7 @@ export const revalidate = 3600;
 interface PageProps {
   params: { slug: string };
   searchParams: {
-    subcategory?: string;
+    type?: string;
     sort?: string;
     page?: string;
   };
@@ -27,7 +27,7 @@ interface PageProps {
 // カテゴリー名を取得
 function getCategoryFromSlug(slug: string): string | null {
   const category = slugToCategory(slug);
-  return PRODUCT_CATEGORIES.includes(category) ? category : null;
+  return category && PRODUCT_CATEGORIES.includes(category) ? category : null;
 }
 
 // カテゴリーアイコンマッピング
@@ -54,9 +54,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const category = getCategoryFromSlug(params.slug);
   if (!category) return { title: "カテゴリーが見つかりません" };
 
+  const title = `デスクツアーに登場した${category}一覧`;
+  const description = `デスクツアー動画・記事で実際に使用されている${category}を、使用者のコメント付きでまとめています。`;
+
   return {
-    title: `デスクツアーに登場した${category}一覧 | デスクツアーDB`,
-    description: `デスクツアー動画・記事で実際に使用されている${category}を、使用者のコメント付きでまとめています。`,
+    title,
+    description,
+    alternates: { canonical: `/category/${params.slug}` },
+    openGraph: { title, description, url: `/category/${params.slug}` },
   };
 }
 
@@ -64,7 +69,7 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
   const category = getCategoryFromSlug(params.slug);
   if (!category) notFound();
 
-  const subcategoryFilter = searchParams.subcategory;
+  const typeTagFilter = searchParams.type;
   const sort = searchParams.sort || "mention";
   const page = parseInt(searchParams.page || "1");
   const limit = 20;
@@ -72,7 +77,7 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
   // 商品データ取得
   const { products, total } = await searchProducts({
     category,
-    subcategory: subcategoryFilter,
+    typeTag: typeTagFilter,
     sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
     page,
     limit,
@@ -103,8 +108,8 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
     ? assignRanks(formattedProducts, { page, limit })
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
-  // サブカテゴリ一覧
-  const subcategories = SUBCATEGORIES[category] || [];
+  // 種類タグ一覧
+  const typeTags = TYPE_TAGS[category] || [];
 
   // FAQデータ
   const faqItems = [
@@ -158,12 +163,12 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
       />
 
       <div className="detail-container">
-        {subcategories.length > 0 && (
+        {typeTags.length > 0 && (
           <FilterSection
             label="種類別に絞り込み"
-            filterKey="subcategory"
-            tags={subcategories}
-            currentFilter={subcategoryFilter}
+            filterKey="type"
+            tags={typeTags}
+            currentFilter={typeTagFilter}
           />
         )}
 

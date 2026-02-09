@@ -1,3 +1,4 @@
+import { memo } from "react";
 import Link from "next/link";
 
 interface ListCardProps {
@@ -9,7 +10,7 @@ interface ListCardProps {
   description?: string;
 }
 
-export function ListCard({
+export const ListCard = memo(function ListCard({
   href,
   icon,
   title,
@@ -70,4 +71,4 @@ export function ListCard({
       </div>
     </Link>
   );
-}
+});

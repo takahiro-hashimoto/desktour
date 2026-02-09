@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, SUBCATEGORIES } from "@/lib/constants";
+import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -17,7 +17,7 @@ export const revalidate = 3600;
 interface PageProps {
   params: { slug: string; category: string };
   searchParams: {
-    subcategory?: string;
+    type?: string;
     sort?: string;
     page?: string;
   };
@@ -27,13 +27,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const style = slugToStyleTag(params.slug);
   const category = slugToCategory(params.category);
 
-  if (!STYLE_TAGS.includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!style || !category || !(STYLE_TAGS as readonly string[]).includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
+  const title = `${style}スタイルの${category}一覧`;
+  const description = `${style}スタイルのデスク環境で実際に使用されている${category}を、使用者のコメント付きでまとめています。`;
+
   return {
-    title: `${style}スタイルの${category}一覧 | デスクツアーDB`,
-    description: `${style}スタイルのデスク環境で実際に使用されている${category}を、使用者のコメント付きでまとめています。`,
+    title,
+    description,
+    alternates: { canonical: `/style/${params.slug}/${params.category}` },
+    openGraph: { title, description, url: `/style/${params.slug}/${params.category}` },
   };
 }
 
@@ -41,11 +46,11 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
   const style = slugToStyleTag(params.slug);
   const category = slugToCategory(params.category);
 
-  if (!STYLE_TAGS.includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!style || !category || !(STYLE_TAGS as readonly string[]).includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
     notFound();
   }
 
-  const subcategoryFilter = searchParams.subcategory;
+  const typeTagFilter = searchParams.type;
   const sort = searchParams.sort || "mention";
   const page = parseInt(searchParams.page || "1");
   const limit = 20;
@@ -53,7 +58,7 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
   const { products, total } = await searchProducts({
     category,
     setupTag: style,
-    subcategory: subcategoryFilter,
+    typeTag: typeTagFilter,
     sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
     page,
     limit,
@@ -81,7 +86,7 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
     ? assignRanks(formattedProducts, { page, limit })
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
-  const subcategories = SUBCATEGORIES[category] || [];
+  const typeTags = TYPE_TAGS[category] || [];
 
   const faqItems = [
     {
@@ -121,12 +126,12 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
       />
 
       <div className="detail-container">
-        {subcategories.length > 0 && (
+        {typeTags.length > 0 && (
           <FilterSection
             label="種類別に絞り込み"
-            filterKey="subcategory"
-            tags={subcategories}
-            currentFilter={subcategoryFilter}
+            filterKey="type"
+            tags={typeTags}
+            currentFilter={typeTagFilter}
           />
         )}
 

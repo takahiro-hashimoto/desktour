@@ -11,31 +11,13 @@ import { searchAmazonProduct, getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct, findBestMatch } from "@/lib/description-links";
 import { ProductInfo } from "@/lib/product-search";
 import { getPriceRange, summarizeProductFeaturesBatch } from "@/lib/gemini";
-
-// URLからauthor_idを生成
-function generateAuthorId(url: string, author: string | null): string {
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname.includes("note.com") || urlObj.hostname.includes("note.mu")) {
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      if (pathParts.length > 0 && pathParts[0] !== "n") {
-        return `note:${pathParts[0]}`;
-      }
-    }
-    if (author) {
-      return `${urlObj.hostname}:${author.replace(/\s+/g, "_").toLowerCase()}`;
-    }
-    return `${urlObj.hostname}:unknown`;
-  } catch {
-    return `unknown:${Date.now()}`;
-  }
-}
+import { generateAuthorId } from "@/lib/product-matching";
+import { isLowQualityFeatures } from "@/lib/featureQuality";
 
 interface ProductToSave {
   name: string;
   brand?: string;
   category: string;
-  subcategory?: string | null;
   reason: string;
   confidence: "high" | "medium" | "low";
   tags?: string[]; // 自動抽出されたタグ
@@ -204,7 +186,6 @@ export async function POST(request: NextRequest) {
       savedProductId: string;
       amazonInfo: ProductInfo;  // nullではない（Amazon情報取得成功時のみ追加）
       priceRange: string | null;
-      finalSubcategory: string | undefined;
     }
     const productsWithAmazonInfo: ProductWithAmazonInfo[] = [];
 
@@ -215,7 +196,6 @@ export async function POST(request: NextRequest) {
         name: product.name,
         brand: product.brand || undefined,
         category: product.category,
-        subcategory: product.subcategory || undefined,
         tags: product.tags,
         reason: product.reason,
         confidence: product.confidence,
@@ -256,14 +236,12 @@ export async function POST(request: NextRequest) {
 
           if (amazonInfo) {
             const priceRange = getPriceRange(amazonInfo.price);
-            const finalSubcategory = product.subcategory || amazonInfo.subcategory;
 
             productsWithAmazonInfo.push({
               product,
               savedProductId: savedProduct.id!,
               amazonInfo,
               priceRange: priceRange || null,
-              finalSubcategory,
             });
           } else {
             savedProducts.push({
@@ -297,8 +275,18 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== Step 2: 特徴を持つ商品をバッチで要約 =====
+    // 低品質な特徴はスキップ（保証対象外の繰り返し等）
+    const skippedProducts = new Set<string>();
     const productsToSummarize = productsWithAmazonInfo
-      .filter(p => p.amazonInfo?.features && p.amazonInfo.features.length > 3)
+      .filter(p => {
+        if (!p.amazonInfo?.features || p.amazonInfo.features.length <= 3) return false;
+        if (isLowQualityFeatures(p.amazonInfo.features)) {
+          console.log(`[Features] Skipping "${p.product.name}" - 特徴情報が不十分なため処理をスキップ`);
+          skippedProducts.add(p.product.name);
+          return false;
+        }
+        return true;
+      })
       .map(p => ({
         productName: p.product.name,
         features: p.amazonInfo!.features!,
@@ -315,10 +303,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== Step 3: Amazon情報と要約結果を使って更新 =====
-    for (const { product, savedProductId, amazonInfo, priceRange, finalSubcategory } of productsWithAmazonInfo) {
-      // 要約結果を取得（なければ原文を使用）
-      const summarizedFeatures = summaryMap.get(product.name) || amazonInfo.features;
-      const originalFeatures = amazonInfo.features; // 原文を保持
+    for (const { product, savedProductId, amazonInfo, priceRange } of productsWithAmazonInfo) {
+      // 要約結果を取得（低品質な場合はundefined）
+      const isSkipped = skippedProducts.has(product.name);
+      const summarizedFeatures = isSkipped ? undefined : (summaryMap.get(product.name) || amazonInfo.features);
+      const originalFeatures = amazonInfo.features; // 原文を保持（低品質でも記録）
 
       await updateProductWithAmazon(
         savedProductId,
@@ -342,7 +331,6 @@ export async function POST(request: NextRequest) {
           amazon_technical_info: amazonInfo.technicalInfo,
           amazon_categories: amazonInfo.amazonCategories,    // カテゴリ階層
           amazon_product_group: amazonInfo.productGroup,     // 商品グループ
-          subcategory: finalSubcategory,
         },
         priceRange || undefined
       );

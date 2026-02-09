@@ -1,5 +1,3 @@
-import { detectSubcategory } from "./subcategory-detector";
-
 // ========================================
 // 環境変数
 // ========================================
@@ -37,7 +35,6 @@ export interface ProductInfo {
   features?: string[];
   technicalInfo?: Record<string, string>;
   shopName?: string;       // 楽天用
-  subcategory?: string;    // 推測されたサブカテゴリ
   // カテゴリ情報（Amazon）
   amazonCategories?: string[];  // カテゴリ階層（例: ["パソコン・周辺機器", "キーボード", "メカニカルキーボード"]）
   productGroup?: string;        // 商品グループ（例: "Personal Computer"）
@@ -446,16 +443,6 @@ async function searchAmazonOnly(
     // 商品グループ（Classifications）を取得
     const productGroup = itemInfo?.classifications?.productGroup?.displayValue;
 
-    // サブカテゴリを推測
-    const detectedSubcategory = category
-      ? detectSubcategory(
-          category,
-          itemInfo?.title?.displayValue || productName,
-          itemInfo?.byLineInfo?.brand?.displayValue,
-          features.length > 0 ? features : undefined
-        )
-      : undefined;
-
     const result: ProductInfo = {
       id: item.asin,
       title: itemInfo?.title?.displayValue || productName,
@@ -473,12 +460,11 @@ async function searchAmazonOnly(
         || itemInfo?.productInfo?.releaseDate?.displayValue,
       features: features.length > 0 ? features : undefined,
       technicalInfo: Object.keys(technicalInfo).length > 0 ? technicalInfo : undefined,
-      subcategory: detectedSubcategory || undefined,
       amazonCategories: amazonCategories.length > 0 ? amazonCategories : undefined,
       productGroup,
     };
 
-    console.log(`[Amazon] Found: ${result.title} (${result.id})${result.price ? ` ¥${result.price}` : ""}${detectedSubcategory ? ` [subcategory: ${detectedSubcategory}]` : ""}${amazonCategories.length > 0 ? ` [categories: ${amazonCategories[0]}]` : ""}`);
+    console.log(`[Amazon] Found: ${result.title} (${result.id})${result.price ? ` ¥${result.price}` : ""}${amazonCategories.length > 0 ? ` [categories: ${amazonCategories[0]}]` : ""}`);
     return { product: result, bestScore };
 
   } catch (error) {
@@ -567,11 +553,6 @@ async function searchRakutenOnly(
       return { product: null, bestScore };
     }
 
-    // サブカテゴリを推測
-    const detectedSubcategory = category
-      ? detectSubcategory(category, bestItem.itemName, bestItem.shopName)
-      : undefined;
-
     const result: ProductInfo = {
       id: bestItem.itemCode,
       title: bestItem.itemName,
@@ -580,10 +561,9 @@ async function searchRakutenOnly(
       price: bestItem.itemPrice,
       source: "rakuten",
       shopName: bestItem.shopName,
-      subcategory: detectedSubcategory || undefined,
     };
 
-    console.log(`[Rakuten] Found: ${result.title}${detectedSubcategory ? ` [subcategory: ${detectedSubcategory}]` : ""}`);
+    console.log(`[Rakuten] Found: ${result.title}`);
     return { product: result, bestScore };
 
   } catch (error) {

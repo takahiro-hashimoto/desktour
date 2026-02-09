@@ -12,7 +12,7 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 import { PageHeader } from "@/components/PageHeader";
 import { CategorySection } from "@/components/CategorySection";
 import { ProductListSection } from "@/components/ProductListSection";
-import type { ProductWithStats } from "@/types";
+import { groupByCategory, getCategoryEnglish, sortCategories } from "@/lib/category-utils";
 
 // 1時間キャッシュ
 export const revalidate = 3600;
@@ -35,53 +35,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const category = categorySlug ? slugToCategory(categorySlug) : null;
 
+  const slugPath = params.slug.join("/");
+
   if (category) {
+    const title = `デスクツアーで人気の${brand}の${category}一覧`;
+    const description = `デスクツアー動画・記事で実際に使用されている${brand}の${category}を掲載。使用者のコメントと掲載環境を確認できます。`;
     return {
-      title: `デスクツアーで人気の${brand}の${category}一覧`,
-      description: `デスクツアー動画・記事で実際に使用されている${brand}の${category}を掲載。使用者のコメントと掲載環境を確認できます。`,
+      title,
+      description,
+      alternates: { canonical: `/brand/${slugPath}` },
+      openGraph: { title, description, url: `/brand/${slugPath}` },
     };
   }
 
+  const title = `デスクツアーで人気の${brand}の商品一覧`;
+  const description = `デスクツアー動画・記事で実際に使用されている${brand}の商品をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`;
   return {
-    title: `デスクツアーで人気の${brand}の商品一覧`,
-    description: `デスクツアー動画・記事で実際に使用されている${brand}の商品をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`,
+    title,
+    description,
+    alternates: { canonical: `/brand/${slugPath}` },
+    openGraph: { title, description, url: `/brand/${slugPath}` },
   };
-}
-
-// カテゴリ別にグループ化するヘルパー関数
-function groupByCategory(products: ProductWithStats[]): Record<string, ProductWithStats[]> {
-  const grouped: Record<string, ProductWithStats[]> = {};
-
-  for (const product of products) {
-    const category = product.category;
-    if (!grouped[category]) {
-      grouped[category] = [];
-    }
-    grouped[category].push(product);
-  }
-
-  return grouped;
-}
-
-// カテゴリ名の英語表記を取得
-function getCategoryEnglish(category: string): string {
-  const mapping: Record<string, string> = {
-    "キーボード": "KEYBOARDS",
-    "マウス": "MICE",
-    "ディスプレイ/モニター": "MONITORS",
-    "デスク": "DESKS",
-    "チェア": "CHAIRS",
-    "マイク/オーディオ": "AUDIO",
-    "照明": "LIGHTING",
-    "PCスタンド/アーム": "STANDS",
-    "ケーブル/ハブ": "CABLES",
-    "デスクアクセサリー": "ACCESSORIES",
-    "ヘッドホン/イヤホン": "HEADPHONES",
-    "Webカメラ": "WEBCAMS",
-    "スピーカー": "SPEAKERS",
-    "その他": "OTHERS",
-  };
-  return mapping[category] || category.toUpperCase();
 }
 
 export default async function BrandPage({ params, searchParams }: PageProps) {
@@ -157,30 +131,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
   });
 
   const productsByCategory = groupByCategory(products);
-
-  // カテゴリの優先順序（主要カテゴリから表示）
-  const CATEGORY_PRIORITY = [
-    "キーボード",
-    "マウス",
-    "ディスプレイ/モニター",
-    "デスク",
-    "チェア",
-    "マイク/オーディオ",
-    "ヘッドホン/イヤホン",
-    "Webカメラ",
-    "スピーカー",
-    "照明",
-    "PCスタンド/アーム",
-    "ケーブル/ハブ",
-    "デスクアクセサリー",
-    "その他",
-  ];
-
-  // 優先順序に従ってソート（存在するカテゴリのみ + 定義外は末尾）
-  const sortedCategories = [
-    ...CATEGORY_PRIORITY.filter((cat) => productsByCategory[cat]),
-    ...Object.keys(productsByCategory).filter((cat) => !CATEGORY_PRIORITY.includes(cat)),
-  ];
+  const sortedCategories = sortCategories(productsByCategory);
 
   return (
     <div className="max-w-[1080px] mx-auto px-4 py-12">

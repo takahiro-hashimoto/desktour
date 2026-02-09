@@ -3,13 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { PRODUCT_CATEGORIES, SUBCATEGORIES } from "@/lib/constants";
+import { PRODUCT_CATEGORIES } from "@/lib/constants";
 
 interface Product {
   name: string;
   brand?: string;
   category: string;
-  subcategory?: string | null;
   reason: string;
   confidence: "high" | "medium" | "low";
   tags?: string[]; // 自動抽出されたタグ
@@ -287,7 +286,6 @@ export default function AdminPage() {
     updatedProducts[productIndex] = {
       ...updatedProducts[productIndex],
       category: newCategory,
-      subcategory: null, // カテゴリ変更時はサブカテゴリをリセット
     };
     const newKey = `${updatedProducts[productIndex].name}|${newCategory}`;
 
@@ -307,20 +305,7 @@ export default function AdminPage() {
     });
   };
 
-  // 商品のサブカテゴリを変更
-  const handleSubcategoryChange = (productIndex: number, newSubcategory: string) => {
-    if (!previewResult) return;
-    const updatedProducts = [...previewResult.products];
-    updatedProducts[productIndex] = {
-      ...updatedProducts[productIndex],
-      subcategory: newSubcategory || null,
-    };
 
-    setPreviewResult({
-      ...previewResult,
-      products: updatedProducts,
-    });
-  };
 
   // 商品タグを追加
   const handleAddProductTag = (productIndex: number, tag: string) => {
@@ -976,23 +961,6 @@ export default function AdminPage() {
                                 <option key={cat} value={cat}>{cat}</option>
                               ))}
                             </select>
-                            {/* サブカテゴリ選択 */}
-                            {SUBCATEGORIES[product.category] && (
-                              <select
-                                value={product.subcategory || ""}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  handleSubcategoryChange(productIndex, e.target.value);
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                                className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                              >
-                                <option value="">サブカテゴリ...</option>
-                                {SUBCATEGORIES[product.category].map((subcat) => (
-                                  <option key={subcat} value={subcat}>{subcat}</option>
-                                ))}
-                              </select>
-                            )}
                             <span
                               className={`text-xs px-2 py-0.5 rounded ${confidenceColors[product.confidence]}`}
                             >
@@ -1005,13 +973,6 @@ export default function AdminPage() {
                         </p>
 
                         {/* 商品タグ編集（自動抽出されたタグ） */}
-                        {product.subcategory && (
-                          <div className="mt-2 pt-2 border-t border-gray-100">
-                            <p className="text-xs text-gray-500 mb-1">
-                              <span className="font-medium">自動判定サブカテゴリ:</span> {product.subcategory}
-                            </p>
-                          </div>
-                        )}
                         {product.tags && product.tags.length > 0 && (
                           <div className="mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
                             <p className="text-xs text-gray-500 mb-1 font-medium">自動抽出タグ:</p>

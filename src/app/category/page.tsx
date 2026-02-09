@@ -10,8 +10,14 @@ import "../listing-styles.css";
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "デスク環境セットアップの商品カテゴリーまとめ | デスクツアーDB",
+  title: "デスク環境セットアップの商品カテゴリーまとめ",
   description: "キーボード、マウス、モニター、デスク、チェアなどカテゴリー別にデスクツアーで紹介された商品を確認できます。",
+  alternates: { canonical: "/category" },
+  openGraph: {
+    title: "デスク環境セットアップの商品カテゴリーまとめ",
+    description: "キーボード、マウス、モニター、デスク、チェアなどカテゴリー別にデスクツアーで紹介された商品を確認できます。",
+    url: "/category",
+  },
 };
 
 // カテゴリーごとのアイコン（Font Awesome）
@@ -42,7 +48,6 @@ const CATEGORY_ICONS: Record<string, string> = {
   "左手デバイス": "fa-solid fa-gamepad",
   "HDD/SSD": "fa-solid fa-hard-drive",
   "コントローラー": "fa-solid fa-gamepad",
-  "ストリームデッキ": "fa-solid fa-grid",
   "キャプチャーボード": "fa-solid fa-video",
   "NAS": "fa-solid fa-server",
   "その他デスクアクセサリー": "fa-solid fa-puzzle-piece",
@@ -76,7 +81,6 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   "左手デバイス": "ショートカットを効率化。",
   "HDD/SSD": "データ保存とバックアップ。",
   "コントローラー": "ゲームプレイを快適にするコントローラー。",
-  "ストリームデッキ": "配信や作業を効率化するカスタマイズ可能デバイス。",
   "キャプチャーボード": "ゲーム配信や録画に必須のキャプチャーデバイス。",
   "NAS": "ネットワーク経由でアクセスできる大容量ストレージ。",
   "その他デスクアクセサリー": "デスクをより便利に。",
@@ -100,7 +104,6 @@ export default async function CategoryIndexPage() {
         products: products.map((product) => ({
           id: product.id || "",
           asin: product.asin,
-          slug: product.slug,
           slug: product.slug,
           name: product.name,
           brand: product.brand,
@@ -178,7 +181,7 @@ export default async function CategoryIndexPage() {
                     >
                       <div className="detail-product-img-inner">
                         {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} />
+                          <img src={product.image_url} alt={product.name} width={200} height={200} loading="lazy" />
                         ) : (
                           <i className="fa-solid fa-cube img-placeholder"></i>
                         )}

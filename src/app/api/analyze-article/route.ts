@@ -8,36 +8,17 @@ import {
   isArticleAnalyzed,
   saveInfluencer,
 } from "@/lib/supabase";
-import { searchAmazonProduct, getProductsByAsins } from "@/lib/product-search";
-import { extractProductsFromDescription, ExtractedProduct, findBestMatch } from "@/lib/description-links";
+import { getProductsByAsins } from "@/lib/product-search";
+import { extractProductsFromDescription, ExtractedProduct } from "@/lib/description-links";
 import { ProductInfo } from "@/lib/product-search";
-import { inferSubcategory } from "@/lib/subcategoryInference";
-import { extractProductTags } from "@/lib/productTags";
-
-// URLからauthor_idを生成（note.comの場合はユーザーID、それ以外はドメイン+著者名）
-function generateAuthorId(url: string, author: string | null): string {
-  try {
-    const urlObj = new URL(url);
-
-    // note.comの場合
-    if (urlObj.hostname.includes("note.com") || urlObj.hostname.includes("note.mu")) {
-      // URLからユーザーIDを抽出 (例: note.com/username/n/...)
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      if (pathParts.length > 0 && pathParts[0] !== "n") {
-        return `note:${pathParts[0]}`;
-      }
-    }
-
-    // その他の場合
-    if (author) {
-      return `${urlObj.hostname}:${author.replace(/\s+/g, "_").toLowerCase()}`;
-    }
-
-    return `${urlObj.hostname}:unknown`;
-  } catch {
-    return `unknown:${Date.now()}`;
-  }
-}
+import {
+  generateAuthorId,
+  buildCandidates,
+  matchProductWithAmazon,
+  toAmazonField,
+  type MatchedProduct,
+} from "@/lib/product-matching";
+import { isLowQualityFeatures } from "@/lib/featureQuality";
 
 export async function POST(request: NextRequest) {
   try {
@@ -123,122 +104,43 @@ export async function POST(request: NextRequest) {
     // 7. 商品のAmazon/楽天マッチング（プレビュー・保存共通）
     console.log("Matching products with Amazon/Rakuten...");
 
-    const matchedProducts: Array<{
-      name: string;
-      brand?: string;
-      category: string;
-      subcategory?: string | null;
-      reason: string;
-      confidence: "high" | "medium" | "low";
-      amazon?: {
-        asin: string;
-        title: string;
-        url: string;
-        imageUrl: string;
-        price?: number;
-      } | null;
-      source?: "amazon" | "rakuten";
-      matchScore?: number;
-      matchReason?: string;
-    }> = [];
-
-    // 候補リストを作成（記事内から取得したASIN商品）
-    const candidates: Array<{ asin: string; title: string; product: ProductInfo }> = [];
-    for (const [asin, asinProduct] of asinProductMap.entries()) {
-      if (asinProduct) {
-        candidates.push({ asin, title: asinProduct.title, product: asinProduct });
-      }
-    }
-
-    // 使用済みASINを追跡（重複マッチ防止）
+    const matchedProducts: MatchedProduct[] = [];
+    const candidates = buildCandidates(asinProductMap);
     const usedAsins = new Set<string>();
 
     for (const product of analysisResult.products) {
       console.log(`Processing product: ${product.name} (brand: ${product.brand})`);
 
-      let amazonInfo: ProductInfo | null = null;
-      let matchScore = 0;
-      let matchReason = "";
-
-      // 高確度の商品のみ検索
       if (product.confidence === "high" || product.confidence === "medium") {
-        // まず記事内のASIN情報とマッチングを試みる（未使用のもののみ）
-        const availableCandidates = candidates.filter(c => !usedAsins.has(c.asin));
-
-        if (availableCandidates.length > 0) {
-          console.log(`  [Matching] Evaluating ${availableCandidates.length} candidates for "${product.name}"...`);
-          const bestMatch = findBestMatch(product.name, product.brand, availableCandidates);
-
-          if (bestMatch) {
-            console.log(`  [Best Match] ${bestMatch.title} (score: ${bestMatch.score}, ${bestMatch.reason})`);
-            amazonInfo = bestMatch.product as ProductInfo;
-            matchScore = bestMatch.score;
-            matchReason = bestMatch.reason;
-            // 使用済みとしてマーク
-            usedAsins.add(bestMatch.asin);
-          }
-        }
-
-        // 記事内でマッチしなかった場合のみAPI検索
-        if (!amazonInfo) {
-          console.log(`  [Search] Not found in article, searching API...`);
-          amazonInfo = await searchAmazonProduct(product.name, product.brand || undefined, product.category);
-          if (amazonInfo) {
-            matchReason = "API Search";
-          }
-        }
-      }
-
-      // サブカテゴリ: Geminiの結果を優先、なければAmazon検索結果から
-      let finalSubcategory = product.subcategory || amazonInfo?.subcategory || null;
-
-      // Amazon情報があればサブカテゴリを推論（動画解析と同じロジック）
-      if (!finalSubcategory && amazonInfo) {
-        finalSubcategory = inferSubcategory({
-          category: product.category,
-          title: amazonInfo.title,
-          features: amazonInfo.features,
-          technicalInfo: amazonInfo.technicalInfo,
+        const result = await matchProductWithAmazon({
+          productName: product.name,
+          productBrand: product.brand,
+          productCategory: product.category,
+          candidates,
+          usedAsins,
         });
-        if (finalSubcategory) {
-          console.log(`  [SubcategoryInferred] ${product.name} → ${finalSubcategory}`);
-        }
-      }
 
-      // タグを抽出（Amazon情報があれば）
-      let productTags: string[] | undefined;
-      if (amazonInfo) {
-        productTags = extractProductTags({
+        matchedProducts.push({
+          name: product.name,
+          brand: product.brand,
           category: product.category,
-          subcategory: finalSubcategory,
-          title: amazonInfo.title,
-          features: amazonInfo.features,
-          technicalInfo: amazonInfo.technicalInfo,
+          reason: product.reason,
+          confidence: product.confidence,
+          tags: result.productTags,
+          amazon: toAmazonField(result.amazonInfo),
+          source: result.amazonInfo?.source,
+          matchScore: result.matchScore,
+          matchReason: result.matchReason,
         });
-        if (productTags.length > 0) {
-          console.log(`  [TagsExtracted] ${product.name} → [${productTags.join(", ")}]`);
-        }
+      } else {
+        matchedProducts.push({
+          name: product.name,
+          brand: product.brand,
+          category: product.category,
+          reason: product.reason,
+          confidence: product.confidence,
+        });
       }
-
-      matchedProducts.push({
-        name: product.name,
-        brand: product.brand,
-        category: product.category,
-        subcategory: finalSubcategory,
-        reason: product.reason,
-        confidence: product.confidence,
-        tags: productTags,
-        amazon: amazonInfo ? {
-          asin: amazonInfo.id,
-          title: amazonInfo.title,
-          url: amazonInfo.url,
-          imageUrl: amazonInfo.imageUrl,
-          price: amazonInfo.price,
-        } : null,
-        source: amazonInfo?.source,
-        matchScore,
-        matchReason,
-      });
     }
 
     // 8. DBに保存（オプション）
@@ -305,7 +207,7 @@ export async function POST(request: NextRequest) {
               amazon_size: originalProduct?.size,
               amazon_weight: originalProduct?.weight,
               amazon_release_date: originalProduct?.releaseDate,
-              amazon_features: originalProduct?.features,
+              amazon_features: originalProduct?.features && !isLowQualityFeatures(originalProduct.features) ? originalProduct.features : undefined,
               amazon_technical_info: originalProduct?.technicalInfo,
             },
             priceRange || undefined

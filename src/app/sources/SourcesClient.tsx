@@ -261,7 +261,7 @@ export function SourcesClient({
             sortedTags = [activeFilter, ...sortedTags.filter(t => t !== activeFilter)];
           }
 
-          let cleanSummary = item.summary;
+          let cleanSummary: string | undefined = item.summary;
           if (!isVideo && item.summary) {
             const articleContentMatch = item.summary.match(/この記事では[、,]?\s*(.+)/s);
             if (articleContentMatch) {

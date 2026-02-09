@@ -42,10 +42,10 @@ export function ProductCommentWithModal({ comments, productId }: ProductCommentW
             }`}
           >
             {/* サムネイル（横並び） */}
-            {comment.thumbnail_url && (
+            {comment.source_thumbnail_url && (
               <div className="w-36 flex-shrink-0 bg-gray-50 relative">
                 <img
-                  src={comment.thumbnail_url}
+                  src={comment.source_thumbnail_url}
                   alt={`${comment.source_type === "video" ? "動画" : "記事"}「${comment.source_title || "不明"}」のサムネイル${comment.channel_title ? ` - ${comment.channel_title}` : ""}${comment.author ? ` - ${comment.author}` : ""}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
@@ -63,13 +63,13 @@ export function ProductCommentWithModal({ comments, productId }: ProductCommentW
 
             <div className="p-5 flex-1 min-w-0 flex flex-col">
               {/* Quote Icon（サムネイルがない場合のみ表示） */}
-              {!comment.thumbnail_url && (
+              {!comment.source_thumbnail_url && (
                 <Quote className="w-5 h-5 text-blue-200 mb-2" />
               )}
 
               {/* Comment Text */}
               <p className="text-gray-700 text-sm leading-relaxed flex-1">
-                {comment.reason}
+                {comment.comment}
               </p>
 
               {/* クリック可能であることを示す */}

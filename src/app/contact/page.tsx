@@ -3,8 +3,10 @@ import { PageHeaderSection } from "@/components/PageHeaderSection";
 import "../listing-styles.css";
 
 export const metadata: Metadata = {
-  title: "お問い合わせ | デスクツアーDB",
+  title: "お問い合わせ",
   description: "デスクツアーDBへのお問い合わせページ。ご質問やご意見がございましたら、お気軽にお問い合わせください。",
+  alternates: { canonical: "/contact" },
+  robots: { index: false, follow: true },
 };
 
 export default function ContactPage() {

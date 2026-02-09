@@ -6,7 +6,7 @@ export interface ProductWithStats {
   name: string;
   brand?: string;
   category: string;
-  subcategory?: string; // サブカテゴリ（メカニカルキーボード、4Kモニター等）
+  tags?: string[]; // 種類タグ + 特徴タグ
   price_range?: string;
   amazon_url?: string;
   amazon_image_url?: string;
@@ -57,7 +57,6 @@ export interface SourceProduct {
   name: string;
   brand?: string;
   category: string;
-  subcategory?: string;
   amazon_image_url?: string;
   amazon_url?: string;
   amazon_model_number?: string;
@@ -72,8 +71,7 @@ export interface ProductDetail {
   name: string;
   brand?: string;
   category: string;
-  subcategory?: string; // サブカテゴリ（メカニカルキーボード、4Kモニター等）
-  tags?: string[]; // 商品タグ（ワイヤレス、静音、ゲーミング等）
+  tags?: string[]; // 種類タグ + 特徴タグ
   price_range?: string;
   amazon_url?: string;
   amazon_image_url?: string;
@@ -141,7 +139,7 @@ export interface ListParams {
 export interface SearchParams {
   occupationTag?: string;
   category?: string;
-  subcategory?: string;
+  typeTag?: string;
   setupTag?: string;
   brand?: string;
   priceRange?: string;

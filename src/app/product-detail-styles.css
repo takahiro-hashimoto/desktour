@@ -609,12 +609,6 @@
   font-weight: 500;
 }
 
-.specs-feature-subcategory {
-  background: var(--accent-bg);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 600;
-}
 
 /* ===== PURCHASE SECTION ===== */
 .purchase-section {

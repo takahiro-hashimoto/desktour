@@ -17,16 +17,21 @@ interface PageProps {
 // 職業名を取得
 function getOccupationFromSlug(slug: string): string | null {
   const occupation = slugToOccupation(slug);
-  return OCCUPATION_TAGS.includes(occupation) ? occupation : null;
+  return occupation && (OCCUPATION_TAGS as readonly string[]).includes(occupation) ? occupation : null;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const occupation = getOccupationFromSlug(params.slug);
   if (!occupation) return { title: "職業が見つかりません" };
 
+  const title = `${occupation}のデスクツアーに登場した商品一覧`;
+  const description = `${occupation}が実際に使用しているデスク環境の商品を、カテゴリー別にまとめています。`;
+
   return {
-    title: `${occupation}のデスクツアーに登場した商品一覧 | デスクツアーDB`,
-    description: `${occupation}が実際に使用しているデスク環境の商品を、カテゴリー別にまとめています。`,
+    title,
+    description,
+    alternates: { canonical: `/occupation/${params.slug}` },
+    openGraph: { title, description, url: `/occupation/${params.slug}` },
   };
 }
 
@@ -123,7 +128,7 @@ export default async function OccupationDetailPage({ params }: PageProps) {
                   >
                     <div className="detail-product-img-inner">
                       {product.image_url ? (
-                        <img src={product.image_url} alt={product.name} />
+                        <img src={product.image_url} alt={product.name} width={200} height={200} loading="lazy" />
                       ) : (
                         <i className="fa-solid fa-cube img-placeholder"></i>
                       )}

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { PRODUCT_CATEGORIES, SUBCATEGORIES_FOR_PROMPT, OCCUPATION_TAGS } from "./constants";
+import { PRODUCT_CATEGORIES, OCCUPATION_TAGS, DESK_SETUP_TAGS } from "./constants";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -94,7 +94,6 @@ export interface ExtractedProduct {
   name: string;
   brand: string;
   category: string;
-  subcategory?: string | null;
   reason: string;
   confidence: "high" | "medium" | "low";
 }
@@ -109,32 +108,7 @@ export interface AnalysisResult {
 
 // PRODUCT_CATEGORIES は constants.ts からインポート済み
 
-// サイトで使用するタグに合わせた定義（constants.tsのSTYLE_TAGS + ENVIRONMENT_TAGSと同期）
-const DESK_SETUP_TAGS = [
-  // スタイルタグ（雰囲気・テイスト）
-  "ミニマリスト",
-  "ゲーミング",
-  "おしゃれ",
-  "ホワイト",
-  "ブラック",
-  "モノトーン",
-  "ナチュラル",
-  "北欧風",
-  "インダストリアル",
-  "かわいい",
-  // 環境タグ（デスク環境・機材構成）
-  "リモートワーク",
-  "オフィス",
-  "昇降デスク",
-  "L字デスク",
-  "デュアルモニター",
-  "トリプルモニター",
-  "ウルトラワイド",
-  "Mac環境",
-  "Windows環境",
-];
-
-// OCCUPATION_TAGS と SUBCATEGORIES_FOR_PROMPT は constants.ts からインポート済み
+// DESK_SETUP_TAGS, OCCUPATION_TAGS は constants.ts からインポート済み
 
 export async function analyzeTranscript(
   transcript: string,
@@ -160,7 +134,7 @@ export async function analyzeTranscript(
 ${additionalContext}
 
 【文字起こし】
-${transcript.slice(0, 15000)}
+${transcript.slice(0, 18000)}
 
 以下のJSON形式で回答してください。必ず有効なJSONのみを出力し、他の説明は含めないでください。
 
@@ -172,7 +146,6 @@ ${transcript.slice(0, 15000)}
       "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
       "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
-      "subcategory": "サブカテゴリ（該当する場合のみ。後述のリストから選択。なければnull）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
         1. なぜこの商品を選んだのか（導入理由・きっかけ）
         2. 実際に使ってみて気に入っている点
@@ -201,6 +174,19 @@ ${transcript.slice(0, 15000)}
 - 経営者・社長・CEO・起業家は「経営者」タグを使用
 - カメラマン・写真家は「フォトグラファー」タグを使用
 - 全く推測できない場合のみnullと空配列を設定
+
+【タグの選択ルール】★重要★
+- tagsは以下のリストからのみ選択すること（これ以外のタグは絶対に使用しないこと）：
+  ${DESK_SETUP_TAGS.join(", ")}
+- 動画の内容に合致するものだけを選択（無理に全部選ばない）
+- 複数該当する場合はすべて含める
+- 独自タグの作成は禁止（例：「プログラマー向け」「高コスパ」など勝手に作らない）
+- タグの判定基準：
+  - スタイル系: デスク全体の見た目・雰囲気から判断
+  - 環境系: 実際に使用している機材・構成から判断
+  - 「クラムシェル」: ノートPCを閉じた状態で外部モニターに接続
+  - 「自作PC」: 自分でパーツを選んで組み立てたPC
+  - 「iPad連携」: iPadをサブディスプレイや液タブ代わりに活用
 
 【商品名の記述ルール】★重要★
 - 商品名フィールド(name)にはブランド名を含めず、「製品シリーズ名 + 型番」の形式で記述
@@ -232,62 +218,6 @@ ${transcript.slice(0, 15000)}
 - 例（良い例）：「在宅勤務で長時間座ることが増えたため、腰痛対策として購入。ランバーサポートが腰にフィットし、8時間座っても疲れにくい。メッシュ素材で夏場も蒸れない点が気に入っている」
 - 例（悪い例）：「座り心地が良くておすすめ」
 - 動画内で言及されていない情報は推測で補わないでください
-
-【サブカテゴリの選択ルール】★重要★
-- subcategoryは以下のカテゴリ別リストからのみ選択すること：
-  ${SUBCATEGORIES_FOR_PROMPT}
-- 商品の特徴に該当するサブカテゴリがある場合のみ設定
-- 該当するものがなければnullを設定
-
-【サブカテゴリ判定の具体例】★商品名・型番・特徴から判断★
-キーボード:
-  Cherry MX/Gateron/Kailh/赤軸/青軸/茶軸 → メカニカルキーボード
-  HHKB/Realforce/静電容量/無接点 → 静電容量無接点
-  パンタグラフ/Pantograph/シザー/Magic Keyboard/Apple Keyboard → パンタグラフ
-  分割/Split/Ergodox/Kinesis → 分割キーボード
-  TKL/テンキーレス/87キー → テンキーレス
-  60%/65%/66キー/68キー → 60%・65%キーボード
-  フルサイズ/108キー/テンキー付き → フルサイズキーボード
-  ロープロファイル/薄型/Low Profile → ロープロファイル
-
-マウス:
-  MX ERGO/M575/SW-M570/トラックボール → トラックボール
-  MX Master/MX Vertical/エルゴノミクス → エルゴノミクスマウス
-  G Pro/DeathAdder/Viper/ゲーミング/Gaming → ゲーミングマウス
-  縦型/Vertical Mouse → 縦型マウス
-  ※ワイヤレス/Bluetoothのみの場合はnull（形状を優先）
-
-ディスプレイ・モニター:
-  4K/3840x2160/UHD/2160p → 4Kモニター
-  ウルトラワイド/21:9/34インチ曲面 → ウルトラワイドモニター
-  144Hz/240Hz/G-SYNC/FreeSync/ゲーミング → ゲーミングモニター
-  モバイル/ポータブル/持ち運び/13.3インチ → モバイルモニター
-  5K/6K/5120x2880 → 5K・6Kモニター
-
-ヘッドホン・イヤホン:
-  開放型/Open-back/音漏れ → 開放型ヘッドホン
-  密閉型/Closed-back/遮音 → 密閉型ヘッドホン
-  AirPods/完全ワイヤレス/TWS → ワイヤレスイヤホン
-  DTM/音楽制作/スタジオ/モニターヘッドホン → モニターヘッドホン
-  ゲーミングヘッドセット/マイク付き/7.1ch → ゲーミングヘッドセット
-
-チェア:
-  DXRacer/AKRacing/ゲーミングチェア → ゲーミングチェア
-  Herman Miller/Steelcase/エルゴノミクス/腰痛対策 → エルゴノミクスチェア
-  メッシュ/通気性 → メッシュチェア
-
-デスク:
-  昇降/電動/Standing/スタンディング → 昇降デスク
-  L字/L型/コーナー → L字デスク
-  DIY/自作/天板のみ → DIYデスク
-  ゲーミングデスク → ゲーミングデスク
-
-マイク:
-  コンデンサー/Condenser/配信 → コンデンサーマイク
-  ダイナミック/SM7B/RE20 → ダイナミックマイク
-  USB/Blue Yeti → USBマイク
-  XLR/ファンタム電源 → XLRマイク
-  ピンマイク/ラベリア → ピンマイク
 
 【注意事項】
 - 実際に動画内で紹介・言及されている商品のみを抽出
@@ -337,7 +267,7 @@ export async function analyzeArticle(
 記事タイトル: ${articleTitle}
 
 記事本文:
-${content.slice(0, 15000)}
+${content.slice(0, 18000)}
 
 以下のJSON形式で回答してください。必ず有効なJSONのみを出力し、他の説明は含めないでください。
 
@@ -349,7 +279,6 @@ ${content.slice(0, 15000)}
       "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
       "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
-      "subcategory": "サブカテゴリ（該当する場合のみ。後述のリストから選択。なければnull）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
         1. なぜこの商品を選んだのか（導入理由・きっかけ）
         2. 実際に使ってみて気に入っている点
@@ -384,6 +313,19 @@ ${content.slice(0, 15000)}
 - 記事内で「自分は◯◯をしています」「◯◯として働いている」などの言及があれば抽出
 - 複数の職業に該当する場合はすべてタグに含める（例：フリーランスのエンジニア→["フリーランス", "エンジニア"]）
 - 明確な言及がない場合はnullと空配列を設定
+
+【タグの選択ルール】★重要★
+- tagsは以下のリストからのみ選択すること（これ以外のタグは絶対に使用しないこと）：
+  ${DESK_SETUP_TAGS.join(", ")}
+- 記事の内容に合致するものだけを選択（無理に全部選ばない）
+- 複数該当する場合はすべて含める
+- 独自タグの作成は禁止
+- タグの判定基準：
+  - スタイル系: デスク全体の見た目・雰囲気から判断
+  - 環境系: 実際に使用している機材・構成から判断
+  - 「クラムシェル」: ノートPCを閉じた状態で外部モニターに接続
+  - 「自作PC」: 自分でパーツを選んで組み立てたPC
+  - 「iPad連携」: iPadをサブディスプレイや液タブ代わりに活用
 
 【商品コメント（reason）の記述ルール】
 - 記事内で実際に述べられている内容を元に、具体的に記述してください

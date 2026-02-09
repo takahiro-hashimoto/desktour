@@ -1,9 +1,12 @@
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import "@/app/listing-styles.css";
 
-export const metadata = {
-  title: "運営者情報 | デスクツアーDB",
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "運営者情報",
   description: "デスクツアーDBの運営者情報をご紹介します。",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 interface FilterSectionProps {
   label: string;
-  filterKey: string; // クエリパラメータのキー名（例: "subcategory"）
+  filterKey: string; // クエリパラメータのキー名（例: "type"）
   tags: string[];
   currentFilter?: string;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import type { ProductWithStats } from "@/types";
 import { getPriceRangeLabel } from "@/types";
@@ -13,7 +13,7 @@ interface ProductCardProps {
   maxComments?: number; // 表示するコメント数の上限（undefinedで全件表示）
 }
 
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   product,
   showComments = true,
   maxComments,
@@ -55,6 +55,8 @@ export function ProductCard({
             <img
               src={resolveImageUrl(product.amazon_image_url)!}
               alt={product.name}
+              width={300}
+              height={300}
               className="max-h-full max-w-full object-contain"
               loading="lazy"
             />
@@ -67,14 +69,14 @@ export function ProductCard({
         <div className="p-4 flex-1 flex flex-col">
           {/* 商品基本情報 */}
           <div className="flex-1">
-            {/* ブランド + サブカテゴリ */}
+            {/* ブランド + 種類タグ */}
             <div className="flex items-center gap-2 mb-1">
               {product.brand && (
                 <p className="text-xs text-gray-500">{product.brand}</p>
               )}
-              {product.subcategory && (
+              {product.tags?.[0] && (
                 <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
-                  {product.subcategory}
+                  {product.tags[0]}
                 </span>
               )}
             </div>
@@ -120,7 +122,7 @@ export function ProductCard({
                     }`}
                     disabled={!comment.source_id}
                   >
-                    「{comment.reason}」
+                    「{comment.comment}」
                     {comment.source_id && (
                       <span className="text-blue-500 ml-1">→</span>
                     )}
@@ -174,4 +176,4 @@ export function ProductCard({
       )}
     </>
   );
-}
+});

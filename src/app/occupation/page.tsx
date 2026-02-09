@@ -10,8 +10,14 @@ import "../listing-styles.css";
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "職業別デスクセットアップ一覧 | デスクツアーDB",
+  title: "職業別デスクセットアップ一覧",
   description: "エンジニア、デザイナー、クリエイターなど職業別にデスクツアーで紹介された商品を確認できます。各職業に最適なガジェットや周辺機器がわかります。",
+  alternates: { canonical: "/occupation" },
+  openGraph: {
+    title: "職業別デスクセットアップ一覧",
+    description: "エンジニア、デザイナー、クリエイターなど職業別にデスクツアーで紹介された商品を確認できます。",
+    url: "/occupation",
+  },
 };
 
 // 職業ごとのアイコン（Font Awesome）

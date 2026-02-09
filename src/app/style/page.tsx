@@ -10,8 +10,14 @@ import "../listing-styles.css";
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "スタイル別デスクセットアップ一覧 | デスクツアーDB",
+  title: "スタイル別デスクセットアップ一覧",
   description: "ミニマリスト、ゲーミング、おしゃれ、ホワイト、ブラックなどスタイル別にデスクツアーで紹介された商品を確認できます。",
+  alternates: { canonical: "/style" },
+  openGraph: {
+    title: "スタイル別デスクセットアップ一覧",
+    description: "ミニマリスト、ゲーミング、おしゃれ、ホワイト、ブラックなどスタイル別にデスクツアーで紹介された商品を確認できます。",
+    url: "/style",
+  },
 };
 
 // スタイルごとのアイコン（Font Awesome）

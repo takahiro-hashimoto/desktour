@@ -30,7 +30,6 @@ export const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   "左手デバイス": "左手デバイス",
   "HDD/SSD": "HDD・SSD", // DB: / → 表示: ・
   "コントローラー": "コントローラー",
-  "ストリームデッキ": "ストリームデッキ",
   "キャプチャーボード": "キャプチャーボード",
   "NAS": "NAS",
   "その他デスクアクセサリー": "その他デスクアクセサリー",
@@ -58,8 +57,8 @@ export function getDbValue(displayName: string): string {
   return DISPLAY_TO_DB_MAP[displayName] || displayName;
 }
 
-// サブカテゴリ定義（表示名ベース）
-export const SUBCATEGORIES: Record<string, string[]> = {
+// 種類タグ定義（表示名ベース）- 旧サブカテゴリ
+export const TYPE_TAGS: Record<string, string[]> = {
   "キーボード": [
     "メカニカルキーボード",
     "静電容量無接点",
@@ -138,6 +137,7 @@ export const SUBCATEGORIES: Record<string, string[]> = {
     "ミニPC",
     "自作PC",
     "Mac",
+    "Windows",
   ],
   "HDD・SSD": [
     "外付けSSD",
@@ -153,11 +153,16 @@ export const SUBCATEGORIES: Record<string, string[]> = {
     "PCゲーム用コントローラー",
     "レーシングホイール",
     "アーケードスティック",
+    "関連アクセサリー",
   ],
-  "ストリームデッキ": [
-    "Elgato Stream Deck",
-    "カスタマイズ可能デバイス",
+  "左手デバイス": [
+    "ストリームデッキ",
     "マクロパッド",
+    "左手キーボード",
+    "プログラマブルキーパッド",
+    "Elgato Stream Deck",
+    "TourBox",
+    "Orbital2",
   ],
   "キャプチャーボード": [
     "外付けキャプチャーボード",
@@ -173,17 +178,8 @@ export const SUBCATEGORIES: Record<string, string[]> = {
   ],
 };
 
-// 全サブカテゴリのフラットリスト
-export const ALL_SUBCATEGORIES = Object.values(SUBCATEGORIES).flat();
-
-// Geminiプロンプト用のフォーマット済みサブカテゴリ文字列（DB値を使用）
-export const SUBCATEGORIES_FOR_PROMPT = Object.entries(CATEGORY_DISPLAY_NAMES)
-  .map(([dbValue, displayName]) => {
-    const subs = SUBCATEGORIES[displayName] || [];
-    return subs.length > 0 ? `${dbValue}: ${subs.join(", ")}` : null;
-  })
-  .filter(Boolean)
-  .join("\n  ");
+// 全種類タグのフラットリスト
+export const ALL_TYPE_TAGS = Object.values(TYPE_TAGS).flat();
 
 // カテゴリ→英語スラッグのマッピング（表示名ベース）
 const CATEGORY_SLUG_MAP: Record<string, string> = {
@@ -213,7 +209,6 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "左手デバイス": "left-hand-device",
   "HDD・SSD": "storage-drive",
   "コントローラー": "controller",
-  "ストリームデッキ": "stream-deck",
   "キャプチャーボード": "capture-card",
   "NAS": "nas",
   "その他デスクアクセサリー": "other-accessories",
@@ -231,6 +226,9 @@ export const STYLE_TAGS = [
   "北欧風",
   "インダストリアル",
   "かわいい",
+  "DIY",
+  "シンプル",
+  "カラフル",
 ] as const;
 
 // スタイルタグ→英語スラッグのマッピング
@@ -245,6 +243,9 @@ const STYLE_SLUG_MAP: Record<string, string> = {
   "北欧風": "nordic",
   "インダストリアル": "industrial",
   "かわいい": "cute",
+  "DIY": "diy",
+  "シンプル": "simple",
+  "カラフル": "colorful",
 };
 
 // 環境タグ（デスク環境・機材構成）
@@ -259,6 +260,9 @@ export const ENVIRONMENT_TAGS = [
   "Mac",
   "Windows",
   "配線整理",
+  "クラムシェル",
+  "自作PC",
+  "iPad連携",
 ] as const;
 
 // 環境タグ→英語スラッグのマッピング
@@ -273,6 +277,9 @@ const ENVIRONMENT_SLUG_MAP: Record<string, string> = {
   "Mac": "mac",
   "Windows": "windows",
   "配線整理": "cable-management",
+  "クラムシェル": "clamshell",
+  "自作PC": "custom-pc",
+  "iPad連携": "ipad",
 };
 
 // 環境スラッグ変換関数
@@ -446,7 +453,6 @@ export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
   "左手デバイス": ["キーボード", "マウス", "ペンタブ"],
   "HDD・SSD": ["PC本体", "ドッキングステーション"],
   "コントローラー": ["PC本体", "デスクマット", "充電器・電源"],
-  "ストリームデッキ": ["キーボード", "マウス", "左手デバイス", "ウェブカメラ"],
   "キャプチャーボード": ["PC本体", "ディスプレイ・モニター", "ウェブカメラ", "マイク"],
   "NAS": ["PC本体", "ドッキングステーション", "HDD・SSD", "ケーブル・ハブ"],
   "その他デスクアクセサリー": ["デスク", "収納・整理"],
