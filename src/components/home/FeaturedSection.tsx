@@ -19,7 +19,7 @@ interface FeaturedSectionProps {
 
 export function FeaturedSection({ items }: FeaturedSectionProps) {
   return (
-    <div className="home-featured">
+    <section className="home-featured">
       <div className="home-featured__inner">
         <div className="home-featured__head">
           <div>
@@ -37,8 +37,9 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
 
         <div className="home-featured__grid">
           {items.slice(0, 3).map((item) => (
-            <Link key={item.id} href={item.href} className="home-featured__card">
-              <div className="home-featured__thumb">
+            <article key={item.id}>
+            <Link href={item.href} className="home-featured__card">
+              <figure className="home-featured__thumb">
                 {item.thumbnail_url ? (
                   <img
                     src={item.thumbnail_url}
@@ -51,7 +52,7 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
                 {item.badge && (
                   <span className="home-featured__badge">{item.badge}</span>
                 )}
-              </div>
+              </figure>
               <div className="home-featured__body">
                 <h3 className="home-featured__card-title">{item.title}</h3>
                 <p className="home-featured__card-desc">
@@ -71,9 +72,10 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
                 )}
               </div>
             </Link>
+            </article>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

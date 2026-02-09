@@ -43,7 +43,7 @@ export const ProductCard = memo(function ProductCard({
 
   return (
     <>
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full">
+      <article className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col h-full">
         {/* 商品画像 - アフィリエイトリンク付き */}
         <a
           href={affiliateUrl}
@@ -160,7 +160,7 @@ export const ProductCard = memo(function ProductCard({
             )}
           </div>
         </div>
-      </div>
+      </article>
 
       {/* モーダル */}
       {selectedSource && (

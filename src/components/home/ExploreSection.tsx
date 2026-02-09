@@ -20,7 +20,7 @@ function ExploreCard({ icon, title, description, items, viewAllHref }: ExploreCa
   const maxCount = Math.max(...items.map(item => item.count));
 
   return (
-    <div className="home-explore__card">
+    <article className="home-explore__card">
       <div className="home-explore__card-head">
         <div className="home-explore__card-icon">{icon}</div>
         <h3 className="home-explore__card-title">{title}</h3>
@@ -50,7 +50,7 @@ function ExploreCard({ icon, title, description, items, viewAllHref }: ExploreCa
           <i className="fas fa-arrow-right home-explore__footer-icon"></i>
         </Link>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -62,7 +62,7 @@ interface ExploreSectionProps {
 
 export function ExploreSection({ occupations, styles, brands }: ExploreSectionProps) {
   return (
-    <div className="home-explore">
+    <section className="home-explore">
       <div className="home-explore__inner">
         <div className="home-explore__head">
           <div>
@@ -100,6 +100,6 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

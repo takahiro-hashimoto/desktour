@@ -48,18 +48,18 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
 
   return (
     <>
-      <div className="content-section product-reveal">
+      <section className="content-section product-reveal">
         <div className="section-title">
           <span className="section-number">{String(sectionNumber).padStart(2, "0")}</span>
           <h2>{productName}の口コミ・実際の使用例</h2>
         </div>
         {comments.map((comment, index) => (
-          <div
+          <blockquote
             key={index}
             className="review-card"
             onClick={() => handleReviewClick(comment)}
           >
-            <div className="review-thumb">
+            <figure className="review-thumb">
               {comment.source_thumbnail_url ? (
                 <img src={comment.source_thumbnail_url} alt={comment.source_title || ""} />
               ) : (
@@ -67,13 +67,13 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
                   <i className="fa-solid fa-image"></i>
                 </div>
               )}
-            </div>
+            </figure>
             <div className="review-body">
               <p className="review-text">{comment.comment}</p>
             </div>
-          </div>
+          </blockquote>
         ))}
-      </div>
+      </section>
 
       {modalOpen && modalSource && (
         <SourceModal

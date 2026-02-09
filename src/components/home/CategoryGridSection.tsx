@@ -23,7 +23,7 @@ interface CategoryGridSectionProps {
 
 export function CategoryGridSection({ mainCategories, subCategories }: CategoryGridSectionProps) {
   return (
-    <div className="home-category">
+    <section className="home-category">
       <div className="home-category__inner">
         <div className="home-category__head">
           <div>
@@ -71,6 +71,6 @@ export function CategoryGridSection({ mainCategories, subCategories }: CategoryG
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

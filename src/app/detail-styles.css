@@ -395,6 +395,7 @@
 .detail-faq-title {
   font-size: 18px;
   font-weight: 700;
+  margin-top: 0;
   margin-bottom: 24px;
   display: flex;
   align-items: center;
@@ -439,11 +440,16 @@
   margin-top: 1px;
 }
 
+.detail-faq-box dl {
+  margin: 0;
+}
+
 .detail-faq-a {
   font-size: 13.5px;
   color: var(--text-sub);
   line-height: 1.8;
   padding-left: 32px;
+  margin: 0;
 }
 
 /* ===== ANIMATIONS ===== */

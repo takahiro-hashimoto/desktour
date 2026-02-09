@@ -23,7 +23,7 @@ export function ProductGrid({ products }: ProductGridProps) {
   return (
     <div className="detail-product-grid" ref={gridRef}>
       {products.map((product) => (
-        <div key={product.id} className="detail-product-card">
+        <article key={product.id} className="detail-product-card">
           <a
             href={product.amazon_url || product.rakuten_url || "#"}
             target="_blank"
@@ -99,7 +99,7 @@ export function ProductGrid({ products }: ProductGridProps) {
               </div>
             )}
           </div>
-        </div>
+        </article>
       ))}
     </div>
   );

@@ -483,7 +483,7 @@
   display: flex;
   gap: 24px;
   align-items: center;
-  margin-bottom: 16px;
+  margin: 0 0 16px 0;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -499,6 +499,7 @@
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
+  margin: 0;
   position: relative;
   background: linear-gradient(135deg, #3a3f4a, #2a2f38);
   display: flex;

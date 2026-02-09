@@ -9,7 +9,7 @@ interface HeroSectionProps {
 
 export function HeroSection({ stats }: HeroSectionProps) {
   return (
-    <div className="home-hero">
+    <section className="home-hero">
       <div className="home-hero__content">
         <div className="home-hero__flex">
           <div className="home-hero__icon-block">
@@ -35,34 +35,34 @@ export function HeroSection({ stats }: HeroSectionProps) {
           </Link>
         </div>
 
-        <div className="home-hero__stats">
+        <dl className="home-hero__stats">
           <div className="home-hero__stat">
-            <div className="home-hero__stat-num">
+            <dd className="home-hero__stat-num">
               {stats.total_products.toLocaleString()}
               <span className="home-hero__stat-unit">+</span>
-            </div>
-            <div className="home-hero__stat-label">掲載商品</div>
+            </dd>
+            <dt className="home-hero__stat-label">掲載商品</dt>
           </div>
           <div className="home-hero__stat">
-            <div className="home-hero__stat-num">
+            <dd className="home-hero__stat-num">
               {stats.total_mentions.toLocaleString()}
-            </div>
-            <div className="home-hero__stat-label">掲載データ</div>
+            </dd>
+            <dt className="home-hero__stat-label">掲載データ</dt>
           </div>
           <div className="home-hero__stat">
-            <div className="home-hero__stat-num">
+            <dd className="home-hero__stat-num">
               {stats.total_videos + stats.total_articles}
-            </div>
-            <div className="home-hero__stat-label">デスクツアー</div>
+            </dd>
+            <dt className="home-hero__stat-label">デスクツアー</dt>
           </div>
           <div className="home-hero__stat">
-            <div className="home-hero__stat-num">
+            <dd className="home-hero__stat-num">
               {stats.total_influencers}
-            </div>
-            <div className="home-hero__stat-label">投稿者</div>
+            </dd>
+            <dt className="home-hero__stat-label">投稿者</dt>
           </div>
-        </div>
+        </dl>
       </div>
-    </div>
+    </section>
   );
 }

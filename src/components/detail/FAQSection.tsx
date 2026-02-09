@@ -15,23 +15,25 @@ export function FAQSection({ items }: FAQSectionProps) {
   const sectionRef = useRevealOnScroll<HTMLDivElement>();
 
   return (
-    <div className="detail-faq-section detail-reveal" ref={sectionRef}>
+    <section className="detail-faq-section detail-reveal" ref={sectionRef}>
       <div className="detail-faq-box">
-        <div className="detail-faq-title">
+        <h2 className="detail-faq-title">
           <i className="fa-solid fa-circle-question"></i>
           よくある質問
-        </div>
+        </h2>
 
-        {items.map((item, index) => (
-          <div key={index} className="detail-faq-item">
-            <div className="detail-faq-q">
-              <span className="q-icon">Q</span>
-              {item.question}
+        <dl>
+          {items.map((item, index) => (
+            <div key={index} className="detail-faq-item">
+              <dt className="detail-faq-q">
+                <span className="q-icon">Q</span>
+                {item.question}
+              </dt>
+              <dd className="detail-faq-a">{item.answer}</dd>
             </div>
-            <p className="detail-faq-a">{item.answer}</p>
-          </div>
-        ))}
+          ))}
+        </dl>
       </div>
-    </div>
+    </section>
   );
 }

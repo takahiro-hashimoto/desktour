@@ -31,7 +31,7 @@ export const RankingProductCard = memo(function RankingProductCard({
   const isOfficialSite = product.product_source === "official";
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+    <article className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
       {/* 商品画像エリア */}
       <div className="relative bg-white flex items-center justify-center p-4" style={{ height: '200px' }}>
         {/* ランキングバッジ */}
@@ -169,6 +169,6 @@ export const RankingProductCard = memo(function RankingProductCard({
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 });
