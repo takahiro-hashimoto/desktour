@@ -86,7 +86,7 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
           <ExploreCard
             icon={<i className="fas fa-palette"></i>}
             title="スタイル別"
-            description="ミニマリスト、ゲーミングなど、雰囲気やテイストから探せます"
+            description="ミニマル、ゲーミングなど、雰囲気やテイストから探せます"
             items={styles}
             viewAllHref="/desktour/style"
           />

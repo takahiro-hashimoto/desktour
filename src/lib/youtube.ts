@@ -109,77 +109,55 @@ export async function getVideoInfo(videoId: string): Promise<VideoInfo | null> {
   }
 }
 
-interface SupadataTranscriptItem {
-  text: string;
-  offset: number;
-  duration: number;
-}
-
-interface SupadataResponse {
-  content: SupadataTranscriptItem[];
-  lang: string;
-}
-
 // 【最適化】字幕取得結果をキャッシュ（同じ動画の再解析時にAPI削減）
 const transcriptCache = new Map<string, { transcript: string | null; cachedAt: number }>();
 const TRANSCRIPT_CACHE_TTL = 60 * 60 * 1000; // 1時間
 
+/**
+ * YouTube動画の字幕を取得（youtube-transcript ライブラリ使用）
+ * APIキー不要・無料・無制限
+ */
 export async function getTranscript(videoId: string): Promise<string | null> {
-  const apiKey = process.env.SUPADATA_API_KEY;
-
-  if (!apiKey) {
-    console.error("SUPADATA_API_KEY is not set");
-    return null;
-  }
-
   // 【最適化】キャッシュチェック
   const cached = transcriptCache.get(videoId);
   if (cached && Date.now() - cached.cachedAt < TRANSCRIPT_CACHE_TTL) {
-    console.log(`[Supadata] Using cached transcript for ${videoId}`);
+    console.log(`[Transcript] Using cached transcript for ${videoId}`);
     return cached.transcript;
   }
 
-  console.log("Fetching transcript via Supadata API...");
+  console.log(`[Transcript] Fetching transcript for ${videoId}...`);
 
   try {
-    // 【最適化】言語指定なしで1回だけリクエスト（サーバー側で最適な言語を選択）
-    // これにより日本語がない場合のフォールバックリクエストが不要になる
-    const response = await fetch(
-      `https://api.supadata.ai/v1/youtube/transcript?videoId=${videoId}`,
-      {
-        headers: {
-          "x-api-key": apiKey,
-        },
-      }
-    );
+    // youtube-transcript ライブラリで字幕取得（Supadata API の代替）
+    const { YoutubeTranscript } = await import("youtube-transcript");
 
-    console.log(`Supadata response status: ${response.status}`);
-
-    if (response.ok) {
-      const data: SupadataResponse = await response.json();
-      console.log(`Got ${data.content?.length || 0} transcript segments, lang: ${data.lang}`);
-
-      if (data.content && data.content.length > 0) {
-        const transcript = data.content.map((item) => item.text).join(" ");
-        console.log(`Transcript length: ${transcript.length} chars`);
-
-        // キャッシュに保存
-        transcriptCache.set(videoId, { transcript, cachedAt: Date.now() });
-        return transcript;
-      }
+    let segments;
+    try {
+      // まず日本語字幕を試行
+      segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: "ja" });
+    } catch {
+      // 日本語がない場合はデフォルト（自動字幕含む）で取得
+      console.log(`[Transcript] Japanese not available, trying default language...`);
+      segments = await YoutubeTranscript.fetchTranscript(videoId);
     }
 
-    // エラーレスポンスの詳細を出力
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Supadata error:", errorText);
+    if (segments && segments.length > 0) {
+      const transcript = segments.map((item: { text: string }) => item.text).join(" ");
+      console.log(`[Transcript] Got ${segments.length} segments, ${transcript.length} chars`);
+
+      // キャッシュに保存
+      transcriptCache.set(videoId, { transcript, cachedAt: Date.now() });
+      return transcript;
     }
 
-    // 失敗結果もキャッシュ（同じ動画の再リクエストを防ぐ）
+    // 字幕が空の場合
+    console.log(`[Transcript] No transcript segments found for ${videoId}`);
     transcriptCache.set(videoId, { transcript: null, cachedAt: Date.now() });
     return null;
   } catch (error) {
-    console.error("Error fetching transcript via Supadata:", error);
+    console.error(`[Transcript] Error fetching transcript for ${videoId}:`, error);
+    // 失敗結果もキャッシュ（同じ動画の再リクエストを防ぐ）
+    transcriptCache.set(videoId, { transcript: null, cachedAt: Date.now() });
     return null;
   }
 }

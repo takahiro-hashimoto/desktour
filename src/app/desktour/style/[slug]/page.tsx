@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
+import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
 import { STYLE_TAGS, styleTagToSlug, slugToStyleTag, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { formatPriceDate } from "@/lib/format-utils";
@@ -42,8 +42,8 @@ export default async function StyleDetailPage({ params }: PageProps) {
   const style = getStyleFromSlug(params.slug);
   if (!style) notFound();
 
-  const stats = await getSiteStats();
-  const totalSources = stats.total_videos + stats.total_articles;
+  const setupCounts = await getSetupTagCounts();
+  const styleSourceCount = setupCounts[style] || 0;
 
   // 各カテゴリーごとにトップ3商品を取得
   const categoryProducts = await Promise.all(
@@ -86,11 +86,11 @@ export default async function StyleDetailPage({ params }: PageProps) {
         title={`${style}スタイルのデスクツアーに登場した商品一覧`}
         description={
           <>
-            {style}スタイルの
+            {styleSourceCount}件の{style}スタイルの
             <Link href="/desktour/sources" className="link">
               デスクツアー
             </Link>
-            {totalSources}件で実際に使用されている商品をカテゴリー別に掲載。全スタイルの総合ランキングは
+            で実際に使用されている商品をカテゴリー別に掲載。全スタイルの総合ランキングは
             <Link href="/desktour/category" className="link">
               デスク周りのガジェット
             </Link>

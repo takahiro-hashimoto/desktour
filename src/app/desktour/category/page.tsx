@@ -56,6 +56,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "キャプチャーボード": "fa-solid fa-video",
   "NAS": "fa-solid fa-server",
   "デスクシェルフ・モニター台": "fa-solid fa-layer-group",
+  "ケーブル": "fa-solid fa-link",
   "配線整理グッズ": "fa-solid fa-grip-lines",
   "その他デスクアクセサリー": "fa-solid fa-puzzle-piece",
 };

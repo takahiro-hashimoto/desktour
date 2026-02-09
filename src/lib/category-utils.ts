@@ -17,6 +17,7 @@ export const CATEGORY_PRIORITY = [
   "マイクアーム",
   "充電器・電源タップ",
   "デスクシェルフ・モニター台",
+  "ケーブル",
   "配線整理グッズ",
   "その他デスクアクセサリー",
 ] as const;
@@ -35,6 +36,7 @@ const CATEGORY_ENGLISH_MAP: Record<string, string> = {
   "マイクアーム": "MIC ARMS",
   "充電器・電源タップ": "CHARGERS",
   "デスクシェルフ・モニター台": "DESK SHELVES",
+  "ケーブル": "CABLES",
   "配線整理グッズ": "CABLE MANAGEMENT",
   "その他デスクアクセサリー": "ACCESSORIES",
   "ヘッドホン・イヤホン": "HEADPHONES",

@@ -499,6 +499,7 @@ async function getProductDetailCommon(product: any): Promise<ProductDetail | nul
     co_used_products: coUsedProducts,
     all_comments: allComments,
     desk_setup_stats: deskSetupStats,
+    chosen_reasons: product.chosen_reasons || undefined,
     updated_at: product.updated_at,
   };
 }
@@ -991,58 +992,29 @@ export async function getOccupationTagCounts(): Promise<Record<string, number>> 
   return counts;
 }
 
-// セットアップタグ別の商品数を取得（DBに存在するタグのみ）
+// セットアップタグ別の動画・記事数を取得（DBに存在するタグのみ）
 export async function getSetupTagCounts(): Promise<Record<string, number>> {
-  // videosとarticlesからtagsを取得
-  // product_mentions.video_id はYouTube動画ID、article_id は記事URLを格納
   const [{ data: videos }, { data: articles }] = await Promise.all([
-    supabase.from("videos").select("video_id, tags"),
-    supabase.from("articles").select("url, tags"),
+    supabase.from("videos").select("tags"),
+    supabase.from("articles").select("tags"),
   ]);
 
-  // YouTube動画ID/記事URLからタグへのマップ
-  const videoToTags = new Map<string, string[]>();
-  const articleToTags = new Map<string, string[]>();
+  const counts: Record<string, number> = {};
 
   for (const video of videos || []) {
-    if (video.tags && video.tags.length > 0 && video.video_id) {
-      videoToTags.set(video.video_id, video.tags);
+    if (video.tags && video.tags.length > 0) {
+      for (const tag of video.tags) {
+        counts[tag] = (counts[tag] || 0) + 1;
+      }
     }
   }
 
   for (const article of articles || []) {
-    if (article.tags && article.tags.length > 0 && article.url) {
-      articleToTags.set(article.url, article.tags);
-    }
-  }
-
-  // 商品言及から各タグの商品数をカウント（confidence lowを除外）
-  const { data: mentions } = await supabase
-    .from("product_mentions")
-    .select("product_id, video_id, article_id")
-    .neq("confidence", "low");
-
-  const tagProductSet = new Map<string, Set<string>>();
-
-  for (const mention of mentions || []) {
-    let tags: string[] = [];
-    if (mention.video_id && videoToTags.has(mention.video_id)) {
-      tags = videoToTags.get(mention.video_id) || [];
-    } else if (mention.article_id && articleToTags.has(mention.article_id)) {
-      tags = articleToTags.get(mention.article_id) || [];
-    }
-
-    for (const tag of tags) {
-      if (!tagProductSet.has(tag)) {
-        tagProductSet.set(tag, new Set());
+    if (article.tags && article.tags.length > 0) {
+      for (const tag of article.tags) {
+        counts[tag] = (counts[tag] || 0) + 1;
       }
-      tagProductSet.get(tag)!.add(mention.product_id);
     }
-  }
-
-  const counts: Record<string, number> = {};
-  for (const [tag, products] of tagProductSet) {
-    counts[tag] = products.size;
   }
 
   return counts;

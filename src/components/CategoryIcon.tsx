@@ -15,6 +15,7 @@ import {
   Laptop,
   MonitorUp,
   Cable,
+  Plug,
   Square,
   Archive,
   Cpu,
@@ -53,6 +54,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "ドッキングステーション": HardDrive,
   "左手デバイス": Gamepad2,
   "デスクシェルフ・モニター台": Layers,
+  "ケーブル": Plug,
   "配線整理グッズ": Cable,
   "その他デスクアクセサリー": Package,
 };

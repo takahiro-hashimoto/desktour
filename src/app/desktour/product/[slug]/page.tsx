@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cache } from "react";
 import { getProductDetailBySlug, getCoOccurrenceProducts, getSiteStats } from "@/lib/supabase";
-import { categoryToSlug, occupationToSlug, styleTagToSlug } from "@/lib/constants";
+import { categoryToSlug, occupationToSlug, styleTagToSlug, STYLE_TAGS } from "@/lib/constants";
 import { CoUsedProduct } from "@/types";
 import { getProductLinks } from "@/lib/affiliateLinks";
 import { isLowQualityFeatures } from "@/lib/featureQuality";
@@ -93,7 +93,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   // パーセント計算用の合計
   const totalOccupation = product.occupation_breakdown?.reduce((sum, s) => sum + s.count, 0) || 1;
-  const totalSetup = product.desk_setup_stats?.reduce((sum, s) => sum + s.count, 0) || 1;
+
+  // desk_setup_stats からスタイルタグのみ抽出
+  const styleTagSet = new Set<string>(STYLE_TAGS as readonly string[]);
+  const styleStats = product.desk_setup_stats?.filter((s) => styleTagSet.has(s.setup_tag)) || [];
+  const totalStyle = styleStats.reduce((sum, s) => sum + s.count, 0) || 1;
 
   // 商品情報があるかチェック
   const hasProductInfo = product.amazon_model_number ||
@@ -108,8 +112,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
   // 商品の特徴があるかチェック
   const hasFeatures = product.amazon_features && product.amazon_features.length > 0 && !isLowQualityFeatures(product.amazon_features);
 
+  const hasChosenReasons = product.chosen_reasons && product.chosen_reasons.length > 0;
   const hasEnvironmentStats = (product.occupation_breakdown && product.occupation_breakdown.length > 0) ||
-    (product.desk_setup_stats && product.desk_setup_stats.length > 0);
+    styleStats.length > 0 || hasChosenReasons;
   const hasComments = product.all_comments && product.all_comments.length > 0;
   const hasCoUsedProducts = coUsedProducts.length > 0;
 
@@ -264,7 +269,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <h2>{product.brand && `${product.brand} `}{product.name}が登場しているデスク環境の傾向</h2>
             </div>
             <div className="trend-card">
-              <div className="trend-grid">
+              <div className={`trend-grid${hasChosenReasons ? " trend-grid-3col" : ""}`}>
                 {/* Occupation */}
                 {product.occupation_breakdown && product.occupation_breakdown.length > 0 && (
                   <div className="trend-col">
@@ -285,12 +290,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   </div>
                 )}
 
-                {/* Work Style */}
-                {product.desk_setup_stats && product.desk_setup_stats.length > 0 && (
+                {/* Desk Style (TAG_GROUP_STYLE only) */}
+                {styleStats.length > 0 && (
                   <div className="trend-col">
-                    <div className="trend-col-title">作業スタイル (Work Style)</div>
-                    {product.desk_setup_stats.slice(0, 3).map((stat) => {
-                      const percentage = Math.round((stat.count / totalSetup) * 100);
+                    <div className="trend-col-title">デスクスタイル (Desk Style)</div>
+                    {styleStats.slice(0, 3).map((stat) => {
+                      const percentage = Math.round((stat.count / totalStyle) * 100);
                       return (
                         <div key={stat.setup_tag} className="trend-item">
                           <span className="trend-item-name">{stat.setup_tag}</span>
@@ -301,17 +306,22 @@ export default async function ProductDetailPage({ params }: PageProps) {
                         </div>
                       );
                     })}
-                    <div className="trend-note">{totalSetup}人が使用</div>
+                    <div className="trend-note">{totalStyle}人が使用</div>
                   </div>
                 )}
 
-                {/* Features Tags */}
-                {product.desk_setup_stats && product.desk_setup_stats.length > 0 && (
+                {/* 選ばれている理由 (Why Chosen) */}
+                {hasChosenReasons && (
                   <div className="trend-col">
-                    <div className="trend-col-title">デスク全体の特徴 (Features)</div>
-                    <div className="trend-tags">
-                      {product.desk_setup_stats.slice(0, 6).map((stat) => (
-                        <span key={stat.setup_tag} className="trend-tag">#{stat.setup_tag}</span>
+                    <div className="trend-col-title">選ばれている理由 (Why Chosen)</div>
+                    <div className="trend-reasons">
+                      {product.chosen_reasons!.map((reason, i) => (
+                        <div key={i} className="trend-reason-item">
+                          <span className="trend-reason-icon">
+                            {i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}
+                          </span>
+                          <span className="trend-reason-text">{reason}</span>
+                        </div>
                       ))}
                     </div>
                   </div>

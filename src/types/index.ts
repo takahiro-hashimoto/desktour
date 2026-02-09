@@ -102,6 +102,7 @@ export interface ProductDetail {
   co_used_products: CoUsedProduct[];
   all_comments: ProductComment[];
   desk_setup_stats: DeskSetupStat[];
+  chosen_reasons?: string[]; // Geminiによるコメント要約「選ばれている理由TOP3」
   // 更新日時
   updated_at?: string;
 }

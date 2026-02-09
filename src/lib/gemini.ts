@@ -185,14 +185,13 @@ const BRAND_NAME_RULES = `【ブランド名の記述ルール】★重要★
  */
 function buildOccupationRules(sourceHints: string[], unknownFallback: string): string {
   return `【職業の抽出ルール】★重要★
-- influencerOccupationTagsは以下の10個のタグから「最も適切な1つだけ」を選択すること：
+- influencerOccupationTagsは以下の9個のタグから「最も適切な1つだけ」を選択すること：
   ${OCCUPATION_TAGS.join(", ")}
 - 必ず1つだけ選ぶこと。複数選択は禁止。
 ${sourceHints.join("\n")}
 - 選択の優先度ルール（具体的な職業を優先すること）：
   - エンジニアかつ動画制作もしている → 「エンジニア」を選択（本業を優先）
   - デザイナーかつYouTuber → 「デザイナー」を選択（本業を優先）
-  - 「クリエイター」は他のどの職業にも当てはまらない場合のみ使用する
 - 経営者・社長・CEO・起業家は「経営者」タグを使用
 - カメラマン・写真家は「フォトグラファー」タグを使用
 - ${unknownFallback}`;
@@ -212,7 +211,7 @@ function buildTagSelectionRules(sourceLabel: string, extraLine: string): string 
   - サムネイル画像があればその雰囲気を最優先で判断材料にする
   - テキストで「白で統一」「黒基調」等の言及があればそれに従う
   - 判定ガイド:
-    - 「ミニマリスト」: 物が少なく余白が多い
+    - 「ミニマル」: 物が少なく余白が多い
     - 「ゲーミング」: RGB・ゲーミングチェア・ゲーミングデバイス中心
     - 「ナチュラル・北欧」: 木目・暖色・植物
     - 「インダストリアル」: 鉄脚・ダーク・無骨
@@ -348,7 +347,6 @@ ${buildOccupationRules(
   "全く推測できない場合のみnullと空配列を設定"
 )}
 - influencerOccupationは具体的に自由記述（例：「IT企業でWebディレクターとして働いている」等）
-- 動画編集・映像制作が本業 → 「クリエイター」を選択
 
 ${buildTagSelectionRules("動画", "独自タグの作成は禁止（例：「プログラマー向け」「高コスパ」など勝手に作らない）")}
 
@@ -667,4 +665,54 @@ ${productsText}
   }
 
   return results;
+}
+
+/**
+ * 複数のユーザーコメントからGeminiで「選ばれている理由TOP3」を抽出する
+ * @param productName 商品名（ブランド名付き）
+ * @param comments コメント文の配列
+ * @returns 選ばれている理由TOP3（短いフレーズ3つ）
+ */
+export async function generateChosenReasons(
+  productName: string,
+  comments: string[]
+): Promise<string[]> {
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const prompt = `あなたはデスク周りガジェットの分析アシスタントです。
+
+以下は「${productName}」を実際に使用しているデスクツアー投稿者のコメント（${comments.length}件）です。
+
+---コメント一覧---
+${comments.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+---
+
+上記コメントを分析し、この商品が選ばれている理由を重要度順にTOP3で抽出してください。
+
+【ルール】
+- 各理由は15〜25文字程度の簡潔な日本語フレーズにすること
+- 複数のコメントで共通して言及されているポイントを優先すること
+- 具体的な特徴やメリットを書くこと（「良い」「人気」のような抽象的な表現はNG）
+- 出力は以下のJSON配列のみ。他の説明は不要
+
+出力例:
+["打鍵感が心地よく疲れにくい", "コンパクトで省スペース", "Bluetooth接続の安定性が高い"]`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim();
+
+    // JSON配列を抽出
+    const match = text.match(/\[[\s\S]*?\]/);
+    if (!match) {
+      console.error("[ChosenReasons] Failed to parse response:", text);
+      return [];
+    }
+
+    const reasons = JSON.parse(match[0]) as string[];
+    return reasons.slice(0, 3);
+  } catch (error) {
+    console.error("[ChosenReasons] Gemini API error:", error);
+    return [];
+  }
 }

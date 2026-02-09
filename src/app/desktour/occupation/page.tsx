@@ -32,7 +32,6 @@ export async function generateMetadata(): Promise<Metadata> {
 const OCCUPATION_ICONS: Record<string, string> = {
   "エンジニア": "fa-solid fa-laptop-code",
   "デザイナー": "fa-solid fa-pen-ruler",
-  "クリエイター": "fa-solid fa-film",
   "イラストレーター": "fa-solid fa-paintbrush",
   "配信者": "fa-solid fa-microphone-lines",
   "ゲーマー": "fa-solid fa-gamepad",
@@ -46,7 +45,6 @@ const OCCUPATION_ICONS: Record<string, string> = {
 const OCCUPATION_DESCRIPTIONS: Record<string, string> = {
   "エンジニア": "プログラミング作業を多くこなすエンジニアがよく使っているガジェットを紹介。",
   "デザイナー": "グラフィックやUIデザインを手がけるデザイナーがよく使っているガジェットを紹介。",
-  "クリエイター": "動画編集やコンテンツ制作を行うクリエイターがよく使っているガジェットを紹介。",
   "イラストレーター": "デジタルイラストを描くイラストレーターがよく使っているガジェットを紹介。",
   "配信者": "ライブ配信やストリーミングを行う配信者がよく使っているガジェットを紹介。",
   "ゲーマー": "ゲームプレイを楽しむゲーマーがよく使っているガジェットを紹介。",

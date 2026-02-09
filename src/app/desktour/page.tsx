@@ -9,7 +9,7 @@ import {
 } from "@/lib/supabase";
 import {
   PRODUCT_CATEGORIES,
-  DESK_SETUP_TAGS,
+  STYLE_TAGS,
   OCCUPATION_TAGS,
   categoryToSlug,
   occupationToSlug,
@@ -126,7 +126,7 @@ export default async function DesktourPage() {
     .sort((a, b) => b.count - a.count);
 
   // スタイル別データ
-  const styles = DESK_SETUP_TAGS
+  const styles = STYLE_TAGS
     .map(label => ({
       name: label,
       count: setupCounts[label] || 0,

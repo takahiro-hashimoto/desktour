@@ -369,8 +369,12 @@
 
 .trend-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 28px;
+}
+
+.trend-grid.trend-grid-3col {
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .trend-col {}
@@ -440,6 +444,32 @@
   border-radius: var(--radius-pill);
   font-size: 11.5px;
   color: var(--text-sub);
+  font-weight: 500;
+}
+
+/* Chosen Reasons (Why Chosen) column */
+.trend-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trend-reason-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trend-reason-icon {
+  font-size: 16px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+.trend-reason-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
   font-weight: 500;
 }
 

@@ -10,7 +10,7 @@ import { formatPriceWithSymbol, formatPriceDate } from "@/lib/format-utils";
 interface RankingProductCardProps {
   product: ProductWithStats;
   rank: number;
-  adoptionText: string; // 完成形のテキスト（例: 「12名のエンジニアが採用」「ミニマリストデスクで8件採用」）
+  adoptionText: string; // 完成形のテキスト（例: 「12名のエンジニアが採用」「ミニマルデスクで8件採用」）
 }
 
 export const RankingProductCard = memo(function RankingProductCard({

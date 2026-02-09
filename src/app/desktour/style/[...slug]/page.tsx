@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
+import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
 import {
   slugToStyleTag,
   slugToCategory,
@@ -26,7 +26,7 @@ interface PageProps {
 // スタイルタグの英語表記を取得
 function getStyleEnglish(style: string): string {
   const mapping: Record<string, string> = {
-    "ミニマリスト": "MINIMALIST",
+    "ミニマル": "MINIMAL",
     "ゲーミング": "GAMING",
     "おしゃれ": "STYLISH",
     "ホワイト": "WHITE",
@@ -40,9 +40,9 @@ function getStyleEnglish(style: string): string {
 // スタイルタグに合わせた自然な日本語タイトルを生成
 function getStyleTitle(styleTag: string, category?: string | null): string {
   // 「の」を付けるべきタグ
-  const withNo = ["ミニマリスト"];
+  const withNo: string[] = [];
   // 「な」を付けるべきタグ
-  const withNa = ["おしゃれ", "ナチュラル", "ナチュラル/木目調", "かわいい"];
+  const withNa = ["ミニマル", "おしゃれ", "ナチュラル", "ナチュラル/木目調", "かわいい"];
 
   const suffix = category ? category : "ガジェット";
 
@@ -102,7 +102,8 @@ export default async function StylePage({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  const stats = await getSiteStats();
+  const setupCounts = await getSetupTagCounts();
+  const styleSourceCount = setupCounts[styleTag] || 0;
 
   // カテゴリが指定されている場合は従来のリストページ
   if (category) {
@@ -130,11 +131,11 @@ export default async function StylePage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {stats.total_videos}件の
+              {styleSourceCount}件の{styleTag}スタイルの
               <Link href="/desktour/sources" className="text-blue-600 hover:underline">
-                デスクツアー動画・記事
+                デスクツアー
               </Link>
-              で実際に使われている{styleTag}スタイルの{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              で実際に使われている{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
             </>
           }
         />
@@ -169,11 +170,11 @@ export default async function StylePage({ params, searchParams }: PageProps) {
         title={getStyleTitle(styleTag)}
         subtitle={
           <>
-            {stats.total_videos}件の
+            {styleSourceCount}件の{styleTag}スタイルの
             <Link href="/desktour/sources" className="text-blue-600 hover:underline">
-              デスクツアー動画・記事
+              デスクツアー
             </Link>
-            で実際に使われている{styleTag}スタイルのガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
+            で実際に使われているガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
           </>
         }
       />

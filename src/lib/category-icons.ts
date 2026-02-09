@@ -32,6 +32,7 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   "キャプチャーボード": "fa-video",
   "NAS": "fa-server",
   "デスクシェルフ・モニター台": "fa-layer-group",
+  "ケーブル": "fa-link",
   "配線整理グッズ": "fa-grip-lines",
   "その他デスクアクセサリー": "fa-puzzle-piece",
 };

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
+import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
 import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
@@ -66,8 +66,8 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
     limit,
   });
 
-  const stats = await getSiteStats();
-  const totalSources = stats.total_videos + stats.total_articles;
+  const setupCounts = await getSetupTagCounts();
+  const styleSourceCount = setupCounts[style] || 0;
 
   const formattedProducts = products.map((product) => ({
     id: product.id || "",
@@ -112,15 +112,11 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
         title={`${style}スタイルの${category}一覧`}
         description={
           <>
-            {totalSources}件の
+            {styleSourceCount}件の{style}スタイルの
             <Link href="/desktour/sources" className="link">
-              デスクツアー動画
+              デスクツアー
             </Link>
-            ・
-            <Link href="/desktour/sources" className="link">
-              記事
-            </Link>
-            で{style}スタイルのデスク環境で実際に使用されている{category}を、使用者のコメント付きでまとめています。デスク環境構築の参考にご活用ください。
+            で実際に使用されている{category}を、使用者のコメント付きでまとめています。デスク環境構築の参考にご活用ください。
           </>
         }
         breadcrumbCurrent={category}

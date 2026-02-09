@@ -44,17 +44,6 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${secs.toString().padStart(2, "0")}`;
 }
 
-// 概要欄にAmazonリンクが含まれているかチェック
-function hasAmazonLink(description: string): boolean {
-  const amazonPatterns = [
-    /amazon\.co\.jp/i,
-    /amazon\.com/i,
-    /amzn\.to/i,
-    /amzn\.asia/i,
-    /a\.co\//i,
-  ];
-  return amazonPatterns.some((pattern) => pattern.test(description));
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -144,25 +133,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // ソート: Amazonリンクあり優先 → 公開日が新しい順 → 再生回数順
-    suggestions.sort((a, b) => {
-      // 1. Amazonリンクがある動画を優先
-      const aHasAmazon = hasAmazonLink(a.description || "");
-      const bHasAmazon = hasAmazonLink(b.description || "");
-      if (aHasAmazon !== bHasAmazon) {
-        return aHasAmazon ? -1 : 1;
-      }
-
-      // 2. 公開日が新しい順
-      const aDate = new Date(a.publishedAt).getTime();
-      const bDate = new Date(b.publishedAt).getTime();
-      if (aDate !== bDate) {
-        return bDate - aDate;
-      }
-
-      // 3. 再生回数が多い順
-      return b.viewCount - a.viewCount;
-    });
+    // ランダムシャッフル（Fisher-Yates）で未登録動画をランダム表示
+    for (let i = suggestions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [suggestions[i], suggestions[j]] = [suggestions[j], suggestions[i]];
+    }
 
     // 最大件数で切る
     const limitedSuggestions = suggestions.slice(0, maxResults);

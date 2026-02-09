@@ -32,6 +32,7 @@ export const PRODUCT_CATEGORIES = [
   "キャプチャーボード",
   "NAS",
   "デスクシェルフ・モニター台",
+  "ケーブル",
   "配線整理グッズ",
   "その他デスクアクセサリー",
 ];
@@ -223,6 +224,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "キャプチャーボード": "capture-card",
   "NAS": "nas",
   "デスクシェルフ・モニター台": "desk-shelf",
+  "ケーブル": "cable",
   "配線整理グッズ": "cable-management",
   "その他デスクアクセサリー": "other-accessories",
 };
@@ -235,7 +237,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
 
 /** スタイル（排他: 1つのみ選択可能） */
 export const TAG_GROUP_STYLE = [
-  "ミニマリスト",
+  "ミニマル",
   "ゲーミング",
   "ナチュラル・北欧",
   "インダストリアル",
@@ -310,7 +312,7 @@ export const DESK_SETUP_TAGS = [
 // --- スラッグマッピング ---
 
 const STYLE_SLUG_MAP: Record<string, string> = {
-  "ミニマリスト": "minimalist",
+  "ミニマル": "minimal",
   "ゲーミング": "gaming",
   "ナチュラル・北欧": "natural-nordic",
   "インダストリアル": "industrial",
@@ -378,7 +380,7 @@ export function validateTags(tags: string[]): string[] {
   return result;
 }
 
-// 職業タグ（SEO最適化版 - 10個のみ）
+// 職業タグ（SEO最適化版 - 9個）
 // 優先度順: 具体的な職業ほど上位、曖昧な職業ほど下位
 export const OCCUPATION_TAGS = [
   "エンジニア",
@@ -390,7 +392,6 @@ export const OCCUPATION_TAGS = [
   "経営者",
   "学生",
   "会社員",
-  "クリエイター", // 最も曖昧なため最下位（他に該当がない場合のみ使用）
 ] as const;
 
 // 職業タグの優先度を取得（小さいほど優先度が高い）
@@ -412,7 +413,6 @@ export function selectPrimaryOccupation(tags: string[]): string | null {
 const OCCUPATION_SLUG_MAP: Record<string, string> = {
   "エンジニア": "engineer",
   "デザイナー": "designer",
-  "クリエイター": "creator",
   "イラストレーター": "illustrator",
   "配信者": "streamer",
   "ゲーマー": "gamer",

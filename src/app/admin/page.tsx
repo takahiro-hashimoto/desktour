@@ -154,6 +154,10 @@ export default function AdminPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("デスクツアー");
 
+  // 選ばれている理由の一括生成
+  const [generatingReasons, setGeneratingReasons] = useState(false);
+  const [reasonsResult, setReasonsResult] = useState<{ message: string; processed: number; errors: number; total: number } | null>(null);
+
   // タググループ定義（admin UI表示用）
   const TAG_GROUPS = [
     { name: "スタイル", tags: TAG_GROUP_STYLE as readonly string[], exclusive: true },
@@ -221,10 +225,7 @@ export default function AdminPage() {
     }
   };
 
-  // 初回読み込み時にサジェストを取得
-  useEffect(() => {
-    fetchSuggestions();
-  }, []);
+  // サジェストは「DB登録リストを表示」ボタンで手動取得（自動取得しない）
 
   // プレビュー結果が設定されたらタグを初期化
   useEffect(() => {
@@ -865,6 +866,73 @@ export default function AdminPage() {
             </button>
           </div>
 
+          {/* ソースURL・サムネイル */}
+          <div className="mb-4 flex gap-4 items-start">
+            {previewResult.source === "video" && previewResult.videoInfo?.thumbnailUrl && (
+              <a
+                href={`https://www.youtube.com/watch?v=${previewResult.videoInfo.videoId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0"
+              >
+                <img
+                  src={previewResult.videoInfo.thumbnailUrl}
+                  alt={previewResult.title}
+                  className="w-40 aspect-video object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
+                />
+              </a>
+            )}
+            {previewResult.source === "article" && previewResult.articleInfo?.thumbnailUrl && (
+              <a
+                href={previewResult.articleInfo.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0"
+              >
+                <img
+                  src={previewResult.articleInfo.thumbnailUrl}
+                  alt={previewResult.title}
+                  className="w-40 aspect-video object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
+                />
+              </a>
+            )}
+            <div className="flex-1 min-w-0">
+              {previewResult.source === "video" && previewResult.videoInfo && (
+                <div className="mb-2">
+                  <p className="text-xs text-gray-500 mb-0.5">動画URL</p>
+                  <a
+                    href={`https://www.youtube.com/watch?v=${previewResult.videoInfo.videoId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline break-all"
+                  >
+                    https://www.youtube.com/watch?v={previewResult.videoInfo.videoId}
+                  </a>
+                  <p className="text-xs text-gray-400 mt-1">{previewResult.videoInfo.channelTitle}</p>
+                </div>
+              )}
+              {previewResult.source === "article" && previewResult.articleInfo && (
+                <div className="mb-2">
+                  <p className="text-xs text-gray-500 mb-0.5">記事URL</p>
+                  <a
+                    href={previewResult.articleInfo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:underline break-all"
+                  >
+                    {previewResult.articleInfo.url}
+                  </a>
+                  {previewResult.articleInfo.author && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {previewResult.articleInfo.siteName && `${previewResult.articleInfo.siteName} / `}
+                      {previewResult.articleInfo.author}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="bg-blue-50 rounded-lg p-3 mb-4 text-sm text-blue-800">
             💡 登録する商品にチェックを入れて「登録する」ボタンをクリックしてください
           </div>
@@ -1396,9 +1464,16 @@ export default function AdminPage() {
           <button
             onClick={() => fetchSuggestions()}
             disabled={loadingSuggestions}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors whitespace-nowrap"
           >
             {loadingSuggestions ? "検索中..." : "検索"}
+          </button>
+          <button
+            onClick={() => fetchSuggestions()}
+            disabled={loadingSuggestions}
+            className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400 transition-colors text-sm font-medium whitespace-nowrap"
+          >
+            {loadingSuggestions ? "取得中..." : "DB未登録リストを表示"}
           </button>
         </div>
 
@@ -1450,8 +1525,50 @@ export default function AdminPage() {
 
         {!loadingSuggestions && suggestions.length === 0 && (
           <p className="text-gray-500 text-center py-8">
-            検索結果がありません。キーワードを変えて再検索してください。
+            「DB未登録リストを表示」ボタンを押すと、2023年以降の未登録デスクツアー動画をランダムで表示します。
           </p>
+        )}
+      </div>
+
+      {/* 一括処理セクション */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-3">⚡ 一括処理</h2>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setGeneratingReasons(true);
+              setReasonsResult(null);
+              try {
+                const res = await fetch("/api/generate-chosen-reasons", { method: "POST" });
+                const data = await res.json();
+                setReasonsResult(data);
+              } catch {
+                setReasonsResult({ message: "エラーが発生しました", processed: 0, errors: 1, total: 0 });
+              } finally {
+                setGeneratingReasons(false);
+              }
+            }}
+            disabled={generatingReasons}
+            className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition-colors text-sm font-medium whitespace-nowrap"
+          >
+            {generatingReasons ? "生成中..." : "選ばれている理由を一括生成"}
+          </button>
+          <span className="text-xs text-gray-500">コメント10件以上の商品に対してGeminiで「選ばれている理由TOP3」を生成します</span>
+        </div>
+        {generatingReasons && (
+          <div className="mt-3 text-sm text-purple-600 animate-pulse">
+            Gemini APIで順次生成中です。商品数によっては数分かかります...
+          </div>
+        )}
+        {reasonsResult && (
+          <div className={`mt-3 p-3 rounded-lg text-sm ${reasonsResult.errors > 0 ? "bg-yellow-50 text-yellow-800" : "bg-green-50 text-green-800"}`}>
+            <p className="font-medium">{reasonsResult.message}</p>
+            {reasonsResult.total > 0 && (
+              <p className="mt-1 text-xs">
+                対象: {reasonsResult.total}件 / 成功: {reasonsResult.processed}件 / エラー: {reasonsResult.errors}件
+              </p>
+            )}
+          </div>
         )}
       </div>
 
