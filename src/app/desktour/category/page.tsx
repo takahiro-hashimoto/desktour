@@ -3,8 +3,9 @@ import Link from "next/link";
 import { getSiteStats, searchProducts } from "@/lib/supabase";
 import { PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { ProductGrid } from "@/components/detail/ProductGrid";
 import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
-import { formatPriceDate } from "@/lib/format-utils";
+import { formatProductForDisplay } from "@/lib/format-utils";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -21,7 +22,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: "/desktour/category" },
-    openGraph: { title, description, url: "/desktour/category" },
+    openGraph: { title, description, url: "/desktour/category", type: "website" },
+    twitter: { card: "summary", title, description },
   };
 }
 
@@ -76,20 +78,7 @@ export default async function CategoryIndexPage() {
 
       return {
         category,
-        products: products.map((product) => ({
-          id: product.id || "",
-          asin: product.asin,
-          slug: product.slug,
-          name: product.name,
-          brand: product.brand,
-          image_url: product.amazon_image_url,
-          amazon_url: product.amazon_url,
-          rakuten_url: product.rakuten_url,
-          price: product.amazon_price,
-          price_updated_at: product.updated_at,
-          mention_count: product.mention_count,
-          user_comment: product.comments?.[0]?.comment,
-        })),
+        products: products.map(formatProductForDisplay),
         total,
       };
     })
@@ -145,70 +134,7 @@ export default async function CategoryIndexPage() {
                   全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
                 </Link>
               </div>
-              <div className="detail-product-grid">
-                {products.map((product) => (
-                  <div key={product.id} className="detail-product-card">
-                    <a
-                      href={product.amazon_url || product.rakuten_url || "#"}
-                      target="_blank"
-                      rel="noopener noreferrer sponsored"
-                      className="detail-product-img"
-                    >
-                      <div className="detail-product-img-inner">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} width={200} height={200} loading="lazy" />
-                        ) : (
-                          <i className="fa-solid fa-cube img-placeholder"></i>
-                        )}
-                      </div>
-                    </a>
-                    <div className="detail-product-body">
-                      <div className="detail-product-brand">{product.brand || "ブランド不明"}</div>
-                      <div className="detail-product-name">{product.name}</div>
-                      <div className="detail-product-meta">
-                        <span className="detail-mention-badge">
-                          <i className="fa-solid fa-circle-check"></i> {product.mention_count}回登場
-                        </span>
-                        {product.price && (
-                          <div className="detail-product-price">
-                            <div className="price">¥{product.price.toLocaleString("ja-JP")}</div>
-                            {product.price_updated_at && (
-                              <div className="price-date">{formatPriceDate(product.price_updated_at)}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {product.user_comment && (
-                        <div className="detail-product-comment">
-                          <span className="detail-product-comment-label">
-                            <i className="fa-solid fa-comment"></i> 使用者の声
-                          </span>
-                          <p className="detail-product-desc">{product.user_comment}</p>
-                        </div>
-                      )}
-                      {product.slug && (
-                        <Link href={`/desktour/product/${product.slug}`} className="detail-product-cta">
-                          詳細を見る <i className="fa-solid fa-arrow-right"></i>
-                        </Link>
-                      )}
-                      {(product.amazon_url || product.rakuten_url) && (
-                        <div className="detail-product-links">
-                          {product.amazon_url && (
-                            <a href={product.amazon_url} target="_blank" rel="noopener noreferrer sponsored" className="amazon">
-                              Amazonで見る
-                            </a>
-                          )}
-                          {product.rakuten_url && (
-                            <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer sponsored" className="rakuten">
-                              楽天で見る
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ProductGrid products={products} />
             </div>
           ))
         )}

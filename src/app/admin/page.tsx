@@ -1227,7 +1227,7 @@ export default function AdminPage() {
                         {product.amazon ? (
                           <>
                             {product.amazon.imageUrl && (
-                              <img src={product.amazon.imageUrl} alt="" className="w-10 h-10 object-contain rounded-md bg-white border border-gray-100 flex-shrink-0" />
+                              <img src={product.amazon.imageUrl} alt={`${product.name}の商品画像`} className="w-10 h-10 object-contain rounded-md bg-white border border-gray-100 flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <a
@@ -1638,7 +1638,7 @@ export default function AdminPage() {
                       type="button"
                     >
                       {candidate.imageUrl ? (
-                        <img src={candidate.imageUrl} alt="" className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
+                        <img src={candidate.imageUrl} alt={candidate.title} className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
                       ) : (
                         <div className="w-14 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">No img</div>
                       )}

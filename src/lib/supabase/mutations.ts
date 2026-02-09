@@ -261,6 +261,31 @@ export async function updateProductWithAmazon(
     }
   }
 
+  // 【重複検知】同じASINを持つ別の商品が既に存在するかチェック
+  if (productInfo.asin) {
+    const { data: duplicateProduct } = await supabase
+      .from("products")
+      .select("id, name")
+      .eq("asin", productInfo.asin)
+      .neq("id", productId)
+      .maybeSingle();
+
+    if (duplicateProduct) {
+      console.log(`[updateProductWithAmazon] ASIN重複検出: "${productInfo.asin}" は既に "${duplicateProduct.name}" (${duplicateProduct.id}) に割り当て済み`);
+      // 重複商品のmentionsを既存商品に移行して、新規商品を削除
+      const { error: migrateError } = await supabase
+        .from("product_mentions")
+        .update({ product_id: duplicateProduct.id })
+        .eq("product_id", productId);
+
+      if (!migrateError) {
+        await supabase.from("products").delete().eq("id", productId);
+        console.log(`[updateProductWithAmazon] Mentions migrated to ${duplicateProduct.id}, duplicate ${productId} deleted`);
+      }
+      return true;
+    }
+  }
+
   // Amazon情報からタグを抽出（種類タグ + 特徴タグ を統合）
   let extractedTags: string[] | undefined;
 

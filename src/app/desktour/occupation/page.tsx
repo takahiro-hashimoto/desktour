@@ -24,7 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title,
     description,
     alternates: { canonical: "/desktour/occupation" },
-    openGraph: { title, description, url: "/desktour/occupation" },
+    openGraph: { title, description, url: "/desktour/occupation", type: "website" },
+    twitter: { card: "summary", title, description },
   };
 }
 

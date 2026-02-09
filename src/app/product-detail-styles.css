@@ -945,10 +945,31 @@
     font-size: 13px;
   }
 
-  /* Feature list */
+  /* Feature card/list */
+  .feature-card {
+    padding: 20px;
+  }
+
   .feature-list li {
     padding: 10px 12px;
     font-size: 13px;
+  }
+
+  /* Specs table - SP横スクロール対応 */
+  .specs-table th {
+    width: 100px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .specs-table td {
+    padding: 10px 12px;
+    font-size: 12.5px;
+  }
+
+  /* Trend card */
+  .trend-card {
+    padding: 20px;
   }
 
   /* Review cards - 縦並び */
@@ -968,8 +989,9 @@
     line-height: 1.7;
   }
 
-  /* Trend grid - 縦並び */
-  .trend-grid {
+  /* Trend grid - 縦並び（3colも含めて） */
+  .trend-grid,
+  .trend-grid.trend-grid-3col {
     grid-template-columns: 1fr;
     gap: 24px;
   }

@@ -2,6 +2,45 @@
  * 価格・日付フォーマット共通ユーティリティ
  */
 
+import type { ProductWithStats } from "@/types";
+
+/** 表示用の商品データ型 */
+export interface DisplayProduct {
+  id: string;
+  asin?: string;
+  slug?: string;
+  name: string;
+  brand?: string;
+  category?: string;
+  image_url?: string;
+  amazon_url?: string;
+  rakuten_url?: string;
+  price?: number;
+  price_updated_at?: string;
+  mention_count: number;
+  user_comment?: string;
+  rank?: number;
+}
+
+/** ProductWithStats → DisplayProduct に変換するユーティリティ */
+export function formatProductForDisplay(product: ProductWithStats): DisplayProduct {
+  return {
+    id: product.id || "",
+    asin: product.asin,
+    slug: product.slug,
+    name: product.name,
+    brand: product.brand,
+    category: product.category,
+    image_url: product.amazon_image_url,
+    amazon_url: product.amazon_url,
+    rakuten_url: product.rakuten_url,
+    price: product.amazon_price,
+    price_updated_at: product.updated_at,
+    mention_count: product.mention_count,
+    user_comment: product.comments?.[0]?.comment,
+  };
+}
+
 /** 価格をカンマ区切りでフォーマット（¥プレフィックスなし） */
 export function formatPrice(price?: number): string | null {
   if (!price) return null;
@@ -23,3 +62,19 @@ export function formatPriceDate(dateString?: string): string | null {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}/${month}/${day}時点`;
 }
+
+/** 共通FAQアイテム（カテゴリー詳細ページ共通） */
+export const COMMON_FAQ_ITEMS = [
+  {
+    question: "このデータはどこから収集していますか？",
+    answer: "YouTubeのデスクツアー動画およびブログ記事から、実際に使用されている商品情報を収集しています。",
+  },
+  {
+    question: "「使用者数」とは何ですか？",
+    answer: "その商品を使用しているデスクツアーの数を示しています。",
+  },
+  {
+    question: "価格情報は正確ですか？",
+    answer: "価格情報はAmazon Product Advertising APIから取得しており、実際の販売価格と異なる場合があります。購入の際はリンク先で最新の価格をご確認ください。",
+  },
+] as const;

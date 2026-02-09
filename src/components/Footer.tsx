@@ -4,6 +4,7 @@ import {
   occupationToSlug,
   PRODUCT_CATEGORIES,
   categoryToSlug,
+  TAG_GROUP_STYLE,
   styleTagToSlug,
 } from "@/lib/constants";
 import { getTopBrandsByProductCount } from "@/lib/supabase";
@@ -32,7 +33,7 @@ export async function Footer() {
         </div>
 
         {/* 2段目: カテゴリ別リンク */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
           {/* 製品カテゴリ */}
           <div>
             <p className="text-white font-bold mb-3">
@@ -69,6 +70,27 @@ export async function Footer() {
                     className="hover:text-white"
                   >
                     {occupation}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* スタイル別 */}
+          <div>
+            <p className="text-white font-bold mb-3">
+              <Link href="/desktour/style" className="hover:text-white">
+                スタイル別
+              </Link>
+            </p>
+            <ul className="space-y-1 text-sm">
+              {TAG_GROUP_STYLE.map((style) => (
+                <li key={style}>
+                  <Link
+                    href={`/desktour/style/${styleTagToSlug(style)}`}
+                    className="hover:text-white"
+                  >
+                    {style}
                   </Link>
                 </li>
               ))}

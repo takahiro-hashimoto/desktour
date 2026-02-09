@@ -28,7 +28,7 @@ export function ListingGrid({ items }: ListingGridProps) {
                 <div className="listing-card-icon">
                   <i className={item.icon}></i>
                 </div>
-                <span className="listing-card-name">{item.title}</span>
+                <h2 className="listing-card-name">{item.title}</h2>
                 <span className="listing-card-count">{item.count}件</span>
               </div>
               <p className="listing-card-desc">{item.description}</p>

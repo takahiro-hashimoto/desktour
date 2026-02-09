@@ -2,26 +2,11 @@
 
 import Link from "next/link";
 import { formatPrice, formatPriceDate } from "@/lib/format-utils";
+import type { DisplayProduct } from "@/lib/format-utils";
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
-interface Product {
-  id: string;
-  asin?: string;
-  slug?: string;
-  name: string;
-  brand?: string;
-  image_url?: string;
-  amazon_url?: string;
-  rakuten_url?: string;
-  price?: number;
-  price_updated_at?: string;
-  mention_count: number;
-  user_comment?: string;
-  rank?: number;
-}
-
 interface ProductGridProps {
-  products: Product[];
+  products: DisplayProduct[];
 }
 
 export function ProductGrid({ products }: ProductGridProps) {

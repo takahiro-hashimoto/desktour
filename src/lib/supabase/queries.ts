@@ -269,12 +269,11 @@ export async function searchProducts(params: SearchParams): Promise<{
   return { products, total };
 }
 
-// カテゴリ別の商品数を取得
+// カテゴリ別の商品数を取得（最適化: カテゴリとIDだけ取得、mentionsはjoinのみ）
 export async function getProductCountByCategory(): Promise<Record<string, number>> {
-  // searchProductsと同じ条件で数える（ASIN有り & confidence != low の言及がある商品のみ）
   const { data, error } = await supabase
     .from("products")
-    .select("id, category, product_mentions!inner(id, confidence)")
+    .select("id, category, product_mentions!inner(count)")
     .neq("product_mentions.confidence", "low")
     .not("asin", "is", null);
 
@@ -870,18 +869,20 @@ export async function getTopProductImages(limit = 24): Promise<string[]> {
     .slice(0, limit);
 }
 
-// 各カテゴリの人気商品（画像付き）を取得
+// 各カテゴリの人気商品（画像付き）を取得（最適化: 並列クエリ、最小カラム）
 export async function getTopProductByCategory(): Promise<
   Record<string, { name: string; imageUrl: string; mentionCount: number }>
 > {
-  // product_mentionsから商品ごとの言及数を集計（confidence lowを除外）
-  const { data: mentions, error: mentionError } = await supabase
-    .from("product_mentions")
-    .select("product_id")
-    .neq("confidence", "low");
+  // 並列で商品情報と言及数を取得
+  const [{ data: mentions, error: mentionError }, { data, error }] = await Promise.all([
+    supabase.from("product_mentions").select("product_id").neq("confidence", "low"),
+    supabase.from("products").select("id, name, category, amazon_image_url")
+      .not("amazon_image_url", "is", null)
+      .not("amazon_image_url", "eq", ""),
+  ]);
 
-  if (mentionError) {
-    console.error("Error fetching product mentions:", mentionError);
+  if (mentionError || error) {
+    console.error("Error fetching top products by category:", mentionError || error);
     return {};
   }
 
@@ -891,26 +892,11 @@ export async function getTopProductByCategory(): Promise<
     mentionCounts.set(m.product_id, (mentionCounts.get(m.product_id) || 0) + 1);
   }
 
-  // 商品情報を取得
-  const { data, error } = await supabase
-    .from("products")
-    .select("id, name, category, amazon_image_url")
-    .not("amazon_image_url", "is", null)
-    .not("amazon_image_url", "eq", "");
-
-  if (error) {
-    console.error("Error fetching top products by category:", error);
-    return {};
-  }
-
   // 各カテゴリで最も言及数が多い商品を1つだけ取得
   const result: Record<string, { name: string; imageUrl: string; mentionCount: number }> = {};
 
-  // 言及数でソート
   const sortedProducts = (data || []).sort((a, b) => {
-    const countA = mentionCounts.get(a.id) || 0;
-    const countB = mentionCounts.get(b.id) || 0;
-    return countB - countA;
+    return (mentionCounts.get(b.id) || 0) - (mentionCounts.get(a.id) || 0);
   });
 
   for (const product of sortedProducts) {
@@ -926,12 +912,18 @@ export async function getTopProductByCategory(): Promise<
   return result;
 }
 
-// 職業タグ別のデスクツアー数（動画+記事）を取得
+// 職業タグ別のデスクツアー数（動画+記事）を取得（最適化: 必要カラムのみ取得、並列クエリ）
 export async function getOccupationTagCounts(): Promise<Record<string, number>> {
-  // インフルエンサー情報を取得
-  const { data: allInfluencers, error } = await supabase
-    .from("influencers")
-    .select("id, channel_id, author_id, occupation_tags");
+  // 3つのクエリを並列実行
+  const [
+    { data: allInfluencers, error },
+    { data: videos },
+    { data: articles },
+  ] = await Promise.all([
+    supabase.from("influencers").select("channel_id, author_id, occupation_tags").not("occupation_tags", "is", null),
+    supabase.from("videos").select("video_id, channel_id"),
+    supabase.from("articles").select("url, author_url"),
+  ]);
 
   if (error) {
     console.error("Error fetching influencers:", error);
@@ -952,13 +944,9 @@ export async function getOccupationTagCounts(): Promise<Record<string, number>> 
     }
   }
 
-  // 動画数をカウント
-  const { data: videos } = await supabase
-    .from("videos")
-    .select("video_id, channel_id");
-
   const tagSourceSet = new Map<string, Set<string>>();
 
+  // 動画数をカウント
   for (const video of videos || []) {
     const tag = channelToTag.get(video.channel_id);
     if (tag && video.video_id) {
@@ -968,12 +956,7 @@ export async function getOccupationTagCounts(): Promise<Record<string, number>> 
   }
 
   // 記事数をカウント
-  const { data: articles } = await supabase
-    .from("articles")
-    .select("url, author_url");
-
   for (const article of articles || []) {
-    // author_urlからマッチするインフルエンサーを探す
     const matchedEntry = Array.from(authorToTag.entries()).find(
       ([authorId]) => article.author_url?.includes(authorId.split(":")[0]) || article.url?.includes(authorId.split(":")[0])
     );
@@ -992,17 +975,17 @@ export async function getOccupationTagCounts(): Promise<Record<string, number>> 
   return counts;
 }
 
-// セットアップタグ別の動画・記事数を取得（DBに存在するタグのみ）
+// セットアップタグ別の動画・記事数を取得（最適化: tagsカラムのみ取得、not null フィルタ）
 export async function getSetupTagCounts(): Promise<Record<string, number>> {
   const [{ data: videos }, { data: articles }] = await Promise.all([
-    supabase.from("videos").select("tags"),
-    supabase.from("articles").select("tags"),
+    supabase.from("videos").select("tags").not("tags", "is", null),
+    supabase.from("articles").select("tags").not("tags", "is", null),
   ]);
 
   const counts: Record<string, number> = {};
 
   for (const video of videos || []) {
-    if (video.tags && video.tags.length > 0) {
+    if (video.tags) {
       for (const tag of video.tags) {
         counts[tag] = (counts[tag] || 0) + 1;
       }
@@ -1010,7 +993,7 @@ export async function getSetupTagCounts(): Promise<Record<string, number>> {
   }
 
   for (const article of articles || []) {
-    if (article.tags && article.tags.length > 0) {
+    if (article.tags) {
       for (const tag of article.tags) {
         counts[tag] = (counts[tag] || 0) + 1;
       }
@@ -1387,11 +1370,11 @@ export async function getArticles(params: {
   return { articles: articles as ArticleWithProductCount[], total: count || 0 };
 }
 
-// 動画・記事で使用されているタグを集計
+// 動画・記事で使用されているタグを集計（最適化: not null フィルタ）
 export async function getSourceTagCounts(): Promise<Record<string, number>> {
   const [{ data: videos }, { data: articles }] = await Promise.all([
-    supabase.from("videos").select("tags"),
-    supabase.from("articles").select("tags"),
+    supabase.from("videos").select("tags").not("tags", "is", null),
+    supabase.from("articles").select("tags").not("tags", "is", null),
   ]);
 
   const tagCounts: Record<string, number> = {};

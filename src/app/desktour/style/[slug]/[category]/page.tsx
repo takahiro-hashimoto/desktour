@@ -9,6 +9,7 @@ import { ResultsBar } from "@/components/detail/ResultsBar";
 import { ProductGrid } from "@/components/detail/ProductGrid";
 import { FAQSection } from "@/components/detail/FAQSection";
 import { assignRanks } from "@/lib/rankUtils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import "../../../../detail-styles.css";
 import "../../../../listing-styles.css";
 
@@ -69,41 +70,13 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
   const setupCounts = await getSetupTagCounts();
   const styleSourceCount = setupCounts[style] || 0;
 
-  const formattedProducts = products.map((product) => ({
-    id: product.id || "",
-    asin: product.asin,
-          slug: product.slug,
-    name: product.name,
-    brand: product.brand,
-    image_url: product.amazon_image_url,
-    amazon_url: product.amazon_url,
-    rakuten_url: product.rakuten_url,
-    price: product.amazon_price,
-    price_updated_at: product.updated_at,
-    mention_count: product.mention_count,
-    user_comment: product.comments?.[0]?.comment,
-  }));
+  const formattedProducts = products.map(formatProductForDisplay);
 
   const productsWithRank = sort === "mention"
     ? assignRanks(formattedProducts, { page, limit })
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
   const typeTags = TYPE_TAGS[category] || [];
-
-  const faqItems = [
-    {
-      question: "このデータはどこから収集していますか？",
-      answer: "YouTubeのデスクツアー動画およびブログ記事から、実際に使用されている商品情報を収集しています。",
-    },
-    {
-      question: "「使用者数」とは何ですか？",
-      answer: "その商品を使用しているデスクツアーの数を示しています。",
-    },
-    {
-      question: "価格情報は正確ですか？",
-      answer: "価格情報はAmazon Product Advertising APIから取得しており、実際の販売価格と異なる場合があります。購入の際はリンク先で最新の価格をご確認ください。",
-    },
-  ];
 
   return (
     <>
@@ -137,7 +110,7 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
 
         <ProductGrid products={productsWithRank} />
 
-        <FAQSection items={faqItems} />
+        <FAQSection items={[...COMMON_FAQ_ITEMS]} />
       </div>
     </>
   );
