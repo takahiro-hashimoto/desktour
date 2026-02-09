@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const shouldNoIndex = commentsCount < 3;
 
   const title = `${product.name}の使用例・口コミ情報まとめ`;
-  const description = `${product.name}を${product.mention_count}人のデスクツアーで確認。エンジニア・クリエイターの使用者コメントやデスク環境の傾向を紹介。`;
+  const description = `${product.mention_count}人のデスクツアーに登場した${product.name}の詳細ページ。実際の使用者コメントやデスク環境の傾向も掲載しています。購入を検討している方はぜひご確認ください！`;
 
   return {
     title,
@@ -91,11 +91,13 @@ function getCategoryIcon(category: string): string {
     "ヘッドホン・イヤホン": "fa-headphones",
     "スピーカー": "fa-volume-high",
     "照明・ライト": "fa-lightbulb",
-    "ケーブルハブ": "fa-plug",
-    "充電器・電源": "fa-battery-full",
+    "マイクアーム": "fa-grip-lines-vertical",
+    "充電器・電源タップ": "fa-battery-full",
     "コントローラー": "fa-gamepad",
     "キャプチャーボード": "fa-video",
     "NAS": "fa-server",
+    "デスクシェルフ・モニター台": "fa-layer-group",
+    "配線整理グッズ": "fa-grip-lines",
     "その他デスクアクセサリー": "fa-puzzle-piece",
   };
   return iconMap[category] || "fa-cube";
@@ -149,8 +151,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
-    { name: "商品カテゴリー", url: "/category" },
+    { name: "デスクツアーDB", url: "/" },
+    { name: "デスク周りのガジェット", url: "/category" },
     { name: product.category, url: `/category/${categoryToSlug(product.category)}` },
   ]);
 
@@ -184,9 +186,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
       <div className="product-page-header">
         <div className="product-detail-container">
           <div className="breadcrumb">
-            <Link href="/">トップ</Link>
+            <Link href="/">デスクツアーDB</Link>
             <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
-            <Link href="/category">商品カテゴリー</Link>
+            <Link href="/category">デスク周りのガジェット</Link>
             <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
             <Link href={`/category/${categoryToSlug(product.category)}`}>{product.category}</Link>
           </div>
@@ -207,16 +209,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
               <div className="product-stats">
                 <div className="pstat">
-                  <div className="pstat-label">使用人数</div>
-                  <div className="pstat-value">{product.mention_count}<span className="suffix">人</span></div>
-                </div>
-                <div className="pstat">
                   <div className="pstat-label">
                     <Link href={`/category/${categoryToSlug(product.category)}`} className="pstat-sub">
-                      {product.category}カテゴリ <i className="fa-solid fa-arrow-right"></i>
+                      {product.category}カテゴリ
                     </Link>
                   </div>
                   <div className="pstat-value">{product.category_rank || "-"}位</div>
+                </div>
+                <div className="pstat">
+                  <div className="pstat-label">使用人数</div>
+                  <div className="pstat-value">{product.mention_count}<span className="suffix">人</span></div>
                 </div>
                 <div className="pstat">
                   <div className="pstat-label">参考価格</div>
@@ -260,6 +262,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   楽天で見る
                 </a>
               </div>
+              <span className="pr-note">（本ページにはPRを含みます）</span>
             </div>
           </div>
         </div>
@@ -271,7 +274,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         {hasComments && (
           <ProductReviews
             comments={product.all_comments!}
-            productName={product.name}
+            productName={`${product.brand ? `${product.brand} ` : ""}${product.name}`}
             productId={product.id}
             sectionNumber={++sectionNum}
           />
@@ -282,7 +285,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-              {product.name}が登場しているデスク環境の傾向
+              <h2>{product.brand && `${product.brand} `}{product.name}が登場しているデスク環境の傾向</h2>
             </div>
             <div className="trend-card">
               <div className="trend-grid">
@@ -347,7 +350,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-              {product.name}の特徴
+              <h2>{product.brand && `${product.brand} `}{product.name}の特徴</h2>
             </div>
             <div className="feature-card">
               <ul className="feature-list">
@@ -364,7 +367,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-              {product.name}と一緒に使われている周辺機器
+              <h2>{product.brand && `${product.brand} `}{product.name}と一緒に使われている周辺機器</h2>
             </div>
             <div className="related-grid">
               {coUsedProducts.filter(p => p.slug).map((coProduct) => (
@@ -392,7 +395,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-              {product.name}の基本情報
+              <h2>{product.brand && `${product.brand} `}{product.name}の基本情報</h2>
             </div>
             <div className="specs-card">
               <table className="specs-table">
@@ -443,7 +446,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         <div className="content-section product-reveal">
           <div className="section-title">
             <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-            関連コンテンツ
+            <h2>関連コンテンツ</h2>
           </div>
           <div className="related-content-grid">
             <Link href="/category" className="related-content-card">

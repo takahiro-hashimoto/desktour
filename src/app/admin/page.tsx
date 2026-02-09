@@ -131,6 +131,16 @@ export default function AdminPage() {
   const [editableOccupationTags, setEditableOccupationTags] = useState<string[]>([]);
   const [newOccupationTagInput, setNewOccupationTagInput] = useState("");
 
+  // 商品検索モーダル（Amazon / 楽天）
+  const [amazonSearchModal, setAmazonSearchModal] = useState<{
+    productIndex: number;
+    query: string;
+    source: "amazon" | "rakuten";
+    candidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }>;
+    loading: boolean;
+    selecting: boolean;
+  } | null>(null);
+
   // 解析結果表示用（保存後）
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
@@ -305,7 +315,133 @@ export default function AdminPage() {
     });
   };
 
+  // 商品名を変更
+  const handleProductNameChange = (productIndex: number, newName: string) => {
+    if (!previewResult) return;
+    const updatedProducts = [...previewResult.products];
+    const oldKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
+    updatedProducts[productIndex] = { ...updatedProducts[productIndex], name: newName };
+    const newKey = `${newName}|${updatedProducts[productIndex].category}`;
+    setSelectedProducts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(oldKey)) {
+        newSet.delete(oldKey);
+        newSet.add(newKey);
+      }
+      return newSet;
+    });
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+  };
 
+  // ブランド名を変更
+  const handleProductBrandChange = (productIndex: number, newBrand: string) => {
+    if (!previewResult) return;
+    const updatedProducts = [...previewResult.products];
+    updatedProducts[productIndex] = { ...updatedProducts[productIndex], brand: newBrand };
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+  };
+
+  // 商品検索モーダルを開く
+  const openAmazonSearch = (productIndex: number, source: "amazon" | "rakuten" = "amazon") => {
+    if (!previewResult) return;
+    const product = previewResult.products[productIndex];
+    const query = product.brand
+      ? `${product.brand} ${product.name}`
+      : product.name;
+    setAmazonSearchModal({ productIndex, query, source, candidates: [], loading: false, selecting: false });
+  };
+
+  // 商品検索を実行（Amazon / 楽天）
+  const executeAmazonSearch = async () => {
+    if (!amazonSearchModal || !amazonSearchModal.query.trim()) return;
+    setAmazonSearchModal({ ...amazonSearchModal, loading: true, candidates: [] });
+    try {
+      const params = new URLSearchParams({ name: amazonSearchModal.query, source: amazonSearchModal.source });
+      const res = await fetch(`/api/search-amazon?${params.toString()}`);
+      const data = await res.json();
+      setAmazonSearchModal((prev) =>
+        prev ? { ...prev, loading: false, candidates: data.candidates || [] } : null
+      );
+    } catch {
+      setMessage({ type: "error", text: `${amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}検索に失敗しました` });
+      setAmazonSearchModal((prev) => prev ? { ...prev, loading: false } : null);
+    }
+  };
+
+  // 候補を選択 → フルデータ取得 + タグ再生成 → カード入れ替え
+  const selectAmazonCandidate = async (candidate: { id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }) => {
+    if (!previewResult || !amazonSearchModal) return;
+    const productIndex = amazonSearchModal.productIndex;
+    const currentCategory = previewResult.products[productIndex].category;
+    const isRakuten = amazonSearchModal.source === "rakuten";
+
+    setAmazonSearchModal((prev) => prev ? { ...prev, selecting: true } : null);
+
+    try {
+      const postBody = isRakuten
+        ? { source: "rakuten", currentCategory, candidateData: { title: candidate.title, url: candidate.url, imageUrl: candidate.imageUrl, price: candidate.price, shopName: candidate.shopName } }
+        : { asin: candidate.id, currentCategory };
+
+      const res = await fetch("/api/search-amazon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(postBody),
+      });
+      const data = await res.json();
+
+      const updatedProducts = [...previewResult.products];
+      const oldKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
+
+      if (data.product) {
+        const newName = isRakuten
+          ? candidate.title.split(/[,（(【]/)[0]?.trim() || updatedProducts[productIndex].name
+          : data.product.title?.replace(/^.*?]\s*/, "").split(/[,（(]/)[0]?.trim()
+            || candidate.title.split(/[,（(]/)[0]?.trim()
+            || updatedProducts[productIndex].name;
+        const newBrand = data.product.brand || candidate.brand || updatedProducts[productIndex].brand;
+
+        updatedProducts[productIndex] = {
+          ...updatedProducts[productIndex],
+          name: newName,
+          brand: newBrand,
+          amazon: {
+            asin: isRakuten ? candidate.id : candidate.id,
+            title: data.product.title || candidate.title,
+            url: data.product.url || candidate.url,
+            imageUrl: data.product.imageUrl || candidate.imageUrl,
+            price: data.product.price || candidate.price,
+          },
+          source: isRakuten ? "rakuten" : "amazon",
+          matchReason: "手動選択",
+          tags: data.tags && data.tags.length > 0 ? data.tags : updatedProducts[productIndex].tags,
+        };
+      } else {
+        updatedProducts[productIndex] = {
+          ...updatedProducts[productIndex],
+          amazon: {
+            asin: candidate.id,
+            title: candidate.title,
+            url: candidate.url,
+            imageUrl: candidate.imageUrl,
+            price: candidate.price,
+          },
+          source: isRakuten ? "rakuten" : "amazon",
+          matchReason: "手動選択",
+        };
+      }
+
+      const newKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
+      setSelectedProducts((prev) => {
+        const newSet = new Set(prev);
+        if (newSet.has(oldKey)) { newSet.delete(oldKey); newSet.add(newKey); }
+        return newSet;
+      });
+      setPreviewResult({ ...previewResult, products: updatedProducts });
+    } catch {
+      setMessage({ type: "error", text: "商品情報の取得に失敗しました" });
+    }
+    setAmazonSearchModal(null);
+  };
 
   // 商品タグを追加
   const handleAddProductTag = (productIndex: number, tag: string) => {
@@ -899,14 +1035,19 @@ export default function AdminPage() {
           </div>
 
           {/* 商品リスト（チェックボックス付き） */}
-          <div className="mt-6 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-600">
-                抽出された商品 ({previewResult.products.length}件中 {selectedProducts.size}件選択)
-              </h3>
+          <div className="mt-6 pt-5 border-t border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-gray-800">
+                  抽出された商品
+                </h3>
+                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {selectedProducts.size} / {previewResult.products.length} 選択
+                </span>
+              </div>
               <button
                 onClick={toggleAllProducts}
-                className="text-xs text-blue-600 hover:underline"
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
               >
                 {selectedProducts.size === previewResult.products.length ? "全解除" : "全選択"}
               </button>
@@ -920,188 +1061,173 @@ export default function AdminPage() {
                   <div
                     key={productIndex}
                     onClick={() => toggleProductSelection(product)}
-                    className={`border rounded-lg p-3 text-sm cursor-pointer transition-colors ${
+                    className={`rounded-xl text-sm cursor-pointer transition-all border ${
                       isSelected
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 hover:border-gray-300"
+                        ? "bg-white border-blue-300 shadow-sm"
+                        : "bg-white border-gray-200 hover:border-gray-300"
                     }`}
                   >
-                    <div className="flex items-start gap-3">
+                    {/* ヘッダー: チェック + 商品名 + 確信度 */}
+                    <div className={`flex items-center gap-3 px-4 py-3 border-b ${isSelected ? "border-blue-100 bg-blue-50/40" : "border-gray-100 bg-gray-50/60"} rounded-t-xl`}>
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleProductSelection(product)}
-                        className="mt-1 w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                         onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 flex-shrink-0"
                       />
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <span className="font-medium text-gray-900">
-                              {product.name}
-                            </span>
-                            {product.brand && (
-                              <span className="ml-2 text-xs text-gray-500">
-                                ({product.brand})
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {/* カテゴリ選択 */}
-                            <select
-                              value={product.category}
-                              onChange={(e) => {
-                                e.stopPropagation();
-                                handleCategoryChange(productIndex, e.target.value);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                              {PRODUCT_CATEGORIES.map((cat) => (
-                                <option key={cat} value={cat}>{cat}</option>
-                              ))}
-                            </select>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded ${confidenceColors[product.confidence]}`}
-                            >
-                              {confidenceLabels[product.confidence]}
-                            </span>
-                          </div>
+                      <span className="font-semibold text-gray-900 truncate">{product.name}</span>
+                      {product.brand && <span className="text-xs text-gray-400 flex-shrink-0">{product.brand}</span>}
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-auto ${confidenceColors[product.confidence]}`}
+                      >
+                        {confidenceLabels[product.confidence]}
+                      </span>
+                    </div>
+
+                    <div className="px-4 py-3 space-y-3" onClick={(e) => e.stopPropagation()}>
+                      {/* 編集フィールド */}
+                      <div className="grid grid-cols-[1fr_140px_150px] gap-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-400 mb-0.5 uppercase tracking-wider">商品名</label>
+                          <input
+                            type="text"
+                            value={product.name}
+                            onChange={(e) => handleProductNameChange(productIndex, e.target.value)}
+                            className="w-full text-sm text-gray-900 px-2.5 py-1.5 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                          />
                         </div>
-                        <p className="text-gray-600 mt-1 text-xs line-clamp-2">
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-400 mb-0.5 uppercase tracking-wider">ブランド</label>
+                          <input
+                            type="text"
+                            value={product.brand || ""}
+                            onChange={(e) => handleProductBrandChange(productIndex, e.target.value)}
+                            placeholder="--"
+                            className="w-full text-sm text-gray-700 px-2.5 py-1.5 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-400 mb-0.5 uppercase tracking-wider">カテゴリ</label>
+                          <select
+                            value={product.category}
+                            onChange={(e) => handleCategoryChange(productIndex, e.target.value)}
+                            className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                          >
+                            {PRODUCT_CATEGORIES.map((cat) => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* 理由 */}
+                      {product.reason && (
+                        <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
                           {product.reason}
                         </p>
+                      )}
 
-                        {/* 商品タグ編集（自動抽出されたタグ） */}
-                        {product.tags && product.tags.length > 0 && (
-                          <div className="mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-xs text-gray-500 mb-1 font-medium">自動抽出タグ:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {product.tags.map((tag, tagIdx) => (
-                                <span
-                                  key={tagIdx}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-green-50 text-green-700 rounded"
-                                >
-                                  {tag}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveProductTag(productIndex, tag);
-                                    }}
-                                    className="hover:text-green-900 ml-0.5"
-                                    type="button"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                              {/* Amazon/楽天マッチング情報 */}
-                              {product.amazon ? (
-                                <div className="mt-2 pt-2 border-t border-gray-100">
-                                  <div className="flex gap-2 items-start">
-                                    {/* 画像プレビュー */}
-                                    <div className="flex flex-col gap-1">
-                                      {product.amazon.imageUrl && (
-                                        <img
-                                          src={product.amazon.imageUrl}
-                                          alt={product.amazon.title}
-                                          className="w-12 h-12 object-contain bg-white rounded border border-gray-100"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      {/* 商品タイトル */}
-                                      <p className="text-xs text-gray-700 line-clamp-2 mb-1">
-                                        {product.amazon.title}
-                                      </p>
-                                      {/* 画像URL編集 */}
-                                      <div className="mb-1">
-                                        <label className="text-xs text-gray-400">画像URL:</label>
-                                        <input
-                                          type="text"
-                                          value={product.amazon.imageUrl || ""}
-                                          onChange={(e) => handleAmazonFieldChange(productIndex, "imageUrl", e.target.value)}
-                                          placeholder="URLまたはファイル名 (例: keyboard.jpg)"
-                                          className="mt-0.5 text-xs border border-gray-200 rounded px-2 py-1 w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                        <p className="text-xs text-gray-400 mt-0.5">
-                                          ファイル名のみ入力すると /images/products/ から読み込みます
-                                        </p>
-                                      </div>
-                                      {/* アフィリエイトURL編集 */}
-                                      <div className="mb-1">
-                                        <label className="text-xs text-gray-400">アフィリエイトURL:</label>
-                                        <input
-                                          type="text"
-                                          value={product.amazon.url || ""}
-                                          onChange={(e) => handleAmazonFieldChange(productIndex, "url", e.target.value)}
-                                          placeholder="アフィリエイトURL"
-                                          className="mt-0.5 text-xs border border-gray-200 rounded px-2 py-1 w-full focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      </div>
-                                      {/* 価格・ソース表示 */}
-                                      <div className="flex items-center gap-2 mt-1">
-                                        {product.amazon.price && (
-                                          <span className="text-xs font-medium text-orange-600">
-                                            ¥{product.amazon.price.toLocaleString()}
-                                          </span>
-                                        )}
-                                        {product.source && (
-                                          <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                            product.source === "amazon"
-                                              ? "bg-orange-100 text-orange-700"
-                                              : "bg-red-100 text-red-700"
-                                          }`}>
-                                            {product.source === "amazon" ? "Amazon" : "楽天"}
-                                          </span>
-                                        )}
-                                        {product.matchReason && (
-                                          <span className="text-xs text-gray-400">
-                                            ({product.matchReason})
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : product.confidence !== "low" ? (
-                                <div className="mt-2 pt-2 border-t border-gray-100">
-                                  <span className="text-xs text-gray-400">
-                                    ⚠️ Amazon/楽天で見つかりませんでした
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
+                      {/* タグ */}
+                      {product.tags && product.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.tags.map((tag, tagIdx) => (
+                            <span
+                              key={tagIdx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200"
+                            >
+                              {tag}
+                              <button
+                                onClick={() => handleRemoveProductTag(productIndex, tag)}
+                                className="text-emerald-400 hover:text-emerald-700 transition-colors"
+                                type="button"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
                         </div>
-                      );
-                    })}
+                      )}
+
+                      {/* マッチ情報 + 再検索 */}
+                      <div className={`flex items-center gap-3 rounded-lg px-3 py-2 ${product.amazon ? "bg-gray-50" : "bg-amber-50/60"}`}>
+                        {product.amazon ? (
+                          <>
+                            {product.amazon.imageUrl && (
+                              <img src={product.amazon.imageUrl} alt="" className="w-10 h-10 object-contain rounded-md bg-white border border-gray-100 flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <a
+                                href={product.amazon.url?.replace(/&tag=[^&]*/g, "").replace(/\?tag=[^&]*&?/, "?")}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-gray-700 hover:text-blue-600 hover:underline line-clamp-1 block"
+                              >
+                                {product.amazon.title}
+                              </a>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                {product.amazon.price && (
+                                  <span className="text-xs font-semibold text-gray-900">¥{product.amazon.price.toLocaleString()}</span>
+                                )}
+                                {product.source && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${product.source === "amazon" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}`}>
+                                    {product.source === "amazon" ? "Amazon" : "楽天"}
+                                  </span>
+                                )}
+                                <a
+                                  href={`https://search.rakuten.co.jp/search/mall/${encodeURIComponent(product.name)}/`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-red-400 hover:text-red-600 hover:underline"
+                                >
+                                  楽天で見る
+                                </a>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-xs text-amber-600 flex-1">未マッチ — 再検索してください</span>
+                        )}
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            onClick={() => openAmazonSearch(productIndex, "amazon")}
+                            className="text-[11px] px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 font-medium transition-colors border border-orange-200"
+                            type="button"
+                          >
+                            Amazon
+                          </button>
+                          <button
+                            onClick={() => openAmazonSearch(productIndex, "rakuten")}
+                            className="text-[11px] px-2 py-1 rounded-md bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-colors border border-red-200"
+                            type="button"
+                          >
+                            楽天
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* 登録ボタン */}
-          <div className="mt-6 pt-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              {selectedProducts.size}件の商品を登録します
+          <div className="mt-6 pt-5 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-800">{selectedProducts.size}件</span>の商品を登録します
             </p>
             <div className="flex gap-3">
               <button
                 onClick={handleCancelPreview}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 キャンセル
               </button>
               <button
                 onClick={handleSaveProducts}
                 disabled={saving || selectedProducts.size === 0}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
               >
                 {saving ? "登録中..." : `${selectedProducts.size}件を登録する`}
               </button>
@@ -1323,6 +1449,100 @@ export default function AdminPage() {
           </p>
         )}
       </div>
+
+      {/* 商品検索モーダル（Amazon / 楽天） */}
+      {amazonSearchModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setAmazonSearchModal(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900">
+                <span className={amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}>
+                  {amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}
+                </span>
+                {" "}商品検索
+              </h3>
+              <button onClick={() => setAmazonSearchModal(null)} className="text-gray-400 hover:text-gray-600" type="button">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 検索フォーム */}
+            <div className="px-5 py-3 border-b border-gray-100">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={amazonSearchModal.query}
+                  onChange={(e) => setAmazonSearchModal({ ...amazonSearchModal, query: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && executeAmazonSearch()}
+                  placeholder="商品名・キーワードで検索"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+                <button
+                  onClick={executeAmazonSearch}
+                  disabled={amazonSearchModal.loading}
+                  className={`px-4 py-2 text-sm text-white rounded-lg disabled:bg-gray-300 transition-colors whitespace-nowrap ${amazonSearchModal.source === "rakuten" ? "bg-red-500 hover:bg-red-600" : "bg-orange-500 hover:bg-orange-600"}`}
+                  type="button"
+                >
+                  {amazonSearchModal.loading ? "検索中..." : "検索"}
+                </button>
+              </div>
+            </div>
+
+            {/* 検索結果 */}
+            <div className="flex-1 overflow-y-auto px-5 py-3 relative">
+              {amazonSearchModal.selecting && (
+                <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <div className="w-5 h-5 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                    商品データを取得中...
+                  </div>
+                </div>
+              )}
+              {amazonSearchModal.loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                </div>
+              ) : amazonSearchModal.candidates.length > 0 ? (
+                <div className="space-y-2">
+                  {amazonSearchModal.candidates.map((candidate) => (
+                    <button
+                      key={candidate.id}
+                      onClick={() => selectAmazonCandidate(candidate)}
+                      disabled={amazonSearchModal.selecting}
+                      className="w-full flex gap-3 items-center p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 disabled:pointer-events-none transition-colors text-left"
+                      type="button"
+                    >
+                      {candidate.imageUrl ? (
+                        <img src={candidate.imageUrl} alt="" className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">No img</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900 line-clamp-2">{candidate.title}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {candidate.price && (
+                            <span className={`text-sm font-medium ${amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}`}>¥{candidate.price.toLocaleString()}</span>
+                          )}
+                          {candidate.brand && (
+                            <span className="text-xs text-gray-500">{candidate.brand}</span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-400 py-12 text-sm">
+                  キーワードを入力して検索してください
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </main>
   );

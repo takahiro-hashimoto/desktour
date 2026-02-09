@@ -136,7 +136,7 @@ export default async function BrandIndexPage() {
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
+    { name: "デスクツアーDB", url: "/" },
     { name: "ブランド別" },
   ]);
 

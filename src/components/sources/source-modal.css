@@ -282,11 +282,32 @@
   gap: 8px;
 }
 
+.source-modal__product-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .source-modal__product-name {
   font-weight: 700;
   color: #111827;
   font-size: 15px;
   line-height: 1.4;
+}
+
+.source-modal__mention-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3b82f6;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .source-modal__product-meta {
@@ -301,11 +322,7 @@
   margin-top: 4px;
 }
 
-.source-modal__product-mention {
-  font-size: 12px;
-  color: #3b82f6;
-  font-weight: 500;
-}
+/* .source-modal__product-mention は mention-label に移行済み */
 
 .source-modal__product-actions {
   display: flex;
@@ -345,7 +362,7 @@
   }
 
   .source-modal__container {
-    max-width: 100%;
+    max-width: 90%;
     max-height: 95vh;
     border-radius: 16px 16px 0 0;
   }
@@ -379,9 +396,9 @@
   .source-modal__product-placeholder {
     width: 100%;
     height: auto;
-    aspect-ratio: 1 / 1;
-    max-width: 200px;
-    margin: 0 auto;
+    aspect-ratio: 4 / 3;
+    max-width: none;
+    margin: 0;
   }
 
   .source-modal__product-actions {

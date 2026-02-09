@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { getSiteStats, searchProducts } from "@/lib/supabase";
+import { getSiteStats, getOccupationTagCounts } from "@/lib/supabase";
 import { OCCUPATION_TAGS, occupationToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ListingGrid } from "@/components/listing/ListingGrid";
@@ -49,21 +49,14 @@ const OCCUPATION_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default async function OccupationIndexPage() {
-  const stats = await getSiteStats();
+  const [stats, occupationCounts] = await Promise.all([
+    getSiteStats(),
+    getOccupationTagCounts(),
+  ]);
 
-  // 各職業の商品数を取得
-  const occupationCounts = await Promise.all(
-    OCCUPATION_TAGS.map(async (occupation) => {
-      const { total } = await searchProducts({
-        occupationTag: occupation,
-        limit: 1,
-      });
-      return { occupation, count: total };
-    })
-  );
-
-  // 商品数でソート（多い順）、0件は除外
-  const sortedOccupations = occupationCounts
+  // デスクツアー数でソート（多い順）、0件は除外
+  const sortedOccupations = OCCUPATION_TAGS
+    .map((occupation) => ({ occupation, count: occupationCounts[occupation] || 0 }))
     .filter((o) => o.count > 0)
     .sort((a, b) => b.count - a.count);
 
@@ -79,7 +72,7 @@ export default async function OccupationIndexPage() {
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
+    { name: "デスクツアーDB", url: "/" },
     { name: "職業別" },
   ]);
 

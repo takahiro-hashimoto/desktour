@@ -22,7 +22,7 @@ export function HeroSection({ stats }: HeroSectionProps) {
         </div>
 
         <p className="home-hero__subtitle">
-          {stats.total_videos + stats.total_articles}件以上のデスクツアーを独自に収集・整理。<br />
+          {stats.total_videos + stats.total_articles}件のデスクツアーを独自に収集・整理。<br />
           職業・スタイル・ブランドから、本当に選ばれているデスク周りのガジェットがわかります。
         </p>
 

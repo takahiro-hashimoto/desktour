@@ -55,7 +55,7 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
       <div className="content-section product-reveal">
         <div className="section-title">
           <span className="section-number">{String(sectionNumber).padStart(2, "0")}</span>
-          {productName}の口コミ・実際の使用例
+          <h2>{productName}の口コミ・実際の使用例</h2>
         </div>
         {comments.map((comment, index) => (
           <div

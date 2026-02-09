@@ -269,7 +269,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
     "breadcrumb": {
       "@type": "BreadcrumbList",
       "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "ホーム", "item": baseUrl },
+        { "@type": "ListItem", "position": 1, "name": "デスクツアーDB", "item": baseUrl },
         { "@type": "ListItem", "position": 2, "name": "デスクツアー一覧", "item": `${baseUrl}/sources` },
       ],
     },

@@ -15,7 +15,6 @@ import {
   occupationToSlug,
   styleTagToSlug,
   brandToSlug,
-  getDbValue,
 } from "@/lib/constants";
 import { HeroSection } from "@/components/home/HeroSection";
 import { CategoryGridSection } from "@/components/home/CategoryGridSection";
@@ -55,9 +54,8 @@ const CATEGORY_ICONS: Record<string, string> = {
   "ウェブカメラ": "fa-solid fa-video",
   "モニターアーム": "fa-solid fa-desktop",
   "ドッキングステーション": "fa-solid fa-ethernet",
-  "ケーブル・ハブ": "fa-solid fa-plug",
   "収納・整理": "fa-solid fa-box",
-  "充電器・電源": "fa-solid fa-charging-station",
+  "充電器・電源タップ": "fa-solid fa-charging-station",
   "HDD・SSD": "fa-solid fa-hard-drive",
 };
 
@@ -69,21 +67,24 @@ const SUB_CATEGORY_ICONS: Record<string, string> = {
   "ヘッドホン・イヤホン": "fa-solid fa-headphones",
   "オーディオインターフェース": "fa-solid fa-sliders",
   "モニターアーム": "fa-solid fa-desktop",
+  "マイクアーム": "fa-solid fa-grip-lines-vertical",
   "ドッキングステーション": "fa-solid fa-ethernet",
   "ウェブカメラ": "fa-solid fa-video",
-  "ケーブル・ハブ": "fa-solid fa-plug",
   "収納・整理": "fa-solid fa-box",
-  "充電器・電源": "fa-solid fa-charging-station",
+  "充電器・電源タップ": "fa-solid fa-charging-station",
   "HDD・SSD": "fa-solid fa-hard-drive",
+  "デスクシェルフ・モニター台": "fa-solid fa-layer-group",
+  "配線整理グッズ": "fa-solid fa-grip-lines",
 };
 
 export default async function HomePage() {
   const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos } = await getCachedHomeData();
 
   // メインカテゴリ（上位5件）
+  // DB上のcategoryカラムは表示名（「・」区切り）で保存されているため、そのままキーとして使う
   const mainCategories = ["デスク", "ディスプレイ・モニター", "チェア", "キーボード", "マウス"].map(cat => ({
     name: cat,
-    count: categoryCounts[getDbValue(cat)] || 0,
+    count: categoryCounts[cat] || 0,
     icon: CATEGORY_ICONS[cat] || "📦",
   }));
 
@@ -91,10 +92,10 @@ export default async function HomePage() {
   const subCategories = [
     "マイク", "スピーカー", "照明・ライト", "PC本体", "ヘッドホン・イヤホン",
     "オーディオインターフェース", "モニターアーム", "ドッキングステーション",
-    "ウェブカメラ", "ケーブル・ハブ", "収納・整理", "充電器・電源", "HDD・SSD"
+    "ウェブカメラ", "マイクアーム", "収納・整理", "充電器・電源タップ", "HDD・SSD", "デスクシェルフ・モニター台", "配線整理グッズ"
   ].map(cat => ({
     name: cat,
-    count: categoryCounts[getDbValue(cat)] || 0,
+    count: categoryCounts[cat] || 0,
     icon: SUB_CATEGORY_ICONS[cat] || "📦",
     slug: categoryToSlug(cat),
   }));

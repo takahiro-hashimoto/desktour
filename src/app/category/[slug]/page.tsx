@@ -43,8 +43,10 @@ function getCategoryIcon(category: string): string {
     "ヘッドホン・イヤホン": "fa-headphones",
     "スピーカー": "fa-volume-high",
     "照明・ライト": "fa-lightbulb",
-    "ケーブルハブ": "fa-plug",
-    "充電器・電源": "fa-battery-full",
+    "マイクアーム": "fa-grip-lines-vertical",
+    "充電器・電源タップ": "fa-battery-full",
+    "デスクシェルフ・モニター台": "fa-layer-group",
+    "配線整理グッズ": "fa-grip-lines",
     "その他デスクアクセサリー": "fa-puzzle-piece",
   };
   return iconMap[category] || "fa-cube";
@@ -129,8 +131,8 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
-    { name: "商品カテゴリー", url: "/category" },
+    { name: "デスクツアーDB", url: "/" },
+    { name: "デスク周りのガジェット", url: "/category" },
     { name: category },
   ]);
 
@@ -158,7 +160,7 @@ export default async function CategoryDetailPage({ params, searchParams }: PageP
           </>
         }
         breadcrumbCurrent={category}
-        breadcrumbMiddle={{ label: "商品カテゴリー", href: "/category" }}
+        breadcrumbMiddle={{ label: "デスク周りのガジェット", href: "/category" }}
         icon={getCategoryIcon(category)}
       />
 

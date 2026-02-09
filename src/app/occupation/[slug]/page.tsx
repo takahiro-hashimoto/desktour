@@ -1,9 +1,10 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
+import { searchProducts, getOccupationTagCounts } from "@/lib/supabase";
 import { OCCUPATION_TAGS, occupationToSlug, slugToOccupation, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -39,8 +40,9 @@ export default async function OccupationDetailPage({ params }: PageProps) {
   const occupation = getOccupationFromSlug(params.slug);
   if (!occupation) notFound();
 
-  const stats = await getSiteStats();
-  const totalSources = stats.total_videos + stats.total_articles;
+  // 職業タグ別のデスクツアー数を取得
+  const occupationCounts = await getOccupationTagCounts();
+  const occupationSourceCount = occupationCounts[occupation] || 0;
 
   // 各カテゴリーごとにトップ3商品を取得
   const categoryProducts = await Promise.all(
@@ -87,7 +89,7 @@ export default async function OccupationDetailPage({ params }: PageProps) {
             <Link href="/sources" className="link">
               デスクツアー
             </Link>
-            {totalSources}件で実際に使用されている商品をカテゴリー別に掲載。全職業の総合ランキングは
+            {occupationSourceCount}件で実際に使用されている商品をカテゴリー別に掲載。全職業の総合ランキングは
             <Link href="/category" className="link">
               デスク周りのガジェット
             </Link>
@@ -154,16 +156,12 @@ export default async function OccupationDetailPage({ params }: PageProps) {
                       </Link>
                     )}
                     <div className="detail-product-links">
-                      {product.amazon_url && (
-                        <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" className="amazon">
-                          <i className="fa-brands fa-amazon"></i> Amazonで探す
-                        </a>
-                      )}
-                      {product.rakuten_url && (
-                        <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer" className="rakuten">
-                          楽天で探す
-                        </a>
-                      )}
+                      <a href={product.amazon_url || generateAmazonSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="amazon">
+                        Amazonで探す
+                      </a>
+                      <a href={product.rakuten_url || generateRakutenSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="rakuten">
+                        楽天で探す
+                      </a>
                     </div>
                   </div>
                 </div>

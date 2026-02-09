@@ -4,6 +4,7 @@ import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
 import { STYLE_TAGS, styleTagToSlug, slugToStyleTag, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -154,16 +155,12 @@ export default async function StyleDetailPage({ params }: PageProps) {
                         </Link>
                       )}
                       <div className="detail-product-links">
-                        {product.amazon_url && (
-                          <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" className="amazon">
-                            <i className="fa-brands fa-amazon"></i> Amazonで探す
-                          </a>
-                        )}
-                        {product.rakuten_url && (
-                          <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer" className="rakuten">
-                            楽天で探す
-                          </a>
-                        )}
+                        <a href={product.amazon_url || generateAmazonSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="amazon">
+                          Amazonで探す
+                        </a>
+                        <a href={product.rakuten_url || generateRakutenSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="rakuten">
+                          楽天で探す
+                        </a>
                       </div>
                     </div>
                   </div>

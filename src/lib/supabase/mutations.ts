@@ -343,11 +343,9 @@ export async function saveInfluencer(influencer: Omit<Influencer, "id" | "create
       if (influencer.occupation && !existing.occupation) {
         updateData.occupation = influencer.occupation;
       }
-      // occupation_tagsはマージする（既存タグと新しいタグを結合、重複除去）
+      // occupation_tagsは新しい解析結果があれば上書き（1人1職業の原則）
       if (influencer.occupation_tags && influencer.occupation_tags.length > 0) {
-        const existingTags = existing.occupation_tags || [];
-        const mergedTags = [...new Set([...existingTags, ...influencer.occupation_tags])];
-        updateData.occupation_tags = mergedTags;
+        updateData.occupation_tags = influencer.occupation_tags.slice(0, 1);
       }
 
       console.log("[saveInfluencer] Updating existing influencer with:", JSON.stringify(updateData, null, 2));
@@ -403,11 +401,9 @@ export async function saveInfluencer(influencer: Omit<Influencer, "id" | "create
       if (influencer.occupation && !existing.occupation) {
         updateData.occupation = influencer.occupation;
       }
-      // occupation_tagsはマージする（既存タグと新しいタグを結合、重複除去）
+      // occupation_tagsは新しい解析結果があれば上書き（1人1職業の原則）
       if (influencer.occupation_tags && influencer.occupation_tags.length > 0) {
-        const existingTags = existing.occupation_tags || [];
-        const mergedTags = [...new Set([...existingTags, ...influencer.occupation_tags])];
-        updateData.occupation_tags = mergedTags;
+        updateData.occupation_tags = influencer.occupation_tags.slice(0, 1);
       }
 
       const { data, error } = await supabase

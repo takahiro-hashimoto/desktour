@@ -377,12 +377,6 @@ const SUBCATEGORY_RULES: Record<string, SubcategoryRule[]> = {
   ],
 };
 
-// カテゴリ名のエイリアス（DB値のバリエーション → ルールキー）
-const CATEGORY_ALIASES: Record<string, string> = {
-  "ディスプレイ/モニター": "ディスプレイ・モニター",
-  "ヘッドホン/イヤホン": "ヘッドホン・イヤホン",
-  "HDD/SSD": "HDD・SSD",
-};
 
 // ルールに対してテキストがマッチするかチェック
 function matchesRule(text: string, rule: SubcategoryRule): boolean {
@@ -410,9 +404,8 @@ export function inferSubcategory(data: ProductInfo): string | null {
   const featuresText = features.join(" ").toLowerCase();
   const allText = (titleLower + " " + featuresText).toLowerCase();
 
-  // カテゴリ名を正規化してルールを取得
-  const ruleKey = CATEGORY_ALIASES[category] || category;
-  const rules = SUBCATEGORY_RULES[ruleKey];
+  // カテゴリのルールを取得
+  const rules = SUBCATEGORY_RULES[category];
 
   if (!rules) return null;
 

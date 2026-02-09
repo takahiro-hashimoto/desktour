@@ -200,7 +200,14 @@ export function SourceDetailModal({
                         )}
 
                         <div className="source-modal__product-info">
-                          <h5 className="source-modal__product-name">{product.name}</h5>
+                          <div className="source-modal__product-name-row">
+                            <h5 className="source-modal__product-name">{product.name}</h5>
+                            {product.mention_count && product.mention_count > 1 && (
+                              <span className="source-modal__mention-label">
+                                サイト内で{product.mention_count}件登場
+                              </span>
+                            )}
+                          </div>
                           <p className="source-modal__product-meta">
                             {product.brand && `${product.brand} / `}
                             {product.category}
@@ -208,12 +215,6 @@ export function SourceDetailModal({
 
                           {product.reason && (
                             <p className="source-modal__product-reason">{product.reason}</p>
-                          )}
-
-                          {product.mention_count && product.mention_count > 1 && (
-                            <p className="source-modal__product-mention">
-                              サイト内で{product.mention_count}件紹介されています
-                            </p>
                           )}
 
                           {(() => {

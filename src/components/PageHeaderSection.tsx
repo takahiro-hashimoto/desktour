@@ -29,7 +29,7 @@ export function PageHeaderSection({
     <div className="listing-page-header">
       <div className="listing-container">
         <div className="listing-breadcrumb">
-          <Link href="/">デスクツアーDBトップ</Link>
+          <Link href="/">デスクツアーDB</Link>
           <span className="sep">
             <i className="fa-solid fa-chevron-right"></i>
           </span>
@@ -57,6 +57,7 @@ export function PageHeaderSection({
             <h1>{title}</h1>
             <div className="listing-page-desc">
               {typeof description === "string" ? <p>{description}</p> : description}
+              <span className="listing-pr-note">（本ページにはPRを含みます）</span>
             </div>
           </div>
         </div>

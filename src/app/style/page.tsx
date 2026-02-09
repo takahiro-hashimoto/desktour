@@ -79,7 +79,7 @@ export default async function StyleIndexPage() {
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
+    { name: "デスクツアーDB", url: "/" },
     { name: "スタイル別" },
   ]);
 

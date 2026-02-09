@@ -162,7 +162,7 @@ export default async function StylePage({ params, searchParams }: PageProps) {
 
   return (
     <div className="max-w-[1080px] mx-auto px-4 py-12">
-      <Breadcrumb items={[{ label: "スタイル", href: "/style" }, { label: styleTag }]} />
+      <Breadcrumb items={[{ label: "スタイル別", href: "/style" }, { label: styleTag }]} />
 
       {/* Hero Section */}
       <PageHeader

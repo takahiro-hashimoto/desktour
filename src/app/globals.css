@@ -456,8 +456,11 @@
 }
 
 .home-explore__footer {
-  @apply mt-4 pt-4 border-t;
+  margin-top: 1rem;
+  border-top-width: 1px;
+  padding-top: 1rem;
   border-color: var(--home-border);
+  text-align: center;
 }
 
 .home-explore__footer-link {

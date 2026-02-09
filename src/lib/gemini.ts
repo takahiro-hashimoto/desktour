@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { PRODUCT_CATEGORIES, OCCUPATION_TAGS, DESK_SETUP_TAGS } from "./constants";
+import { PRODUCT_CATEGORIES, OCCUPATION_TAGS, DESK_SETUP_TAGS, selectPrimaryOccupation } from "./constants";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -73,6 +73,11 @@ function parseGeminiJsonResponse(text: string): AnalysisResult {
   if (!parsed.influencerOccupationTags) {
     parsed.influencerOccupationTags = [];
   }
+  // Geminiが複数タグを返した場合、優先度順で1つに絞る
+  if (parsed.influencerOccupationTags.length > 1) {
+    const primary = selectPrimaryOccupation(parsed.influencerOccupationTags);
+    parsed.influencerOccupationTags = primary ? [primary] : [];
+  }
   if (parsed.influencerOccupation === undefined) {
     parsed.influencerOccupation = null;
   }
@@ -140,11 +145,11 @@ ${transcript.slice(0, 18000)}
 
 {
   "influencerOccupation": "動画投稿者の職業を具体的に記述（例：フリーランスのWebエンジニア、IT企業勤務のUIデザイナー等）。動画内・概要欄・チャンネル説明から推測可能な場合は記載。不明な場合はnull",
-  "influencerOccupationTags": ["該当する職業タグをすべて選択: ${OCCUPATION_TAGS.join(", ")}"],
+  "influencerOccupationTags": ["最も適切な職業タグを1つだけ選択: ${OCCUPATION_TAGS.join(", ")}"],
   "products": [
     {
-      "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
-      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
+      "name": "商品名（ブランド名は含めない。Amazonで検索して特定できる名前にすること。スペック文字列や一般名詞だけはNG。例：ERGO M575S, LX デスクマウント モニターアーム, ScreenBar Halo 2）",
+      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT, エルゴトロン等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
         1. なぜこの商品を選んだのか（導入理由・きっかけ）
@@ -164,13 +169,17 @@ ${transcript.slice(0, 18000)}
 }
 
 【職業の抽出ルール】★重要★
-- influencerOccupationTagsは以下の10個のタグからのみ選択すること（これ以外のタグは絶対に使用しないこと）：
+- influencerOccupationTagsは以下の10個のタグから「最も適切な1つだけ」を選択すること：
   ${OCCUPATION_TAGS.join(", ")}
+- 必ず1つだけ選ぶこと。複数選択は禁止。
 - 動画内の発言（「自分は◯◯をしています」「◯◯として働いている」等）から推測
 - チャンネル概要欄の自己紹介文からも推測可能
-- 該当する職業タグが複数ある場合はすべて含める
-- influencerOccupationは具体的に自由記述（例：「IT企業でWebディレクターとして働いている」「スタートアップで技術支援」等）
-- influencerOccupationTagsは必ず上記10タグから選択（「スタートアップ支援」など独自タグは禁止）
+- 選択の優先度ルール（具体的な職業を優先すること）：
+  - エンジニアかつ動画制作もしている → 「エンジニア」を選択（本業を優先）
+  - デザイナーかつYouTuber → 「デザイナー」を選択（本業を優先）
+  - 動画編集・映像制作が本業 → 「クリエイター」を選択
+  - 「クリエイター」は他のどの職業にも当てはまらない場合のみ使用する
+- influencerOccupationは具体的に自由記述（例：「IT企業でWebディレクターとして働いている」等）
 - 経営者・社長・CEO・起業家は「経営者」タグを使用
 - カメラマン・写真家は「フォトグラファー」タグを使用
 - 全く推測できない場合のみnullと空配列を設定
@@ -188,17 +197,28 @@ ${transcript.slice(0, 18000)}
   - 「自作PC」: 自分でパーツを選んで組み立てたPC
   - 「iPad連携」: iPadをサブディスプレイや液タブ代わりに活用
 
-【商品名の記述ルール】★重要★
+【商品名の記述ルール】★最重要★
 - 商品名フィールド(name)にはブランド名を含めず、「製品シリーズ名 + 型番」の形式で記述
 - ブランド名は別フィールド(brand)に必ず記載すること
+- nameは「その商品をAmazonや楽天で検索して一意に特定できる名前」にすること
 - 型番（英数字の組み合わせ）があれば必ず含める
-- 例：
+- シリーズ名は省略しないこと。同ブランド内のシリーズ共通名は必ず含める
+  - 例：BenQのモニターライトなら「ScreenBar Halo 2」であり「Halo 2」だけにしない
+  - 例：LogicoolのマウスならERGOシリーズは「ERGO M575S」であり「M575S」だけにしない
+- 商品名として絶対にやってはいけないこと：
+  - × スペック文字列をそのまま商品名にしない（例：「4ポート (USB-C×2/USB-A×2)10Gbps」はNG）
+  - × 一般名詞だけにしない（例：「USBハブ」「モニターアーム」はNG）
+  - × 型番が1〜2文字だけの場合は製品カテゴリ名を補足する（例：「LX」→「LX デスクマウント モニターアーム」）
+- 正しい例：
   - name: "ERGO M575S", brand: "Logicool"
   - name: "U2720QM", brand: "Dell"
   - name: "Professional HYBRID Type-S", brand: "HHKB"
-  - name: "ing ING", brand: "コクヨ"
+  - name: "ScreenBar Halo 2", brand: "BenQ"
   - name: "EF-1", brand: "FLEXISPOT"
-- 概要欄のAmazon/楽天リンクから正確な商品名を取得できる場合はそれを優先使用
+  - name: "LX デスクマウント モニターアーム", brand: "エルゴトロン"
+  - name: "USB-C ハブ 4ポート 10Gbps", brand: "UGREEN"
+- 概要欄のAmazon/楽天リンクから正確な商品名を取得できる場合はそれを最優先で使用
+- 動画/記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名
 
 【ブランド名の記述ルール】★重要★
 - 正式な表記を使用（スペルミス厳禁）
@@ -273,11 +293,11 @@ ${content.slice(0, 18000)}
 
 {
   "influencerOccupation": "記事執筆者の職業（記事内で言及されている場合のみ。例：エンジニア、デザイナー等。不明な場合はnull）",
-  "influencerOccupationTags": ["該当する職業タグを選択（複数可）: ${OCCUPATION_TAGS.join(", ")}"],
+  "influencerOccupationTags": ["最も適切な職業タグを1つだけ選択: ${OCCUPATION_TAGS.join(", ")}"],
   "products": [
     {
-      "name": "商品名（型番・シリーズ名のみ。ブランド名は含めない。例：ERGO M575S, Professional HYBRID Type-S, EF-1）",
-      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT等。必ず記載すること。不明な場合のみ空文字）",
+      "name": "商品名（ブランド名は含めない。Amazonで検索して特定できる名前にすること。スペック文字列や一般名詞だけはNG。例：ERGO M575S, LX デスクマウント モニターアーム, ScreenBar Halo 2）",
+      "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT, エルゴトロン等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${PRODUCT_CATEGORIES.join(", ")}）",
       "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
         1. なぜこの商品を選んだのか（導入理由・きっかけ）
@@ -291,11 +311,28 @@ ${content.slice(0, 18000)}
   "tags": ["該当するタグを選択（複数可）: ${DESK_SETUP_TAGS.join(", ")}"]
 }
 
-【商品名の記述ルール】★重要★
-- 商品名は「ブランド名 + 製品シリーズ名 + 型番」の形式で正確に記述
-- 型番（英数字の組み合わせ）は必ず含める
-- 例：「Logicool ERGO M575S」「Dell U2720QM」「HHKB Professional HYBRID Type-S」「コクヨ ing ING」
-- 記事内のAmazon/楽天リンクから正確な商品名を取得できる場合はそれを優先使用
+【商品名の記述ルール】★最重要★
+- 商品名フィールド(name)にはブランド名を含めず、「製品シリーズ名 + 型番」の形式で記述
+- ブランド名は別フィールド(brand)に必ず記載すること
+- nameは「その商品をAmazonや楽天で検索して一意に特定できる名前」にすること
+- 型番（英数字の組み合わせ）があれば必ず含める
+- シリーズ名は省略しないこと。同ブランド内のシリーズ共通名は必ず含める
+  - 例：BenQのモニターライトなら「ScreenBar Halo 2」であり「Halo 2」だけにしない
+  - 例：LogicoolのマウスならERGOシリーズは「ERGO M575S」であり「M575S」だけにしない
+- 商品名として絶対にやってはいけないこと：
+  - × スペック文字列をそのまま商品名にしない（例：「4ポート (USB-C×2/USB-A×2)10Gbps」はNG）
+  - × 一般名詞だけにしない（例：「USBハブ」「モニターアーム」はNG）
+  - × 型番が1〜2文字だけの場合は製品カテゴリ名を補足する（例：「LX」→「LX デスクマウント モニターアーム」）
+- 正しい例：
+  - name: "ERGO M575S", brand: "Logicool"
+  - name: "U2720QM", brand: "Dell"
+  - name: "Professional HYBRID Type-S", brand: "HHKB"
+  - name: "ScreenBar Halo 2", brand: "BenQ"
+  - name: "EF-1", brand: "FLEXISPOT"
+  - name: "LX デスクマウント モニターアーム", brand: "エルゴトロン"
+  - name: "USB-C ハブ 4ポート 10Gbps", brand: "UGREEN"
+- 記事内のAmazon/楽天リンクから正確な商品名を取得できる場合はそれを最優先で使用
+- 記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名
 
 【ブランド名の記述ルール】★重要★
 - 正式な表記を使用（スペルミス厳禁）
@@ -309,9 +346,17 @@ ${content.slice(0, 18000)}
   - ○ サンワサプライ / × Sanwa Supply
 - 不明な場合は空文字""を設定
 
-【職業の抽出ルール】
+【職業の抽出ルール】★重要★
+- influencerOccupationTagsは以下の10個のタグから「最も適切な1つだけ」を選択すること：
+  ${OCCUPATION_TAGS.join(", ")}
+- 必ず1つだけ選ぶこと。複数選択は禁止。
 - 記事内で「自分は◯◯をしています」「◯◯として働いている」などの言及があれば抽出
-- 複数の職業に該当する場合はすべてタグに含める（例：フリーランスのエンジニア→["フリーランス", "エンジニア"]）
+- 選択の優先度ルール（具体的な職業を優先すること）：
+  - エンジニアかつ動画制作もしている → 「エンジニア」を選択（本業を優先）
+  - デザイナーかつYouTuber → 「デザイナー」を選択（本業を優先）
+  - 「クリエイター」は他のどの職業にも当てはまらない場合のみ使用する
+- 経営者・社長・CEO・起業家は「経営者」タグを使用
+- カメラマン・写真家は「フォトグラファー」タグを使用
 - 明確な言及がない場合はnullと空配列を設定
 
 【タグの選択ルール】★重要★

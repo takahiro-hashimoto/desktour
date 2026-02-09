@@ -4,17 +4,18 @@ import { getSiteStats, searchProducts } from "@/lib/supabase";
 import { PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 import "../detail-styles.css";
 import "../listing-styles.css";
 
 export const revalidate = 3600; // 1時間キャッシュ
 
 export const metadata: Metadata = {
-  title: "デスク環境セットアップの商品カテゴリーまとめ",
+  title: "デスクツアーに登場したPCデスク周りの人気ガジェットまとめ",
   description: "キーボード、マウス、モニター、デスク、チェアなどカテゴリー別にデスクツアーで紹介された商品を確認できます。",
   alternates: { canonical: "/category" },
   openGraph: {
-    title: "デスク環境セットアップの商品カテゴリーまとめ",
+    title: "デスクツアーに登場したPCデスク周りの人気ガジェットまとめ",
     description: "キーボード、マウス、モニター、デスク、チェアなどカテゴリー別にデスクツアーで紹介された商品を確認できます。",
     url: "/category",
   },
@@ -24,32 +25,33 @@ export const metadata: Metadata = {
 const CATEGORY_ICONS: Record<string, string> = {
   "キーボード": "fa-solid fa-keyboard",
   "マウス": "fa-solid fa-computer-mouse",
-  "ディスプレイ/モニター": "fa-solid fa-desktop",
+  "ディスプレイ・モニター": "fa-solid fa-desktop",
   "デスク": "fa-solid fa-table",
   "チェア": "fa-solid fa-chair",
   "マイク": "fa-solid fa-microphone",
   "ウェブカメラ": "fa-solid fa-video",
-  "ヘッドホン/イヤホン": "fa-solid fa-headphones",
+  "ヘッドホン・イヤホン": "fa-solid fa-headphones",
   "スピーカー": "fa-solid fa-volume-high",
   "照明・ライト": "fa-solid fa-lightbulb",
-  "PCスタンド/ノートPCスタンド": "fa-solid fa-laptop",
+  "PCスタンド・ノートPCスタンド": "fa-solid fa-laptop",
   "モニターアーム": "fa-solid fa-up-down-left-right",
-  "モニター台": "fa-solid fa-display",
-  "ケーブル/ハブ": "fa-solid fa-plug",
+  "マイクアーム": "fa-solid fa-grip-lines-vertical",
   "USBハブ": "fa-solid fa-plug",
   "デスクマット": "fa-solid fa-border-all",
-  "収納/整理": "fa-solid fa-box",
+  "収納・整理": "fa-solid fa-box",
   "PC本体": "fa-solid fa-computer",
   "タブレット": "fa-solid fa-tablet-screen-button",
   "ペンタブ": "fa-solid fa-pen-nib",
-  "充電器/電源": "fa-solid fa-charging-station",
+  "充電器・電源タップ": "fa-solid fa-charging-station",
   "オーディオインターフェース": "fa-solid fa-sliders",
   "ドッキングステーション": "fa-solid fa-hard-drive",
   "左手デバイス": "fa-solid fa-gamepad",
-  "HDD/SSD": "fa-solid fa-hard-drive",
+  "HDD・SSD": "fa-solid fa-hard-drive",
   "コントローラー": "fa-solid fa-gamepad",
   "キャプチャーボード": "fa-solid fa-video",
   "NAS": "fa-solid fa-server",
+  "デスクシェルフ・モニター台": "fa-solid fa-layer-group",
+  "配線整理グッズ": "fa-solid fa-grip-lines",
   "その他デスクアクセサリー": "fa-solid fa-puzzle-piece",
 };
 
@@ -57,32 +59,33 @@ const CATEGORY_ICONS: Record<string, string> = {
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   "キーボード": "タイピングの快適さと生産性を左右する重要なデバイス。",
   "マウス": "作業効率を上げるポインティングデバイス。",
-  "ディスプレイ/モニター": "作業領域を広げる大画面・高解像度ディスプレイ。",
+  "ディスプレイ・モニター": "作業領域を広げる大画面・高解像度ディスプレイ。",
   "デスク": "作業の土台となるワークスペース。",
   "チェア": "長時間の作業を支える快適なオフィスチェア。",
   "マイク": "会議や配信で活躍する高音質マイク。",
   "ウェブカメラ": "オンライン会議や配信に必須のカメラ。",
-  "ヘッドホン/イヤホン": "集中力を高める高品質オーディオ。",
+  "ヘッドホン・イヤホン": "集中力を高める高品質オーディオ。",
   "スピーカー": "デスクで楽しむ高音質サウンド。",
   "照明・ライト": "デスク周りを照らすライティング。",
-  "PCスタンド/ノートPCスタンド": "姿勢改善と放熱に効果的なスタンド。",
+  "PCスタンド・ノートPCスタンド": "姿勢改善と放熱に効果的なスタンド。",
   "モニターアーム": "モニターを自由に配置できるアーム。",
-  "モニター台": "モニターの高さ調整と収納を兼ねた台。",
-  "ケーブル/ハブ": "デバイス接続と配線整理。",
+  "マイクアーム": "マイクを自由な位置に固定できるアーム。",
   "USBハブ": "ポート拡張でデバイス接続を便利に。",
   "デスクマット": "デスクを保護し作業を快適に。",
-  "収納/整理": "デスク周りをすっきり整理。",
+  "収納・整理": "デスク周りをすっきり整理。",
   "PC本体": "作業の中心となるコンピュータ。",
   "タブレット": "サブディスプレイやメモに活躍。",
   "ペンタブ": "イラストやデザイン作業に必須。",
-  "充電器/電源": "デバイスの電源供給。",
+  "充電器・電源タップ": "デバイスの電源供給や電源タップ。",
   "オーディオインターフェース": "高品質な音声入出力。",
   "ドッキングステーション": "ノートPCの拡張性を高める。",
   "左手デバイス": "ショートカットを効率化。",
-  "HDD/SSD": "データ保存とバックアップ。",
+  "HDD・SSD": "データ保存とバックアップ。",
   "コントローラー": "ゲームプレイを快適にするコントローラー。",
   "キャプチャーボード": "ゲーム配信や録画に必須のキャプチャーデバイス。",
   "NAS": "ネットワーク経由でアクセスできる大容量ストレージ。",
+  "デスクシェルフ・モニター台": "モニターの高さ調整やデスク上の整理に活躍。",
+  "配線整理グッズ": "ケーブルトレイやクリップでデスク裏をスッキリ。",
   "その他デスクアクセサリー": "デスクをより便利に。",
 };
 
@@ -125,8 +128,8 @@ export default async function CategoryIndexPage() {
 
   // 構造化データ - パンくずリスト
   const breadcrumbData = generateBreadcrumbStructuredData([
-    { name: "ホーム", url: "/" },
-    { name: "商品カテゴリー" },
+    { name: "デスクツアーDB", url: "/" },
+    { name: "デスク周りのガジェット" },
   ]);
 
   return (
@@ -138,17 +141,17 @@ export default async function CategoryIndexPage() {
       />
       <PageHeaderSection
         label="Database Report"
-        title="デスクツアーに登場する人気のガジェットまとめ"
+        title="デスクツアーに登場した人気ガジェットまとめ"
         description={
           <>
             {totalSources}件の
             <Link href="/sources" className="link">
-              デスクツアー動画・記事
+              デスクツアー
             </Link>
             から人気のデスク周りガジェットをカテゴリー別にまとめています。デスク環境構築の参考にご活用ください。
           </>
         }
-        breadcrumbCurrent="カテゴリー"
+        breadcrumbCurrent="デスク周りのガジェット"
         icon="fa-layer-group"
       />
 
@@ -207,16 +210,12 @@ export default async function CategoryIndexPage() {
                         </Link>
                       )}
                       <div className="detail-product-links">
-                        {product.amazon_url && (
-                          <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" className="amazon">
-                            <i className="fa-brands fa-amazon"></i> Amazonで探す
-                          </a>
-                        )}
-                        {product.rakuten_url && (
-                          <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer" className="rakuten">
-                            楽天で探す
-                          </a>
-                        )}
+                        <a href={product.amazon_url || generateAmazonSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="amazon">
+                          Amazonで探す
+                        </a>
+                        <a href={product.rakuten_url || generateRakutenSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="rakuten">
+                          楽天で探す
+                        </a>
                       </div>
                     </div>
                   </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 
 interface Product {
   id: string;
@@ -116,26 +117,22 @@ export function ProductGrid({ products }: ProductGridProps) {
               </Link>
             )}
             <div className="detail-product-links">
-              {product.amazon_url && (
-                <a
-                  href={product.amazon_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="amazon"
-                >
-                  <i className="fa-brands fa-amazon"></i> Amazonで探す
-                </a>
-              )}
-              {product.rakuten_url && (
-                <a
-                  href={product.rakuten_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rakuten"
-                >
-                  楽天で探す
-                </a>
-              )}
+              <a
+                href={product.amazon_url || generateAmazonSearchUrl(product.name)}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="amazon"
+              >
+                Amazonで探す
+              </a>
+              <a
+                href={product.rakuten_url || generateRakutenSearchUrl(product.name)}
+                target="_blank"
+                rel="noopener noreferrer sponsored"
+                className="rakuten"
+              >
+                楽天で探す
+              </a>
             </div>
           </div>
         </div>

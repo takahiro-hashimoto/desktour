@@ -231,10 +231,17 @@ export function SourceModal({
 
                         {/* 商品情報 */}
                         <div className="flex-1 min-w-0">
-                          {/* 商品名 */}
-                          <h5 className="font-bold text-gray-900 text-base">
-                            {product.name}
-                          </h5>
+                          {/* 商品名 + 登場ラベル */}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h5 className="font-bold text-gray-900 text-base">
+                              {product.name}
+                            </h5>
+                            {product.mention_count && product.mention_count > 1 && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 whitespace-nowrap">
+                                サイト内で{product.mention_count}件登場
+                              </span>
+                            )}
+                          </div>
 
                           {/* ブランド / カテゴリ */}
                           <p className="text-sm text-gray-500 mt-1">
@@ -246,13 +253,6 @@ export function SourceModal({
                           {product.reason && (
                             <p className="text-sm text-gray-700 mt-3 leading-relaxed">
                               {product.reason}
-                            </p>
-                          )}
-
-                          {/* mention_count表示 */}
-                          {product.mention_count && product.mention_count > 1 && (
-                            <p className="text-xs text-blue-600 mt-2">
-                              サイト内で{product.mention_count}件紹介されています
                             </p>
                           )}
 

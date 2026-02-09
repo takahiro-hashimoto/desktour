@@ -604,6 +604,120 @@ export async function searchAmazonProduct(
   return null;
 }
 
+// Amazon候補一覧を返す（モーダル用）
+export async function searchAmazonCandidates(
+  productName: string,
+  brand?: string,
+): Promise<ProductInfo[]> {
+  if (!creatorsCredentialId || !creatorsCredentialSecret || !amazonPartnerTag) {
+    return [];
+  }
+
+  try {
+    const searchKeywords = brand && !productName.toLowerCase().includes(brand.toLowerCase())
+      ? `${brand} ${productName}`
+      : productName;
+
+    const payload = {
+      keywords: searchKeywords,
+      partnerTag: amazonPartnerTag,
+      marketplace: "www.amazon.co.jp",
+      searchIndex: "All",
+      itemCount: 10,
+      resources: [
+        "itemInfo.title",
+        "itemInfo.byLineInfo",
+        "itemInfo.manufactureInfo",
+        "offersV2.listings.price",
+        "images.primary.large",
+      ],
+    };
+
+    const data = await callCreatorsApi("/catalog/v1/searchItems", payload);
+
+    if (!data.searchResult?.items?.length) {
+      return [];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return data.searchResult.items.map((item: any) => {
+      const itemInfo = item.itemInfo;
+      return {
+        id: item.asin as string,
+        title: (itemInfo?.title?.displayValue as string) || productName,
+        url: item.detailPageURL as string,
+        imageUrl: item.images?.primary?.large?.url || "",
+        price: item.offersV2?.listings?.[0]?.price?.money?.amount as number | undefined,
+        source: "amazon" as const,
+        brand: itemInfo?.byLineInfo?.brand?.displayValue as string | undefined,
+        manufacturer: itemInfo?.byLineInfo?.manufacturer?.displayValue as string | undefined,
+        modelNumber: itemInfo?.manufactureInfo?.model?.displayValue as string | undefined,
+      };
+    });
+  } catch (error) {
+    console.error("[Amazon] Candidates search error:", error);
+    return [];
+  }
+}
+
+// 楽天候補一覧を返す（モーダル用）
+export async function searchRakutenCandidates(
+  productName: string,
+  brand?: string,
+): Promise<ProductInfo[]> {
+  if (!rakutenAppId) {
+    console.error("Rakuten API credentials not configured");
+    return [];
+  }
+
+  try {
+    const searchKeywords = brand && !productName.toLowerCase().includes(brand.toLowerCase())
+      ? `${brand} ${productName}`
+      : productName;
+
+    const params = new URLSearchParams({
+      applicationId: rakutenAppId,
+      keyword: searchKeywords,
+      hits: "10",
+      formatVersion: "2",
+      imageFlag: "1",
+    });
+
+    if (rakutenAffiliateId) {
+      params.append("affiliateId", rakutenAffiliateId);
+    }
+
+    const url = `https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601?${params.toString()}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`[Rakuten] Candidates API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+
+    if (!data.Items?.length) {
+      return [];
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return data.Items.map((item: any) => ({
+      id: item.itemCode as string,
+      title: item.itemName as string,
+      url: item.itemUrl as string,
+      imageUrl: (item.mediumImageUrls?.[0] || "") as string,
+      price: item.itemPrice as number | undefined,
+      source: "rakuten" as const,
+      shopName: item.shopName as string | undefined,
+      brand: item.shopName as string | undefined,
+    }));
+  } catch (error) {
+    console.error("[Rakuten] Candidates search error:", error);
+    return [];
+  }
+}
+
 // 複数商品を一括検索（レート制限対策で間隔を空ける）
 export async function searchAmazonProducts(
   productNames: string[]

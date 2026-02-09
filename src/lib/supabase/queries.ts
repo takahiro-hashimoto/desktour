@@ -12,7 +12,7 @@ import type {
   SourceDetail,
   SourceProduct,
 } from "@/types";
-import { getCompatibleCategories, getDisplayName } from "@/lib/constants";
+import { getCompatibleCategories, selectPrimaryOccupation } from "@/lib/constants";
 
 // ランキング取得（言及回数でソート）
 export async function getProductRanking(limit = 20, category?: string) {
@@ -96,43 +96,48 @@ export async function searchProducts(params: SearchParams): Promise<{
     validArticleIds = new Set(taggedArticles?.map(a => a.url) || []);
   }
 
-  // occupationTagフィルタリング用のID取得
+  // occupationTagフィルタリング用のID取得（動画＋記事の両方に対応）
   if (occupationTag) {
-    // 指定されたタグを持つインフルエンサーのchannel_idを取得
-    console.log(`[searchProducts] occupationTag: ${occupationTag}`);
-
-    // 指定されたタグを持つインフルエンサーのchannel_idを取得（containsで完全一致）
     const { data: taggedInfluencers, error: infError } = await supabase
       .from("influencers")
-      .select("channel_id, occupation_tags")
+      .select("channel_id, author_id, occupation_tags")
       .contains("occupation_tags", [occupationTag]);
 
     if (infError) {
       console.error("Error fetching influencers by occupation_tags:", infError);
     }
-    console.log(`[searchProducts] found influencers:`, taggedInfluencers?.length || 0, taggedInfluencers?.map(i => ({ channel_id: i.channel_id, tags: i.occupation_tags })));
 
-    const channelIds = taggedInfluencers?.map(i => i.channel_id).filter(Boolean) || [];
+    const channelIds = (taggedInfluencers || []).map(i => i.channel_id).filter(Boolean);
+    const authorIds = (taggedInfluencers || []).map(i => i.author_id).filter(Boolean);
 
+    // 動画IDを取得
     if (channelIds.length > 0) {
-      // そのchannel_idを持つ動画のvideo_idを取得
-      const { data: taggedVideos, error: vidError } = await supabase
+      const { data: taggedVideos } = await supabase
         .from("videos")
-        .select("video_id, channel_id")
+        .select("video_id")
         .in("channel_id", channelIds);
-
-      if (vidError) {
-        console.error("Error fetching videos by channel_id:", vidError);
-      }
-      console.log(`[searchProducts] found videos for occupation:`, taggedVideos?.length || 0);
-
-      validVideoIds = new Set(taggedVideos?.map(v => v.video_id).filter(Boolean) || []);
+      validVideoIds = new Set((taggedVideos || []).map(v => v.video_id).filter(Boolean));
     } else {
-      // influencersに該当するタグがない場合は、空のSetを設定して結果を0件にする
-      console.log(`[searchProducts] No influencers found with occupation_tags - returning empty results`);
-      validVideoIds = new Set(); // 空のSetにすると全商品がフィルタアウトされる
+      validVideoIds = new Set();
     }
-    // occupationTagの場合、article_idはフィルタしない（influencerは動画のみ）
+
+    // 記事URLを取得（author_idのドメイン部分でマッチング）
+    if (authorIds.length > 0) {
+      const { data: allArticles } = await supabase
+        .from("articles")
+        .select("url, author_url");
+      const matchedUrls: string[] = [];
+      for (const article of allArticles || []) {
+        const matched = authorIds.some((authorId) => {
+          const domain = authorId.split(":")[0];
+          return article.author_url?.includes(domain) || article.url?.includes(domain);
+        });
+        if (matched && article.url) matchedUrls.push(article.url);
+      }
+      validArticleIds = new Set(matchedUrls);
+    } else {
+      validArticleIds = new Set();
+    }
   }
 
   // 基本クエリ: 商品と言及数を取得
@@ -228,7 +233,7 @@ export async function searchProducts(params: SearchParams): Promise<{
       slug: product.slug,
       name: product.name,
       brand: product.brand,
-      category: getDisplayName(product.category), // DB値を表示名に変換
+      category: product.category,
       tags: product.tags || undefined,
       price_range: product.price_range,
       amazon_url: product.amazon_url,
@@ -266,17 +271,24 @@ export async function searchProducts(params: SearchParams): Promise<{
 
 // カテゴリ別の商品数を取得
 export async function getProductCountByCategory(): Promise<Record<string, number>> {
+  // searchProductsと同じ条件で数える（ASIN有り & confidence != low の言及がある商品のみ）
   const { data, error } = await supabase
     .from("products")
-    .select("category");
+    .select("id, category, product_mentions!inner(id, confidence)")
+    .neq("product_mentions.confidence", "low")
+    .not("asin", "is", null);
 
   if (error) {
     console.error("Error fetching category counts:", error);
     return {};
   }
 
+  // 同じ商品の重複を排除してカウント
+  const seen = new Set<string>();
   const counts: Record<string, number> = {};
   for (const product of data || []) {
+    if (seen.has(product.id)) continue;
+    seen.add(product.id);
     counts[product.category] = (counts[product.category] || 0) + 1;
   }
 
@@ -329,10 +341,14 @@ export async function getProductDetailBySlug(slug: string): Promise<ProductDetai
     `)
     .eq("slug", slug)
     .neq("product_mentions.confidence", "low")
-    .single();
+    .maybeSingle();
 
-  if (error || !product) {
+  if (error) {
     console.error(`Error fetching product detail by slug "${slug}":`, error);
+    return null;
+  }
+
+  if (!product) {
     return null;
   }
 
@@ -357,10 +373,14 @@ export async function getProductDetail(productId: string): Promise<ProductDetail
     `)
     .eq("id", productId)
     .neq("product_mentions.confidence", "low")
-    .single();
+    .maybeSingle();
 
-  if (error || !product) {
+  if (error) {
     console.error("Error fetching product detail:", error);
+    return null;
+  }
+
+  if (!product) {
     return null;
   }
 
@@ -451,7 +471,7 @@ async function getProductDetailCommon(product: any): Promise<ProductDetail | nul
     slug: product.slug,
     name: product.name,
     brand: product.brand,
-    category: getDisplayName(product.category), // DB値を表示名に変換
+    category: product.category,
     tags: product.tags || undefined,
     price_range: product.price_range,
     amazon_url: product.amazon_url,
@@ -548,25 +568,66 @@ async function getOccupationBreakdownForProduct(mentions: ProductMention[]): Pro
     return [];
   }
 
-  // 動画からチャンネルIDを取得
-  const { data: videos } = videoIds.length > 0
-    ? await supabase.from("videos").select("video_id, channel_id").in("video_id", videoIds)
-    : { data: [] };
-
-  // チャンネルIDからインフルエンサーの職業タグを取得
-  const channelIds = (videos || []).map((v) => v.channel_id).filter(Boolean);
-
-  const { data: influencers } = channelIds.length > 0
-    ? await supabase.from("influencers").select("channel_id, occupation_tags").in("channel_id", channelIds)
-    : { data: [] };
-
-  // 職業タグをカウント
   const tagCounts = new Map<string, number>();
+  const countedInfluencerIds = new Set<string>(); // 同一インフルエンサーの重複カウント防止
 
-  for (const inf of influencers || []) {
-    if (inf.occupation_tags) {
-      for (const tag of inf.occupation_tags) {
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  // 動画からチャンネルID → インフルエンサーの職業タグを取得
+  if (videoIds.length > 0) {
+    const { data: videos } = await supabase
+      .from("videos")
+      .select("video_id, channel_id")
+      .in("video_id", videoIds);
+
+    const channelIds = (videos || []).map((v) => v.channel_id).filter(Boolean);
+
+    if (channelIds.length > 0) {
+      const { data: influencers } = await supabase
+        .from("influencers")
+        .select("id, channel_id, occupation_tags")
+        .in("channel_id", channelIds);
+
+      for (const inf of influencers || []) {
+        if (countedInfluencerIds.has(inf.id)) continue;
+        if (inf.occupation_tags && inf.occupation_tags.length > 0) {
+          const primaryTag = selectPrimaryOccupation(inf.occupation_tags);
+          if (primaryTag) {
+            tagCounts.set(primaryTag, (tagCounts.get(primaryTag) || 0) + 1);
+            countedInfluencerIds.add(inf.id);
+          }
+        }
+      }
+    }
+  }
+
+  // 記事から著者 → インフルエンサーの職業タグを取得
+  if (articleIds.length > 0) {
+    const { data: articles } = await supabase
+      .from("articles")
+      .select("url, author_url")
+      .in("url", articleIds);
+
+    // author_idを持つインフルエンサーを取得
+    const { data: authorInfluencers } = await supabase
+      .from("influencers")
+      .select("id, author_id, occupation_tags")
+      .not("author_id", "is", null);
+
+    for (const article of articles || []) {
+      // author_urlまたはURL自体からマッチング
+      const matchedInf = (authorInfluencers || []).find((inf) => {
+        if (!inf.author_id) return false;
+        const domain = inf.author_id.split(":")[0];
+        return article.author_url?.includes(domain) || article.url?.includes(domain);
+      });
+
+      if (matchedInf && !countedInfluencerIds.has(matchedInf.id)) {
+        if (matchedInf.occupation_tags && matchedInf.occupation_tags.length > 0) {
+          const primaryTag = selectPrimaryOccupation(matchedInf.occupation_tags);
+          if (primaryTag) {
+            tagCounts.set(primaryTag, (tagCounts.get(primaryTag) || 0) + 1);
+            countedInfluencerIds.add(matchedInf.id);
+          }
+        }
       }
     }
   }
@@ -864,102 +925,67 @@ export async function getTopProductByCategory(): Promise<
   return result;
 }
 
-// 職業タグ別の商品数を取得（DBに存在するタグのみ）
+// 職業タグ別のデスクツアー数（動画+記事）を取得
 export async function getOccupationTagCounts(): Promise<Record<string, number>> {
-  // influencersテーブルからoccupation_tagsを取得
-  const { data: influencers, error } = await supabase
+  // インフルエンサー情報を取得
+  const { data: allInfluencers, error } = await supabase
     .from("influencers")
-    .select("id, occupation_tags");
+    .select("id, channel_id, author_id, occupation_tags");
 
   if (error) {
-    console.error("Error fetching occupation tags:", error);
+    console.error("Error fetching influencers:", error);
     return {};
   }
 
-  // インフルエンサーIDとそのタグのマップを作成
-  const influencerTagMap = new Map<string, string[]>();
-  for (const inf of influencers || []) {
+  // チャンネルID → 職業タグ（第一優先）のマップ
+  const channelToTag = new Map<string, string>();
+  const authorToTag = new Map<string, string>();
+
+  for (const inf of allInfluencers || []) {
     if (inf.occupation_tags && inf.occupation_tags.length > 0) {
-      influencerTagMap.set(inf.id, inf.occupation_tags);
+      const primaryTag = selectPrimaryOccupation(inf.occupation_tags);
+      if (primaryTag) {
+        if (inf.channel_id) channelToTag.set(inf.channel_id, primaryTag);
+        if (inf.author_id) authorToTag.set(inf.author_id, primaryTag);
+      }
     }
   }
 
-  if (influencerTagMap.size === 0) {
-    return {};
-  }
-
-  // videos/articlesから関連する商品数をカウント
-  // 各タグが付いているインフルエンサーの動画/記事に紐づく商品をカウント
-  // product_mentions.video_id はYouTube動画ID、article_id は記事URLを格納
+  // 動画数をカウント
   const { data: videos } = await supabase
     .from("videos")
     .select("video_id, channel_id");
 
+  const tagSourceSet = new Map<string, Set<string>>();
+
+  for (const video of videos || []) {
+    const tag = channelToTag.get(video.channel_id);
+    if (tag && video.video_id) {
+      if (!tagSourceSet.has(tag)) tagSourceSet.set(tag, new Set());
+      tagSourceSet.get(tag)!.add(`v:${video.video_id}`);
+    }
+  }
+
+  // 記事数をカウント
   const { data: articles } = await supabase
     .from("articles")
     .select("url, author_url");
 
-  // channel_id/author_urlからインフルエンサーを特定
-  const { data: allInfluencers } = await supabase
-    .from("influencers")
-    .select("id, channel_id, author_id, occupation_tags");
-
-  // チャンネルID/著者IDからインフルエンサーへのマップ
-  const channelToInfluencer = new Map<string, Influencer>();
-  const authorToInfluencer = new Map<string, Influencer>();
-  for (const inf of allInfluencers || []) {
-    if (inf.channel_id) channelToInfluencer.set(inf.channel_id, inf as Influencer);
-    if (inf.author_id) authorToInfluencer.set(inf.author_id, inf as Influencer);
-  }
-
-  // YouTube動画ID/記事URLから職業タグへのマップ
-  const videoToTags = new Map<string, string[]>();
-  const articleToTags = new Map<string, string[]>();
-
-  for (const video of videos || []) {
-    const inf = channelToInfluencer.get(video.channel_id);
-    if (inf?.occupation_tags && video.video_id) {
-      videoToTags.set(video.video_id, inf.occupation_tags);
-    }
-  }
-
   for (const article of articles || []) {
-    // author_urlからauthor_idを抽出（簡易版）
-    const inf = Array.from(authorToInfluencer.values()).find(
-      (i) => i.author_id && article.author_url?.includes(i.author_id)
+    // author_urlからマッチするインフルエンサーを探す
+    const matchedEntry = Array.from(authorToTag.entries()).find(
+      ([authorId]) => article.author_url?.includes(authorId.split(":")[0]) || article.url?.includes(authorId.split(":")[0])
     );
-    if (inf?.occupation_tags && article.url) {
-      articleToTags.set(article.url, inf.occupation_tags);
-    }
-  }
-
-  // 商品言及から各タグの商品数をカウント（confidence lowを除外）
-  const { data: mentions } = await supabase
-    .from("product_mentions")
-    .select("product_id, video_id, article_id")
-    .neq("confidence", "low");
-
-  const tagProductSet = new Map<string, Set<string>>();
-
-  for (const mention of mentions || []) {
-    let tags: string[] = [];
-    if (mention.video_id && videoToTags.has(mention.video_id)) {
-      tags = videoToTags.get(mention.video_id) || [];
-    } else if (mention.article_id && articleToTags.has(mention.article_id)) {
-      tags = articleToTags.get(mention.article_id) || [];
-    }
-
-    for (const tag of tags) {
-      if (!tagProductSet.has(tag)) {
-        tagProductSet.set(tag, new Set());
-      }
-      tagProductSet.get(tag)!.add(mention.product_id);
+    if (matchedEntry && article.url) {
+      const [, tag] = matchedEntry;
+      if (!tagSourceSet.has(tag)) tagSourceSet.set(tag, new Set());
+      tagSourceSet.get(tag)!.add(`a:${article.url}`);
     }
   }
 
   const counts: Record<string, number> = {};
-  for (const [tag, products] of tagProductSet) {
-    counts[tag] = products.size;
+  for (const [tag, sources] of tagSourceSet) {
+    counts[tag] = sources.size;
   }
 
   return counts;

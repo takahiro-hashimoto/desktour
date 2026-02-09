@@ -39,58 +39,39 @@ export function extractProductTags(data: ProductInfo): string[] {
     tags.add(typeTag);
   }
 
-  // 接続方式タグ
+  // 接続方式タグ（特徴的なもののみ）
   if (allText.includes("wireless") || allText.includes("ワイヤレス") || allText.includes("bluetooth")) {
     tags.add("ワイヤレス");
   }
-  if (allText.includes("有線") || allText.includes("wired") || allText.includes("usb-c") && !allText.includes("wireless")) {
-    tags.add("有線");
-  }
-  if (allText.includes("bluetooth")) {
-    tags.add("Bluetooth");
-  }
-  if (allText.includes("usb") && !allText.includes("bluetooth")) {
-    tags.add("USB接続");
-  }
-  if (allText.includes("2.4ghz")) {
+  if (allText.includes("bluetooth") && allText.includes("2.4ghz")) {
+    tags.add("Bluetooth/2.4GHz両対応");
+  } else if (allText.includes("2.4ghz")) {
     tags.add("2.4GHz");
   }
 
-  // 用途タグ
+  // 用途タグ（具体的なもののみ）
   if (allText.includes("gaming") || allText.includes("ゲーミング") || allText.includes("ゲーム")) {
     tags.add("ゲーミング");
   }
   if (allText.includes("streaming") || allText.includes("配信") || allText.includes("ストリーミング")) {
-    tags.add("配信");
-  }
-  if (allText.includes("仕事") || allText.includes("work") || allText.includes("office") && !allText.includes("gaming")) {
-    tags.add("仕事");
+    tags.add("配信向け");
   }
   if (allText.includes("dtm") || allText.includes("音楽制作") || allText.includes("music production")) {
     tags.add("音楽制作");
   }
-  if (allText.includes("creative") || allText.includes("クリエイティブ") || allText.includes("デザイン")) {
-    tags.add("クリエイティブ");
-  }
 
-  // 特徴タグ
-  if (allText.includes("compact") || allText.includes("コンパクト") || allText.includes("ミニ") || allText.includes("mini")) {
-    tags.add("コンパクト");
-  }
-  if (allText.includes("lightweight") || allText.includes("軽量")) {
-    tags.add("軽量");
-  }
+  // 特徴タグ（差別化要素のあるもののみ）
   if (allText.includes("静音") || allText.includes("silent") || allText.includes("quiet")) {
     tags.add("静音");
   }
-  if (allText.includes("rgb") || allText.includes("ライティング") || allText.includes("led")) {
+  if (allText.includes("rgb") || allText.includes("ライティング")) {
     tags.add("RGB");
   }
-  if (allText.includes("white") || allText.includes("ホワイト") || allText.includes("白")) {
-    tags.add("ホワイト");
+  if (allText.includes("ノイズキャンセリング") || allText.includes("noise cancelling") || allText.includes("anc")) {
+    tags.add("ノイズキャンセリング");
   }
-  if (allText.includes("black") || allText.includes("ブラック") || allText.includes("黒")) {
-    tags.add("ブラック");
+  if (allText.includes("折りたたみ") || allText.includes("foldable") || allText.includes("折り畳み")) {
+    tags.add("折りたたみ");
   }
 
   // カテゴリー別の特殊タグ
@@ -118,7 +99,7 @@ export function extractProductTags(data: ProductInfo): string[] {
     }
   }
 
-  if (category === "ディスプレイ・モニター" || category === "ディスプレイ/モニター") {
+  if (category === "ディスプレイ・モニター") {
     if (allText.includes("ips") || allText.includes("ipsパネル")) {
       tags.add("IPS");
     }
@@ -187,7 +168,7 @@ export function extractProductTags(data: ProductInfo): string[] {
   }
 
   // サイズタグ
-  if (category === "ディスプレイ・モニター" || category === "ディスプレイ/モニター") {
+  if (category === "ディスプレイ・モニター") {
     const sizeMatch = title.match(/(\d+)インチ|(\d+)"/);
     if (sizeMatch) {
       const size = parseInt(sizeMatch[1] || sizeMatch[2]);

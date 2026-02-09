@@ -4,6 +4,7 @@ import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
 import { BRAND_TAGS, brandToSlug, slugToBrand, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -75,6 +76,7 @@ export default async function BrandDetailPage({ params }: PageProps) {
 
   // 商品があるカテゴリーのみ表示
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
+  const totalBrandProducts = filteredCategories.reduce((sum, cat) => sum + cat.total, 0);
 
   return (
     <>
@@ -87,7 +89,7 @@ export default async function BrandDetailPage({ params }: PageProps) {
             <Link href="/sources" className="link">
               デスクツアー
             </Link>
-            で使用されている{brand}の商品をカテゴリー別に掲載。全ブランドの総合ランキングは
+            に登場した{brand}の商品{totalBrandProducts}件をカテゴリー別に掲載。全ブランドの総合ランキングは
             <Link href="/category" className="link">
               デスク周りのガジェット
             </Link>
@@ -149,16 +151,12 @@ export default async function BrandDetailPage({ params }: PageProps) {
                       </Link>
                     )}
                     <div className="detail-product-links">
-                      {product.amazon_url && (
-                        <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" className="amazon">
-                          <i className="fa-brands fa-amazon"></i> Amazonで探す
-                        </a>
-                      )}
-                      {product.rakuten_url && (
-                        <a href={product.rakuten_url} target="_blank" rel="noopener noreferrer" className="rakuten">
-                          楽天で探す
-                        </a>
-                      )}
+                      <a href={product.amazon_url || generateAmazonSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="amazon">
+                        Amazonで探す
+                      </a>
+                      <a href={product.rakuten_url || generateRakutenSearchUrl(product.name)} target="_blank" rel="noopener noreferrer sponsored" className="rakuten">
+                        楽天で探す
+                      </a>
                     </div>
                   </div>
                 </div>
