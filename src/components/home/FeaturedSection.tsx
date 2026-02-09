@@ -29,7 +29,7 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
             </h2>
             <p className="home-featured__subtitle">最近追加されたデスクツアー動画、記事の中からおすすめを紹介</p>
           </div>
-          <Link href="/sources" className="home-featured__more">
+          <Link href="/desktour/sources" className="home-featured__more">
             全て見る
             <i className="fas fa-arrow-right home-featured__more-icon"></i>
           </Link>

@@ -4,7 +4,6 @@ import {
   occupationToSlug,
   PRODUCT_CATEGORIES,
   categoryToSlug,
-  STYLE_TAGS,
   styleTagToSlug,
 } from "@/lib/constants";
 import { getTopBrandsByProductCount } from "@/lib/supabase";
@@ -18,7 +17,7 @@ export async function Footer() {
       <div className="max-w-[1080px] mx-auto px-4">
         {/* 1段目: 主要リンク（横並び） */}
         <div className="flex flex-wrap gap-6 justify-center mb-8 pb-8 border-b border-gray-700">
-          <Link href="/sources" className="text-white font-bold hover:text-gray-300">
+          <Link href="/desktour/sources" className="text-white font-bold hover:text-gray-300">
             デスクツアー
           </Link>
           <Link href="/about" className="text-white font-bold hover:text-gray-300">
@@ -37,7 +36,7 @@ export async function Footer() {
           {/* 製品カテゴリ */}
           <div>
             <p className="text-white font-bold mb-3">
-              <Link href="/category" className="hover:text-white">
+              <Link href="/desktour/category" className="hover:text-white">
                 製品カテゴリ
               </Link>
             </p>
@@ -45,7 +44,7 @@ export async function Footer() {
               {PRODUCT_CATEGORIES.slice(0, 10).map((category) => (
                 <li key={category}>
                   <Link
-                    href={`/category/${categoryToSlug(category)}`}
+                    href={`/desktour/category/${categoryToSlug(category)}`}
                     className="hover:text-white"
                   >
                     {category}
@@ -58,7 +57,7 @@ export async function Footer() {
           {/* 職業別 */}
           <div>
             <p className="text-white font-bold mb-3">
-              <Link href="/occupation" className="hover:text-white">
+              <Link href="/desktour/occupation" className="hover:text-white">
                 職業別
               </Link>
             </p>
@@ -66,7 +65,7 @@ export async function Footer() {
               {OCCUPATION_TAGS.map((occupation) => (
                 <li key={occupation}>
                   <Link
-                    href={`/occupation/${occupationToSlug(occupation)}`}
+                    href={`/desktour/occupation/${occupationToSlug(occupation)}`}
                     className="hover:text-white"
                   >
                     {occupation}
@@ -79,7 +78,7 @@ export async function Footer() {
           {/* ブランド別 */}
           <div>
             <p className="text-white font-bold mb-3">
-              <Link href="/brand" className="hover:text-white">
+              <Link href="/desktour/brand" className="hover:text-white">
                 ブランド別
               </Link>
             </p>
@@ -87,7 +86,7 @@ export async function Footer() {
               {topBrands.map((brand) => (
                 <li key={brand.slug}>
                   <Link
-                    href={`/brand/${brand.slug}`}
+                    href={`/desktour/brand/${brand.slug}`}
                     className="hover:text-white"
                   >
                     {brand.brand}

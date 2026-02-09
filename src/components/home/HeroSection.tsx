@@ -27,10 +27,10 @@ export function HeroSection({ stats }: HeroSectionProps) {
         </p>
 
         <div className="home-hero__actions">
-          <Link href="/sources" className="home-hero__btn home-hero__btn--primary">
+          <Link href="/desktour/sources" className="home-hero__btn home-hero__btn--primary">
             デスクツアーデータベース <i className="fa-solid fa-arrow-right"></i>
           </Link>
-          <Link href="/category" className="home-hero__btn home-hero__btn--outline">
+          <Link href="/desktour/category" className="home-hero__btn home-hero__btn--outline">
             <i className="fa-regular fa-compass"></i> デスク周りのガジェット
           </Link>
         </div>

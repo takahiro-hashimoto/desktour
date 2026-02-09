@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
+import { formatPrice, formatPriceDate } from "@/lib/format-utils";
+import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 interface Product {
   id: string;
@@ -25,28 +25,7 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ products }: ProductGridProps) {
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    if (gridRef.current) {
-      obs.observe(gridRef.current);
-    }
-
-    return () => {
-      if (gridRef.current) {
-        obs.unobserve(gridRef.current);
-      }
-    };
-  }, []);
+  const gridRef = useRevealOnScroll<HTMLDivElement>();
 
   const getRankBadgeClass = (rank?: number) => {
     if (!rank) return "";
@@ -54,17 +33,6 @@ export function ProductGrid({ products }: ProductGridProps) {
     if (rank === 2) return "silver";
     if (rank === 3) return "bronze";
     return "";
-  };
-
-  const formatPrice = (price?: number) => {
-    if (!price) return null;
-    return price.toLocaleString("ja-JP");
-  };
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return null;
-    const date = new Date(dateString);
-    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}時点`;
   };
 
   return (
@@ -103,37 +71,48 @@ export function ProductGrid({ products }: ProductGridProps) {
                 <div className="detail-product-price">
                   <div className="price">¥{formatPrice(product.price)}</div>
                   {product.price_updated_at && (
-                    <div className="price-date">{formatDate(product.price_updated_at)}</div>
+                    <div className="price-date">{formatPriceDate(product.price_updated_at)}</div>
                   )}
                 </div>
               )}
             </div>
             {product.user_comment && (
-              <p className="detail-product-desc">{product.user_comment}</p>
+              <div className="detail-product-comment">
+                <span className="detail-product-comment-label">
+                  <i className="fa-solid fa-comment"></i> 使用者の声
+                </span>
+                <p className="detail-product-desc">{product.user_comment}</p>
+              </div>
             )}
             {product.slug && (
-              <Link href={`/product/${product.slug}`} className="detail-product-cta">
-                詳細を見る
+              <Link href={`/desktour/product/${product.slug}`} className="detail-product-cta">
+                詳細を見る <i className="fa-solid fa-arrow-right"></i>
               </Link>
             )}
-            <div className="detail-product-links">
-              <a
-                href={product.amazon_url || generateAmazonSearchUrl(product.name)}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="amazon"
-              >
-                Amazonで探す
-              </a>
-              <a
-                href={product.rakuten_url || generateRakutenSearchUrl(product.name)}
-                target="_blank"
-                rel="noopener noreferrer sponsored"
-                className="rakuten"
-              >
-                楽天で探す
-              </a>
-            </div>
+            {(product.amazon_url || product.rakuten_url) && (
+              <div className="detail-product-links">
+                {product.amazon_url && (
+                  <a
+                    href={product.amazon_url}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    className="amazon"
+                  >
+                    Amazonで見る
+                  </a>
+                )}
+                {product.rakuten_url && (
+                  <a
+                    href={product.rakuten_url}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    className="rakuten"
+                  >
+                    楽天で見る
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ))}

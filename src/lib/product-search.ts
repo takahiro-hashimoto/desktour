@@ -1,3 +1,5 @@
+import { getBrandAliases, detectCategory } from "./brand-category-utils";
+
 // ========================================
 // 環境変数
 // ========================================
@@ -40,83 +42,17 @@ export interface ProductInfo {
   productGroup?: string;        // 商品グループ（例: "Personal Computer"）
 }
 
-// 後方互換性のためのエイリアス
-export type AmazonProductInfo = ProductInfo;
-
 // ========================================
-// ノーブランド・カテゴリ定義
+// ノーブランド定義
 // ========================================
 const NO_BRAND_KEYWORDS = [
   "ノーブランド", "ノーブランド品", "generic", "unbranded", "no brand",
   "汎用", "互換品", "オリジナル"
 ];
 
-// ブランド名の日英対応マッピング
-const BRAND_ALIASES: Record<string, string[]> = {
-  "ハーマンミラー": ["herman miller", "hermanmiller"],
-  "herman miller": ["ハーマンミラー"],
-  "ロジクール": ["logitech", "logicool"],
-  "logitech": ["ロジクール", "logicool"],
-  "logicool": ["ロジクール", "logitech"],
-  "アップル": ["apple"],
-  "apple": ["アップル"],
-  "ソニー": ["sony"],
-  "sony": ["ソニー"],
-  "パナソニック": ["panasonic"],
-  "panasonic": ["パナソニック"],
-  "エレコム": ["elecom"],
-  "elecom": ["エレコム"],
-  "サンワサプライ": ["sanwa supply", "sanwa"],
-  "バッファロー": ["buffalo"],
-  "buffalo": ["バッファロー"],
-  "アンカー": ["anker"],
-  "anker": ["アンカー"],
-  "ベルキン": ["belkin"],
-  "belkin": ["ベルキン"],
-  "doio": ["doio"],
-  "サテチ": ["satechi"],
-  "satechi": ["サテチ"],
-  "デル": ["dell"],
-  "dell": ["デル"],
-  "エイスース": ["asus"],
-  "asus": ["エイスース"],
-  "レノボ": ["lenovo"],
-  "lenovo": ["レノボ"],
-};
-
-// ブランド名のエイリアスを取得
-function getBrandAliases(brand: string): string[] {
-  const lowerBrand = brand.toLowerCase();
-  const aliases = BRAND_ALIASES[lowerBrand] || [];
-  return [lowerBrand, ...aliases.map(a => a.toLowerCase())];
-}
-
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  desk: ["デスク", "desk", "テーブル", "table", "机"],
-  chair: ["チェア", "chair", "椅子", "イス"],
-  bed: ["ベッド", "bed", "マットレス", "mattress"],
-  keyboard: ["キーボード", "keyboard", "keypad"],
-  mouse: ["マウス", "mouse", "トラックボール", "trackball"],
-  monitor: ["モニター", "monitor", "ディスプレイ", "display"],
-  audio: ["スピーカー", "speaker", "ヘッドホン", "headphone", "イヤホン", "earphone"],
-  light: ["ライト", "light", "照明", "ランプ", "lamp", "デスクライト"],
-  camera: ["カメラ", "camera", "ウェブカメラ", "webcam"],
-  microphone: ["マイク", "microphone", "mic"],
-};
-
 // ========================================
 // ユーティリティ関数
 // ========================================
-function detectCategory(text: string): string | null {
-  const lowerText = text.toLowerCase();
-  for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-    if (keywords.some(kw => lowerText.includes(kw.toLowerCase()))) {
-      return category;
-    }
-  }
-  return null;
-}
-
 function isNoBrandProduct(brand?: string, manufacturer?: string): boolean {
   if (!brand && !manufacturer) return true;
   const checkText = `${brand || ""} ${manufacturer || ""}`.toLowerCase();

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getArticleInfo, isDeskTourArticle } from "@/lib/article";
-import { analyzeArticle, getPriceRange } from "@/lib/gemini";
+import { analyzeArticle } from "@/lib/gemini";
 import {
   saveArticle,
-  saveProduct,
-  updateProductWithAmazon,
   isArticleAnalyzed,
   saveInfluencer,
+  saveMatchedProducts,
 } from "@/lib/supabase";
 import { getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct } from "@/lib/description-links";
@@ -18,7 +17,6 @@ import {
   toAmazonField,
   type MatchedProduct,
 } from "@/lib/product-matching";
-import { isLowQualityFeatures } from "@/lib/featureQuality";
 
 export async function POST(request: NextRequest) {
   try {
@@ -172,48 +170,12 @@ export async function POST(request: NextRequest) {
         tags: analysisResult.tags,
       });
 
-      // 商品を保存
-      for (const product of matchedProducts) {
-        const savedProduct = await saveProduct({
-          name: product.name,
-          brand: product.brand || undefined,
-          category: product.category,
-          reason: product.reason,
-          confidence: product.confidence,
-          article_id: articleInfo.url,
-          source_type: "article",
-        });
-
-        if (savedProduct && !savedProduct.asin && product.amazon) {
-          const priceRange = getPriceRange(product.amazon.price);
-
-          // 元のProductInfoを取得（詳細情報用）
-          const originalProduct = candidates.find(c => c.asin === product.amazon?.asin)?.product;
-
-          await updateProductWithAmazon(
-            savedProduct.id!,
-            {
-              asin: product.amazon.asin,
-              amazon_url: product.amazon.url,
-              amazon_image_url: product.amazon.imageUrl,
-              amazon_price: product.amazon.price,
-              amazon_title: product.amazon.title,
-              product_source: product.source,
-              rakuten_shop_name: originalProduct?.shopName,
-              amazon_manufacturer: originalProduct?.manufacturer,
-              amazon_brand: originalProduct?.brand,
-              amazon_model_number: originalProduct?.modelNumber,
-              amazon_color: originalProduct?.color,
-              amazon_size: originalProduct?.size,
-              amazon_weight: originalProduct?.weight,
-              amazon_release_date: originalProduct?.releaseDate,
-              amazon_features: originalProduct?.features && !isLowQualityFeatures(originalProduct.features) ? originalProduct.features : undefined,
-              amazon_technical_info: originalProduct?.technicalInfo,
-            },
-            priceRange || undefined
-          );
-        }
-      }
+      // 商品を保存（共通ユーティリティを使用）
+      await saveMatchedProducts(
+        matchedProducts,
+        { article_id: articleInfo.url, source_type: "article" },
+        candidates
+      );
     }
 
     return NextResponse.json({

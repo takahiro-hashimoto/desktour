@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 interface ListingItem {
   href: string;
@@ -16,28 +16,7 @@ interface ListingGridProps {
 }
 
 export function ListingGrid({ items }: ListingGridProps) {
-  const gridRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
-        });
-      },
-      { threshold: 0.08 }
-    );
-
-    if (gridRef.current) {
-      obs.observe(gridRef.current);
-    }
-
-    return () => {
-      if (gridRef.current) {
-        obs.unobserve(gridRef.current);
-      }
-    };
-  }, []);
+  const gridRef = useRevealOnScroll<HTMLDivElement>(0.08);
 
   return (
     <div className="listing-container">

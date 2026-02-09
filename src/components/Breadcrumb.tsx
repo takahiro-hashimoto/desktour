@@ -18,7 +18,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
       {
         "@type": "ListItem",
         position: 1,
-        name: "デスクツアーDB",
+        name: "PCデスク環境",
         item: "/",
       },
       ...items.map((item, index) => ({
@@ -43,7 +43,7 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
         <ol className="flex items-center flex-wrap gap-1">
           <li>
             <Link href="/" className="hover:text-gray-700">
-              デスクツアーDB
+              PCデスク環境
             </Link>
           </li>
           {items.map((item, index) => (

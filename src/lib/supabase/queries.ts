@@ -1126,42 +1126,19 @@ export async function getSourceDetail(
         mention_count: countMap.get(m.product_id) || 1,
       }));
 
-    // デバッグ: slug が null の商品を確認
-    const productsWithoutSlug = products.filter(p => !p.slug);
-    if (productsWithoutSlug.length > 0) {
-      console.warn(`[getSourceDetail] Products without slug (${productsWithoutSlug.length}):`,
-        productsWithoutSlug.map(p => ({ id: p.id, name: p.name, brand: p.brand }))
-      );
-    }
-
     // influencers テーブルから occupation_tags を取得
     let occupationTags: string[] = [];
-    let debugInfo: Record<string, unknown> = {};
 
     if (video.channel_id) {
-      // まずchannel_idで検索
-      const { data: influencer, error: infError } = await supabase
+      const { data: influencer } = await supabase
         .from("influencers")
-        .select("*")
+        .select("occupation_tags")
         .eq("channel_id", video.channel_id)
         .single();
-
-      debugInfo = {
-        channel_id: video.channel_id,
-        influencer_found: !!influencer,
-        influencer_occupation_tags: influencer?.occupation_tags || null,
-        error_code: infError?.code || null,
-        error_message: infError?.message || null,
-      };
-
-      console.log(`[getSourceDetail] DEBUG:`, JSON.stringify(debugInfo, null, 2));
 
       if (influencer?.occupation_tags && influencer.occupation_tags.length > 0) {
         occupationTags = influencer.occupation_tags;
       }
-    } else {
-      debugInfo = { channel_id: null, message: "video has no channel_id" };
-      console.log(`[getSourceDetail] DEBUG:`, JSON.stringify(debugInfo, null, 2));
     }
 
     return {
@@ -1248,14 +1225,6 @@ export async function getSourceDetail(
         reason: m.reason,
         mention_count: countMap.get(m.product_id) || 1,
       }));
-
-    // デバッグ: slug が null の商品を確認（記事）
-    const productsWithoutSlugArticle = products.filter(p => !p.slug);
-    if (productsWithoutSlugArticle.length > 0) {
-      console.warn(`[getSourceDetail Article] Products without slug (${productsWithoutSlugArticle.length}):`,
-        productsWithoutSlugArticle.map(p => ({ id: p.id, name: p.name, brand: p.brand }))
-      );
-    }
 
     // 記事著者の職業タグを取得
     // author_idは "ドメイン:著者名" 形式なので、記事URLのドメイン部分でマッチング

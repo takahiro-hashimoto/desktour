@@ -29,7 +29,11 @@ export function PageHeaderSection({
     <div className="listing-page-header">
       <div className="listing-container">
         <div className="listing-breadcrumb">
-          <Link href="/">デスクツアーDB</Link>
+          <Link href="/">トップ</Link>
+          <span className="sep">
+            <i className="fa-solid fa-chevron-right"></i>
+          </span>
+          <Link href="/desktour">PCデスク環境</Link>
           <span className="sep">
             <i className="fa-solid fa-chevron-right"></i>
           </span>

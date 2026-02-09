@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 interface FAQItem {
   question: string;
@@ -12,28 +12,7 @@ interface FAQSectionProps {
 }
 
 export function FAQSection({ items }: FAQSectionProps) {
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    if (sectionRef.current) {
-      obs.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        obs.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
+  const sectionRef = useRevealOnScroll<HTMLDivElement>();
 
   return (
     <div className="detail-faq-section detail-reveal" ref={sectionRef}>

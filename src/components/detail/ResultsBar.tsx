@@ -25,7 +25,7 @@ export function ResultsBar({ total, currentSort = "mention" }: ResultsBarProps) 
     params.delete("page");
 
     const query = params.toString();
-    router.push(query ? `?${query}` : window.location.pathname);
+    router.push(query ? `?${query}` : window.location.pathname, { scroll: false });
   };
 
   return (

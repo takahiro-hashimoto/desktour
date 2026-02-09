@@ -93,10 +93,6 @@ const SUBCATEGORY_RULES: Record<string, SubcategoryRule[]> = {
     },
     { result: "ゲーミングモニター", allOf: ["gaming", "hz"] },
     {
-      result: "モバイルモニター",
-      keywords: ["mobile", "モバイル", "portable", "ポータブル", "13.3", "15.6"],
-    },
-    {
       result: "5K・6Kモニター",
       keywords: ["5k", "6k", "5120"],
     },

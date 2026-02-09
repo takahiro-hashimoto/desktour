@@ -3,7 +3,12 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { PRODUCT_CATEGORIES } from "@/lib/constants";
+import {
+  PRODUCT_CATEGORIES, OCCUPATION_TAGS,
+  TAG_GROUP_STYLE, TAG_GROUP_MONITOR, TAG_GROUP_DESK, TAG_GROUP_OS, TAG_GROUP_FEATURES,
+  EXCLUSIVE_TAG_GROUPS, DESK_SETUP_TAGS,
+} from "@/lib/constants";
+import { extractVideoId } from "@/lib/video-utils";
 
 interface Product {
   name: string;
@@ -149,36 +154,39 @@ export default function AdminPage() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("デスクツアー");
 
-  // 利用可能なプリセットタグ（デスクセットアップ特徴）
-  const AVAILABLE_TAGS = [
-    "ミニマリスト", "ゲーミング", "おしゃれ", "ホワイト", "ブラック",
-    "モノトーン", "ナチュラル", "北欧", "インダストリアル", "かわいい",
-    "デュアルモニター", "トリプルモニター", "ウルトラワイド",
-    "スタンディングデスク", "L字デスク", "Mac環境", "Windows環境",
-    "リモートワーク", "在宅勤務", "DIY", "ケーブルレス", "配線整理",
-    "RGBライティング", "コスパ重視", "ハイエンド",
+  // タググループ定義（admin UI表示用）
+  const TAG_GROUPS = [
+    { name: "スタイル", tags: TAG_GROUP_STYLE as readonly string[], exclusive: true },
+    { name: "モニター構成", tags: TAG_GROUP_MONITOR as readonly string[], exclusive: true },
+    { name: "デスク種類", tags: TAG_GROUP_DESK as readonly string[], exclusive: true },
+    { name: "メインOS", tags: TAG_GROUP_OS as readonly string[], exclusive: true },
+    { name: "特徴", tags: TAG_GROUP_FEATURES as readonly string[], exclusive: false },
   ];
 
-  // 利用可能な職業タグ（10個のみ）
-  const AVAILABLE_OCCUPATION_TAGS = [
-    "エンジニア",
-    "デザイナー",
-    "クリエイター",
-    "イラストレーター",
-    "配信者",
-    "ゲーマー",
-    "学生",
-    "会社員",
-    "経営者",
-    "フォトグラファー",
-  ];
+  // 利用可能なプリセットタグ（互換用）
+  const AVAILABLE_TAGS: string[] = [...DESK_SETUP_TAGS];
 
-  // タグ追加
+  // 利用可能な職業タグ（constants.ts のマスターデータを使用）
+  const AVAILABLE_OCCUPATION_TAGS: string[] = [...OCCUPATION_TAGS];
+
+  // タグ追加（排他グループの場合、同グループの既存タグを自動削除）
   const addTag = (tag: string) => {
     const trimmedTag = tag.trim();
-    if (trimmedTag && !editableTags.includes(trimmedTag)) {
-      setEditableTags([...editableTags, trimmedTag]);
+    if (!trimmedTag || editableTags.includes(trimmedTag)) return;
+
+    let newTags = [...editableTags];
+
+    // 排他グループに属するタグの場合、同グループの既存タグを削除
+    for (const group of EXCLUSIVE_TAG_GROUPS) {
+      const groupTags = group.tags as readonly string[];
+      if (groupTags.includes(trimmedTag)) {
+        newTags = newTags.filter(t => !groupTags.includes(t));
+        break;
+      }
     }
+
+    newTags.push(trimmedTag);
+    setEditableTags(newTags);
   };
 
   // タグ削除
@@ -496,19 +504,6 @@ export default function AdminPage() {
         products: updatedProducts,
       });
     }
-  };
-
-  // YouTubeのURLからvideo_idを抽出
-  const extractVideoId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
-      /^([a-zA-Z0-9_-]{11})$/,
-    ];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) return match[1];
-    }
-    return null;
   };
 
   // YouTube動画解析
@@ -984,24 +979,34 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* プリセットから追加 */}
-            <div className="mb-3">
-              <p className="text-xs text-gray-500 mb-1">プリセットから追加:</p>
-              <div className="flex flex-wrap gap-1">
-                {AVAILABLE_TAGS.filter((t) => !editableTags.includes(t)).slice(0, 12).map((tag) => (
-                  <button
-                    key={tag}
-                    onClick={() => addTag(tag)}
-                    className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
-                    type="button"
-                  >
-                    + {tag}
-                  </button>
-                ))}
-                {AVAILABLE_TAGS.filter((t) => !editableTags.includes(t)).length > 12 && (
-                  <span className="text-xs text-gray-400 py-0.5">...</span>
-                )}
-              </div>
+            {/* グループ別タグ選択 */}
+            <div className="mb-3 space-y-2">
+              {TAG_GROUPS.map((group) => {
+                const selectedInGroup = editableTags.filter(t => (group.tags as readonly string[]).includes(t));
+                return (
+                  <div key={group.name}>
+                    <p className="text-xs text-gray-500 mb-1">
+                      {group.name}
+                      {group.exclusive ? "（1つのみ）" : "（複数可）"}
+                      {selectedInGroup.length > 0 && (
+                        <span className="ml-1 text-blue-600">✓ {selectedInGroup.join(", ")}</span>
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {group.tags.filter((t) => !editableTags.includes(t)).map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => addTag(tag)}
+                          className="px-2 py-0.5 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                          type="button"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* カスタムタグ入力 */}

@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+export { extractVideoId } from "./video-utils";
 
 const youtube = google.youtube({
   version: "v3",
@@ -17,23 +18,6 @@ export interface VideoInfo {
   viewCount: number;
   publishedAt: string;
   thumbnailUrl: string;
-}
-
-export function extractVideoId(url: string): string | null {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=)([^&\s]+)/,
-    /(?:youtu\.be\/)([^?\s]+)/,
-    /(?:youtube\.com\/embed\/)([^?\s]+)/,
-    /(?:youtube\.com\/v\/)([^?\s]+)/,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  return null;
 }
 
 // チャンネル情報キャッシュ（同じチャンネルの複数動画解析時にAPI呼び出し削減）
@@ -202,9 +186,4 @@ export async function getTranscript(videoId: string): Promise<string | null> {
 
 export function isEligibleVideo(viewCount: number): boolean {
   return viewCount >= 5000;
-}
-
-// 後方互換性のため残す（非推奨）
-export function isEligibleChannel(subscriberCount: number): boolean {
-  return subscriberCount >= 10000;
 }

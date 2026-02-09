@@ -15,19 +15,19 @@ export function Header() {
 
         {/* Desktop Nav */}
         <nav className="header-nav-desktop">
-          <Link href="/sources" className="header-nav-link">
+          <Link href="/desktour/sources" className="header-nav-link">
             デスクツアー
           </Link>
-          <Link href="/category" className="header-nav-link">
+          <Link href="/desktour/category" className="header-nav-link">
             デスク周りのガジェット
           </Link>
-          <Link href="/occupation" className="header-nav-link">
+          <Link href="/desktour/occupation" className="header-nav-link">
             職業別
           </Link>
-          <Link href="/style" className="header-nav-link">
+          <Link href="/desktour/style" className="header-nav-link">
             スタイル別
           </Link>
-          <Link href="/brand" className="header-nav-link">
+          <Link href="/desktour/brand" className="header-nav-link">
             ブランド別
           </Link>
           <Link href="/contact" className="header-nav-link">
@@ -56,7 +56,7 @@ export function Header() {
           <div className="header-overlay" onClick={() => setMenuOpen(false)}></div>
           <nav className="header-nav-mobile">
             <Link
-              href="/sources"
+              href="/desktour/sources"
               className="header-nav-mobile-link"
               onClick={() => setMenuOpen(false)}
             >
@@ -64,7 +64,7 @@ export function Header() {
               デスクツアー
             </Link>
             <Link
-              href="/category"
+              href="/desktour/category"
               className="header-nav-mobile-link"
               onClick={() => setMenuOpen(false)}
             >
@@ -72,7 +72,7 @@ export function Header() {
               デスク周りのガジェット
             </Link>
             <Link
-              href="/occupation"
+              href="/desktour/occupation"
               className="header-nav-mobile-link"
               onClick={() => setMenuOpen(false)}
             >
@@ -80,7 +80,7 @@ export function Header() {
               職業別
             </Link>
             <Link
-              href="/style"
+              href="/desktour/style"
               className="header-nav-mobile-link"
               onClick={() => setMenuOpen(false)}
             >
@@ -88,7 +88,7 @@ export function Header() {
               スタイル別
             </Link>
             <Link
-              href="/brand"
+              href="/desktour/brand"
               className="header-nav-mobile-link"
               onClick={() => setMenuOpen(false)}
             >

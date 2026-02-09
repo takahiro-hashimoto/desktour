@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 interface FilterSectionProps {
   label: string;
@@ -18,28 +18,7 @@ export function FilterSection({
 }: FilterSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const sectionRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) e.target.classList.add("visible");
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    if (sectionRef.current) {
-      obs.observe(sectionRef.current);
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        obs.unobserve(sectionRef.current);
-      }
-    };
-  }, []);
+  const sectionRef = useRevealOnScroll<HTMLDivElement>();
 
   const handleFilterChange = (tag: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -54,7 +33,7 @@ export function FilterSection({
     params.delete("page");
 
     const query = params.toString();
-    router.push(query ? `?${query}` : window.location.pathname);
+    router.push(query ? `?${query}` : window.location.pathname, { scroll: false });
   };
 
   return (

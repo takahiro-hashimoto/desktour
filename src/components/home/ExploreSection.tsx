@@ -80,7 +80,7 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
             title="職業別"
             description="同じ職業の人がどんなデスク環境を構築しているか参考にできます"
             items={occupations}
-            viewAllHref="/occupation"
+            viewAllHref="/desktour/occupation"
           />
 
           <ExploreCard
@@ -88,7 +88,7 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
             title="スタイル別"
             description="ミニマリスト、ゲーミングなど、雰囲気やテイストから探せます"
             items={styles}
-            viewAllHref="/style"
+            viewAllHref="/desktour/style"
           />
 
           <ExploreCard
@@ -96,7 +96,7 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
             title="ブランド別"
             description="紹介された商品数が多い人気ブランドから探せます"
             items={brands}
-            viewAllHref="/brand"
+            viewAllHref="/desktour/brand"
           />
         </div>
       </div>

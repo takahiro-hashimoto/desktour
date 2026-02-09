@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { extractVideoId } from "@/lib/video-utils";
 import { SourceModal } from "@/components/SourceModal";
 
 interface Comment {
@@ -43,11 +44,6 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
       setModalSource({ type: "article", id: comment.source_url });
       setModalOpen(true);
     }
-  };
-
-  const extractVideoId = (url: string): string | null => {
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
-    return match ? match[1] : null;
   };
 
   return (

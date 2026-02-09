@@ -4,45 +4,13 @@ import { memo } from "react";
 import Link from "next/link";
 import type { ProductWithStats } from "@/types";
 import { resolveImageUrl } from "@/lib/imageUtils";
+import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
+import { formatPriceWithSymbol, formatPriceDate } from "@/lib/format-utils";
 
 interface RankingProductCardProps {
   product: ProductWithStats;
   rank: number;
   adoptionText: string; // 完成形のテキスト（例: 「12名のエンジニアが採用」「ミニマリストデスクで8件採用」）
-}
-
-// 楽天アフィリエイトID
-const RAKUTEN_AFFILIATE_ID = "YOUR_RAKUTEN_AFFILIATE_ID";
-
-// Amazonアソシエイトタグ
-const AMAZON_ASSOCIATE_TAG = "YOUR_AMAZON_ASSOCIATE_TAG";
-
-// 楽天検索URLを生成
-function generateRakutenSearchUrl(productName: string): string {
-  const searchQuery = encodeURIComponent(productName);
-  return `https://search.rakuten.co.jp/search/mall/${searchQuery}/?affiliate_id=${RAKUTEN_AFFILIATE_ID}`;
-}
-
-// Amazon検索URLを生成
-function generateAmazonSearchUrl(productName: string): string {
-  const searchQuery = encodeURIComponent(productName);
-  return `https://www.amazon.co.jp/s?k=${searchQuery}&tag=${AMAZON_ASSOCIATE_TAG}`;
-}
-
-// 価格をフォーマット
-function formatPrice(price?: number): string {
-  if (!price) return "価格情報なし";
-  return `¥${price.toLocaleString()}`;
-}
-
-// 価格取得日をフォーマット
-function formatPriceDate(updatedAt?: string): string {
-  if (!updatedAt) return "";
-  const date = new Date(updatedAt);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}/${month}/${day}時点`;
 }
 
 export const RankingProductCard = memo(function RankingProductCard({
@@ -131,11 +99,11 @@ export const RankingProductCard = memo(function RankingProductCard({
           </div>
           <div className="text-right">
             <p className="font-bold text-gray-900 text-base">
-              {formatPrice(product.amazon_price)}
+              {formatPriceWithSymbol(product.amazon_price)}
             </p>
             {product.updated_at && (
               <p className="text-gray-400 text-[10px] mt-0.5">
-                {formatPriceDate(product.updated_at)}
+                {formatPriceDate(product.updated_at) || ""}
               </p>
             )}
           </div>
@@ -150,7 +118,7 @@ export const RankingProductCard = memo(function RankingProductCard({
 
         {/* CTAボタン */}
         <Link
-          href={`/product/${product.slug || product.id}`}
+          href={`/desktour/product/${product.slug || product.id}`}
           className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg text-sm font-medium transition-colors mb-2"
         >
           詳細を見る

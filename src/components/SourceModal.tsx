@@ -266,7 +266,7 @@ export function SourceModal({
                             return (
                               <div className="flex items-center gap-4 mt-3">
                                 <Link
-                                  href={`/product/${product.slug || product.id}`}
+                                  href={`/desktour/product/${product.slug || product.id}`}
                                   className="text-sm text-blue-600 hover:underline"
                                   onClick={onClose}
                                 >

@@ -21,35 +21,41 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     {
       url: baseUrl,
       lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/desktour`,
+      lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/category`,
+      url: `${baseUrl}/desktour/category`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/brand`,
+      url: `${baseUrl}/desktour/brand`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/occupation`,
+      url: `${baseUrl}/desktour/occupation`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/style`,
+      url: `${baseUrl}/desktour/style`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/sources`,
+      url: `${baseUrl}/desktour/sources`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.6,
@@ -76,7 +82,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // カテゴリページ
   const categoryPages: MetadataRoute.Sitemap = PRODUCT_CATEGORIES.map((category) => ({
-    url: `${baseUrl}/category/${categoryToSlug(category)}`,
+    url: `${baseUrl}/desktour/category/${categoryToSlug(category)}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,
@@ -84,7 +90,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 職業タグページ
   const occupationPages: MetadataRoute.Sitemap = OCCUPATION_TAGS.map((tag) => ({
-    url: `${baseUrl}/occupation/${occupationToSlug(tag)}`,
+    url: `${baseUrl}/desktour/occupation/${occupationToSlug(tag)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -92,7 +98,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // スタイルタグページ
   const stylePages: MetadataRoute.Sitemap = STYLE_TAGS.map((tag) => ({
-    url: `${baseUrl}/style/${styleTagToSlug(tag)}`,
+    url: `${baseUrl}/desktour/style/${styleTagToSlug(tag)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -100,7 +106,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // 環境タグページ
   const environmentPages: MetadataRoute.Sitemap = ENVIRONMENT_TAGS.map((tag) => ({
-    url: `${baseUrl}/style/${environmentTagToSlug(tag)}`,
+    url: `${baseUrl}/desktour/style/${environmentTagToSlug(tag)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -108,7 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // ブランドページ
   const brandPages: MetadataRoute.Sitemap = BRAND_TAGS.map((brand) => ({
-    url: `${baseUrl}/brand/${brandToSlug(brand)}`,
+    url: `${baseUrl}/desktour/brand/${brandToSlug(brand)}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -124,7 +130,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     if (products) {
       productPages = products.map((product) => ({
-        url: `${baseUrl}/product/${product.slug}`,
+        url: `${baseUrl}/desktour/product/${product.slug}`,
         lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
         changeFrequency: "weekly" as const,
         priority: 0.6,

@@ -13,7 +13,7 @@ export function SortSelect({ defaultValue }: SortSelectProps) {
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("sort", e.target.value);
-    router.push(`?${params.toString()}`);
+    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   return (

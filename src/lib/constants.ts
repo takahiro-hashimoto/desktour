@@ -6,6 +6,7 @@ export const PRODUCT_CATEGORIES = [
   "キーボード",
   "マウス",
   "ディスプレイ・モニター",
+  "モバイルモニター",
   "デスク",
   "チェア",
   "マイク",
@@ -58,9 +59,13 @@ export const TYPE_TAGS: Record<string, string[]> = {
     "4Kモニター",
     "ウルトラワイドモニター",
     "ゲーミングモニター",
-    "モバイルモニター",
     "縦置きモニター",
     "5K・6Kモニター",
+  ],
+  "モバイルモニター": [
+    "13インチモバイルモニター",
+    "15インチモバイルモニター",
+    "タッチ対応モバイルモニター",
   ],
   "ヘッドホン・イヤホン": [
     "開放型ヘッドホン",
@@ -192,6 +197,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "キーボード": "keyboard",
   "マウス": "mouse",
   "ディスプレイ・モニター": "monitor",
+  "モバイルモニター": "mobile-monitor",
   "デスク": "desk",
   "チェア": "chair",
   "マイク": "microphone",
@@ -221,72 +227,116 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "その他デスクアクセサリー": "other-accessories",
 };
 
-// スタイルタグ（デスクのスタイル・雰囲気）
-export const STYLE_TAGS = [
+// ============================================================
+// デスクセットアップタグ（グループ別・排他制御あり）
+// ============================================================
+
+// --- グループ定義 ---
+
+/** スタイル（排他: 1つのみ選択可能） */
+export const TAG_GROUP_STYLE = [
   "ミニマリスト",
   "ゲーミング",
-  "おしゃれ",
-  "ホワイト",
-  "ブラック",
-  "モノトーン",
-  "ナチュラル",
-  "北欧風",
+  "ナチュラル・北欧",
   "インダストリアル",
   "かわいい",
-  "DIY",
-  "シンプル",
-  "カラフル",
+  "モノトーン",
+  "ホワイト",
+  "ブラック",
 ] as const;
 
-// スタイルタグ→英語スラッグのマッピング
-const STYLE_SLUG_MAP: Record<string, string> = {
-  "ミニマリスト": "minimalist",
-  "ゲーミング": "gaming",
-  "おしゃれ": "stylish",
-  "ホワイト": "white",
-  "ブラック": "black",
-  "モノトーン": "monotone",
-  "ナチュラル": "natural",
-  "北欧風": "nordic",
-  "インダストリアル": "industrial",
-  "かわいい": "cute",
-  "DIY": "diy",
-  "シンプル": "simple",
-  "カラフル": "colorful",
-};
-
-// 環境タグ（デスク環境・機材構成）
-export const ENVIRONMENT_TAGS = [
-  "リモートワーク",
-  "オフィス",
-  "昇降デスク",
-  "L字デスク",
+/** モニター構成（排他: 1つのみ選択可能） */
+export const TAG_GROUP_MONITOR = [
+  "シングルモニター",
   "デュアルモニター",
   "トリプルモニター",
   "ウルトラワイド",
+] as const;
+
+/** デスク種類（排他: 1つのみ選択可能） */
+export const TAG_GROUP_DESK = [
+  "通常デスク",
+  "昇降デスク",
+  "L字デスク",
+] as const;
+
+/** メインOS（排他: 1つのみ選択可能） */
+export const TAG_GROUP_OS = [
   "Mac",
   "Windows",
+  "Linux",
+] as const;
+
+/** 特徴（複数選択可能） */
+export const TAG_GROUP_FEATURES = [
+  "リモートワーク",
   "配線整理",
   "クラムシェル",
   "自作PC",
   "iPad連携",
+  "DIY",
 ] as const;
 
-// 環境タグ→英語スラッグのマッピング
+// --- 排他グループ一覧（バリデーション用） ---
+export const EXCLUSIVE_TAG_GROUPS = [
+  { name: "スタイル", tags: TAG_GROUP_STYLE },
+  { name: "モニター構成", tags: TAG_GROUP_MONITOR },
+  { name: "デスク種類", tags: TAG_GROUP_DESK },
+  { name: "メインOS", tags: TAG_GROUP_OS },
+] as const;
+
+// --- 全タグ一覧（フラット） ---
+
+/** 旧 STYLE_TAGS 互換 — スタイルグループのみ */
+export const STYLE_TAGS = TAG_GROUP_STYLE;
+
+/** 旧 ENVIRONMENT_TAGS 互換 — モニター・デスク・OS・特徴を結合 */
+export const ENVIRONMENT_TAGS = [
+  ...TAG_GROUP_MONITOR,
+  ...TAG_GROUP_DESK,
+  ...TAG_GROUP_OS,
+  ...TAG_GROUP_FEATURES,
+] as const;
+
+/** 全タグ（全グループ結合） */
+export const DESK_SETUP_TAGS = [
+  ...TAG_GROUP_STYLE,
+  ...TAG_GROUP_MONITOR,
+  ...TAG_GROUP_DESK,
+  ...TAG_GROUP_OS,
+  ...TAG_GROUP_FEATURES,
+] as const;
+
+// --- スラッグマッピング ---
+
+const STYLE_SLUG_MAP: Record<string, string> = {
+  "ミニマリスト": "minimalist",
+  "ゲーミング": "gaming",
+  "ナチュラル・北欧": "natural-nordic",
+  "インダストリアル": "industrial",
+  "かわいい": "cute",
+  "モノトーン": "monotone",
+  "ホワイト": "white",
+  "ブラック": "black",
+};
+
 const ENVIRONMENT_SLUG_MAP: Record<string, string> = {
-  "リモートワーク": "remote-work",
-  "オフィス": "office",
-  "昇降デスク": "standing-desk",
-  "L字デスク": "l-shaped-desk",
+  "シングルモニター": "single-monitor",
   "デュアルモニター": "dual-monitor",
   "トリプルモニター": "triple-monitor",
   "ウルトラワイド": "ultrawide",
+  "通常デスク": "standard-desk",
+  "昇降デスク": "standing-desk",
+  "L字デスク": "l-shaped-desk",
   "Mac": "mac",
   "Windows": "windows",
+  "Linux": "linux",
+  "リモートワーク": "remote-work",
   "配線整理": "cable-management",
   "クラムシェル": "clamshell",
   "自作PC": "custom-pc",
   "iPad連携": "ipad",
+  "DIY": "diy",
 };
 
 // 環境スラッグ変換関数
@@ -296,11 +346,37 @@ export function environmentTagToSlug(tag: string): string {
 
 export function slugToEnvironmentTag(slug: string): string | undefined {
   const entry = Object.entries(ENVIRONMENT_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof ENVIRONMENT_TAGS[number] : undefined;
+  return entry ? entry[0] : undefined;
 }
 
-// DESK_SETUP_TAGSはSTYLE_TAGSとENVIRONMENT_TAGSを結合
-export const DESK_SETUP_TAGS = [...STYLE_TAGS, ...ENVIRONMENT_TAGS] as const;
+// --- バリデーション関数 ---
+
+/**
+ * タグ配列をバリデーションし、排他ルール違反を修正する。
+ * 各排他グループで最初に見つかったタグのみを残し、2つ目以降を除去する。
+ */
+export function validateTags(tags: string[]): string[] {
+  const validTags = tags.filter(t => (DESK_SETUP_TAGS as readonly string[]).includes(t));
+  const result: string[] = [];
+
+  for (const group of EXCLUSIVE_TAG_GROUPS) {
+    const groupTags = group.tags as readonly string[];
+    const found = validTags.filter(t => groupTags.includes(t));
+    if (found.length > 0) {
+      result.push(found[0]); // 排他: 先頭1つだけ
+    }
+  }
+
+  // 特徴グループ（複数可）はそのまま追加
+  const featureTags = TAG_GROUP_FEATURES as readonly string[];
+  for (const t of validTags) {
+    if (featureTags.includes(t)) {
+      result.push(t);
+    }
+  }
+
+  return result;
+}
 
 // 職業タグ（SEO最適化版 - 10個のみ）
 // 優先度順: 具体的な職業ほど上位、曖昧な職業ほど下位
@@ -368,12 +444,16 @@ export function slugToOccupation(slug: string): string | undefined {
 
 // スタイルタグ変換関数
 export function styleTagToSlug(tag: string): string {
-  return STYLE_SLUG_MAP[tag] || tag.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
+  // スタイルとエンvironメント両方のマップから検索
+  return STYLE_SLUG_MAP[tag] || ENVIRONMENT_SLUG_MAP[tag] || tag.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
 }
 
 export function slugToStyleTag(slug: string): string | undefined {
-  const entry = Object.entries(STYLE_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof STYLE_TAGS[number] : undefined;
+  // スタイルとエンvironメント両方のマップから検索
+  const styleEntry = Object.entries(STYLE_SLUG_MAP).find(([, s]) => s === slug);
+  if (styleEntry) return styleEntry[0];
+  const envEntry = Object.entries(ENVIRONMENT_SLUG_MAP).find(([, s]) => s === slug);
+  return envEntry ? envEntry[0] : undefined;
 }
 
 // ブランドタグ（TOPページに表示する人気ブランド）
@@ -451,6 +531,7 @@ export function inferBrandFromSlug(slug: string): string {
 // カテゴリ間の相性マップ（表示名ベース）
 export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
   "ディスプレイ・モニター": ["モニターアーム", "デスクシェルフ・モニター台", "デスク", "照明・ライト", "ウェブカメラ", "PCスタンド・ノートPCスタンド"],
+  "モバイルモニター": ["PCスタンド・ノートPCスタンド", "タブレット", "充電器・電源タップ", "USBハブ"],
   "モニターアーム": ["ディスプレイ・モニター", "デスク"],
   "マイクアーム": ["マイク", "デスク", "オーディオインターフェース"],
   "キーボード": ["マウス", "デスクマット", "PCスタンド・ノートPCスタンド", "左手デバイス"],
