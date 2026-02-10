@@ -17,6 +17,7 @@ import {
   toAmazonField,
   type MatchedProduct,
 } from "@/lib/product-matching";
+import { checkExistingProducts } from "@/lib/supabase/queries-common";
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,22 +74,13 @@ export async function POST(request: NextRequest) {
       console.log("Warning: Article may not be desk tour related");
     }
 
-    // 4. 記事内のEC系リンクからASINを抽出（並行実行）
+    // 4. 記事内のEC系リンクからASINを抽出
     console.log("Extracting product links from article...");
     const productLinksText = articleInfo.productLinks.join("\n");
-    const articleLinksPromise = extractProductsFromDescription(productLinksText);
-
-    // 5. Gemini APIで解析
-    console.log("Analyzing article with Gemini...");
-    const analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title);
-    console.log(`Found ${analysisResult.products.length} products`);
-    console.log(`Author occupation: ${analysisResult.influencerOccupation}`);
-
-    // 記事内リンク抽出の結果を待機
-    const articleLinks = await articleLinksPromise;
+    const articleLinks = await extractProductsFromDescription(productLinksText);
     console.log(`Found ${articleLinks.length} product links in article`);
 
-    // 6. 記事内のASINから商品情報を一括取得（API効率化）
+    // 5. 記事内のASINから商品情報を一括取得（Geminiへのヒント用 + マッチング用）
     const asinsFromArticle = articleLinks
       .filter((link): link is ExtractedProduct & { asin: string } => !!link.asin)
       .map(link => link.asin);
@@ -98,6 +90,23 @@ export async function POST(request: NextRequest) {
       console.log(`Fetching ${asinsFromArticle.length} products by ASIN...`);
       asinProductMap = await getProductsByAsins(asinsFromArticle);
     }
+
+    // 6. Amazon商品タイトルリストをGeminiへのヒントとして作成
+    const productHints: string[] = [];
+    for (const [, productInfo] of asinProductMap) {
+      if (productInfo?.title) {
+        productHints.push(productInfo.title);
+      }
+    }
+    if (productHints.length > 0) {
+      console.log(`Providing ${productHints.length} product hints to Gemini`);
+    }
+
+    // 7. Gemini APIで解析（商品ヒント付き）
+    console.log("Analyzing article with Gemini...");
+    const analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title, "desktour", productHints);
+    console.log(`Found ${analysisResult.products.length} products`);
+    console.log(`Author occupation: ${analysisResult.influencerOccupation}`);
 
     // 7. 商品のAmazon/楽天マッチング（プレビュー・保存共通）
     console.log("Matching products with Amazon/Rakuten...");
@@ -178,6 +187,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 既存商品チェック（プレビュー用）
+    const existingMap = await checkExistingProducts(
+      matchedProducts.map(p => p.name),
+      "products"
+    );
+    const productsWithExisting = matchedProducts.map(p => ({
+      ...p,
+      isExisting: !!existingMap[p.name],
+    }));
+
     return NextResponse.json({
       success: true,
       articleInfo: {
@@ -195,7 +214,7 @@ export async function POST(request: NextRequest) {
       analysis: {
         ...analysisResult,
         // プレビュー用にマッチング済み商品情報を含める
-        products: matchedProducts,
+        products: productsWithExisting,
       },
       isRelevant,
       savedToDb: saveToDb,

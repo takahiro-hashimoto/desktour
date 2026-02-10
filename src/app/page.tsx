@@ -28,13 +28,14 @@ export default function TopPage() {
           </div>
           <h2 className="top-landing__title">撮影機材DB</h2>
           <p className="top-landing__desc">
-            映像クリエイターの撮影機材を
+            愛用撮影機材の紹介動画・記事から
             <br />
-            データベース化。準備中です。
+            本当に使われている機材をデータで探す。
           </p>
-          <span className="top-landing__link top-landing__link--disabled">
-            <span>準備中</span>
-          </span>
+          <Link href="/camera" className="top-landing__link">
+            <span>撮影機材DBを見る</span>
+            <i className="fa-solid fa-arrow-right"></i>
+          </Link>
         </div>
       </div>
     </div>

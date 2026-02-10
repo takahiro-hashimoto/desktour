@@ -18,9 +18,10 @@ interface ProductReviewsProps {
   productName: string;
   productId: string;
   sectionNumber: number;
+  domain?: "desktour" | "camera";
 }
 
-export function ProductReviews({ comments, productName, productId, sectionNumber }: ProductReviewsProps) {
+export function ProductReviews({ comments, productName, productId, sectionNumber, domain = "desktour" }: ProductReviewsProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSource, setModalSource] = useState<{
     type: "video" | "article";
@@ -82,6 +83,7 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
           sourceType={modalSource.type}
           sourceId={modalSource.id}
           targetProductId={productId}
+          domain={domain}
         />
       )}
     </>

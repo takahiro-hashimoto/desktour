@@ -1,0 +1,151 @@
+import { unstable_cache } from "next/cache";
+import {
+  getCameraSiteStats,
+  getCameraProductCountByCategory,
+  getCameraOccupationTagCounts,
+  getCameraSetupTagCounts,
+  getCameraTopBrandsByProductCount,
+  getCameraLatestVideos,
+} from "@/lib/supabase/queries-camera";
+import {
+  CAMERA_PRODUCT_CATEGORIES,
+  CAMERA_OCCUPATION_TAGS,
+  cameraCategoryToSlug,
+  cameraOccupationToSlug,
+  cameraBrandToSlug,
+} from "@/lib/camera/constants";
+import { Metadata } from "next";
+import { CameraHeroSection } from "@/components/camera-home/HeroSection";
+import { CameraCategoryGridSection } from "@/components/camera-home/CategoryGridSection";
+import { CameraExploreSection } from "@/components/camera-home/ExploreSection";
+import { CameraFeaturedSection } from "@/components/camera-home/FeaturedSection";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { stats } = await getCachedHomeData();
+  const totalSources = stats.total_videos + stats.total_articles;
+
+  const title = `撮影機材紹介で使われている撮影機材データベース【${stats.total_products}件】`;
+  const description = `${totalSources}件の撮影機材紹介動画・記事から収集した${stats.total_products}件の商品データベース。職業・ブランド別に、実際に使われている撮影機材を探せます。`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: "/camera" },
+    openGraph: { title, description, url: "/camera" },
+  };
+}
+
+// ホームページのデータを5分間キャッシュ
+const getCachedHomeData = unstable_cache(
+  async () => {
+    const [stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos] = await Promise.all([
+      getCameraSiteStats(),
+      getCameraProductCountByCategory(),
+      getCameraOccupationTagCounts(),
+      getCameraSetupTagCounts(),
+      getCameraTopBrandsByProductCount(10),
+      getCameraLatestVideos(3),
+    ]);
+    return { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos };
+  },
+  ["camera-home-page-data"],
+  { revalidate: 300 }
+);
+
+// カテゴリアイコンマッピング（Font Awesome）
+const CATEGORY_ICONS: Record<string, string> = {
+  "カメラ本体": "fa-solid fa-camera",
+  "レンズ": "fa-solid fa-circle-dot",
+  "三脚": "fa-solid fa-maximize",
+  "ジンバル": "fa-solid fa-rotate",
+  "マイク・音声": "fa-solid fa-microphone",
+  "照明": "fa-solid fa-lightbulb",
+  "ストレージ": "fa-solid fa-sd-card",
+  "カメラ装着アクセサリー": "fa-solid fa-screwdriver-wrench",
+  "バッグ・収納": "fa-solid fa-bag-shopping",
+  "ドローンカメラ": "fa-solid fa-helicopter",
+};
+
+export default async function CameraPage() {
+  const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos } = await getCachedHomeData();
+
+  // トップページに表示するカテゴリ（収録・制御機器を除く）
+  const EXCLUDED_TOP_CATEGORIES = ["収録・制御機器"];
+  const mainCategories = [...CAMERA_PRODUCT_CATEGORIES]
+    .filter(cat => !EXCLUDED_TOP_CATEGORIES.includes(cat))
+    .map(cat => ({
+      name: cat,
+      count: categoryCounts[cat] || 0,
+      icon: CATEGORY_ICONS[cat] || "fa-solid fa-box",
+    }));
+
+  // 職業別データ
+  const occupations = CAMERA_OCCUPATION_TAGS
+    .map(label => ({
+      name: label,
+      count: occupationCounts[label] || 0,
+      href: `/camera/occupation/${cameraOccupationToSlug(label)}`,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // ブランド別データ
+  const brands = topBrands.map(item => ({
+    name: item.brand,
+    count: item.count,
+    href: `/camera/brand/${item.slug}`,
+  }));
+
+  // 注目の撮影機材紹介（実際のデータを使用）
+  const featured = latestVideos.map((video, index) => {
+    const occupationTags = (video as any).occupation_tags || [];
+    const styleTags = video.tags || [];
+    const allTags = [...occupationTags.slice(0, 1), ...styleTags.slice(0, 1)];
+
+    return {
+      id: video.video_id,
+      title: video.title,
+      description: video.summary || "",
+      tags: allTags,
+      badge: index === 0 ? "New" : undefined,
+      href: `/camera/sources#video-${video.video_id}`,
+      thumbnail_url: video.thumbnail_url,
+      product_count: (video as any).product_count || 0,
+    };
+  });
+
+  // 構造化データ
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "撮影機材DB",
+    "description": "撮影機材紹介動画・記事から本当に選ばれている撮影機材をデータ分析。職業・ブランド別に人気商品を探せるデータベース。",
+    "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera`,
+    "mainEntity": {
+      "@type": "ItemList",
+      "name": "撮影機材 カテゴリー一覧",
+      "description": `${stats.total_videos + stats.total_articles}件以上の撮影機材紹介から収集した人気撮影機材`,
+      "numberOfItems": mainCategories.length,
+      "itemListElement": mainCategories.map((cat, index) => ({
+        "@type": "ListItem",
+        "position": index + 1,
+        "name": cat.name,
+        "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera/category/${cameraCategoryToSlug(cat.name)}`,
+      })),
+    },
+  };
+
+  return (
+    <div className="home-page">
+      {/* 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
+      <CameraHeroSection stats={stats} />
+      <CameraCategoryGridSection mainCategories={mainCategories} />
+      <CameraExploreSection occupations={occupations} brands={brands} />
+      <CameraFeaturedSection items={featured} />
+    </div>
+  );
+}

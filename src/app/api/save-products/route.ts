@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
     for (const product of selectedProducts) {
       console.log(`Processing product: ${product.name} (brand: ${product.brand})`);
 
-      const savedProduct = await saveProduct({
+      const saveResult = await saveProduct({
         name: product.name,
         brand: product.brand || undefined,
         category: product.category,
@@ -203,6 +203,7 @@ export async function POST(request: NextRequest) {
         video_id: sourceType === "video" ? videoInfo?.videoId : undefined,
         source_type: sourceType,
       });
+      const savedProduct = saveResult.product;
 
       if (savedProduct && !savedProduct.asin) {
         if (product.confidence === "high" || product.confidence === "medium") {

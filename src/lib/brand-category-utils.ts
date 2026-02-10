@@ -85,6 +85,38 @@ export function getBrandAliases(brand: string): string[] {
   return [lowerBrand, ...aliases.map(a => a.toLowerCase())];
 }
 
+/**
+ * ブランド名を正規化する（同期版・定数リストのみ）
+ * 定義済みブランドタグと大文字小文字無視でマッチし、正規表記に変換する。
+ * エイリアス（日本語名等）からの解決もサポート。
+ * マッチしない場合は元の値をそのまま返す。
+ */
+export function normalizeBrandByList(
+  brand: string,
+  knownBrands: readonly string[]
+): string {
+  if (!brand) return brand;
+  const trimmed = brand.trim();
+
+  // 1. 大文字小文字無視で定義済みブランドと完全一致
+  const exactMatch = knownBrands.find(
+    (b) => b.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (exactMatch) return exactMatch;
+
+  // 2. エイリアス経由で解決（例: "ソニー" → "Sony"）
+  const aliases = getBrandAliases(trimmed);
+  for (const alias of aliases) {
+    const aliasMatch = knownBrands.find(
+      (b) => b.toLowerCase() === alias
+    );
+    if (aliasMatch) return aliasMatch;
+  }
+
+  // 3. マッチしなければ元の値を返す
+  return trimmed;
+}
+
 // ========================================
 // カテゴリキーワード（致命的な誤マッチを防止）
 // ========================================

@@ -28,6 +28,7 @@ interface Product {
   source?: "amazon" | "rakuten";
   matchScore?: number;
   matchReason?: string;
+  isExisting?: boolean;
 }
 
 interface SuggestedVideo {
@@ -770,7 +771,7 @@ export default function AdminPage() {
   );
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8">
+    <main className="max-w-[1080px] mx-auto px-4 py-8">
       <header className="mb-8">
         <div className="flex items-center justify-between">
           <div>
@@ -940,7 +941,12 @@ export default function AdminPage() {
           {/* 要約 */}
           <div className="mb-4">
             <h3 className="text-sm font-medium text-gray-600 mb-1">要約</h3>
-            <p className="text-gray-700">{previewResult.summary}</p>
+            <textarea
+              value={previewResult.summary}
+              onChange={(e) => setPreviewResult({ ...previewResult, summary: e.target.value })}
+              rows={4}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+            />
           </div>
 
           {/* 職業タグ編集 */}
@@ -1151,6 +1157,11 @@ export default function AdminPage() {
                       />
                       <span className="font-semibold text-gray-900 truncate">{product.name}</span>
                       {product.brand && <span className="text-xs text-gray-400 flex-shrink-0">{product.brand}</span>}
+                      {product.isExisting && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 font-medium flex-shrink-0">
+                          既存商品
+                        </span>
+                      )}
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ml-auto ${confidenceColors[product.confidence]}`}
                       >

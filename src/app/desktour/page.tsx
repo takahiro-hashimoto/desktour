@@ -153,7 +153,7 @@ export default async function DesktourPage() {
       description: video.summary || "",
       tags: allTags,
       badge: index === 0 ? "New" : undefined,
-      href: `/sources#video-${video.video_id}`,
+      href: `/desktour/sources#video-${video.video_id}`,
       thumbnail_url: video.thumbnail_url,
       product_count: (video as any).product_count || 0,
     };

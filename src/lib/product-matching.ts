@@ -8,6 +8,9 @@ export interface MatchedProduct {
   name: string;
   brand?: string;
   category: string;
+  subcategory?: string;
+  lensTags?: string[];
+  bodyTags?: string[];
   tags?: string[];
   reason: string;
   confidence: "high" | "medium" | "low";
@@ -21,6 +24,7 @@ export interface MatchedProduct {
   source?: "amazon" | "rakuten";
   matchScore?: number;
   matchReason?: string;
+  isExisting?: boolean;
 }
 
 // 候補リスト（ASIN → ProductInfo）
@@ -109,6 +113,8 @@ export async function matchProductWithAmazon(opts: {
       title: amazonInfo.title,
       features: amazonInfo.features,
       technicalInfo: amazonInfo.technicalInfo,
+      amazonCategories: amazonInfo.amazonCategories,
+      brand: amazonInfo.brand,
     });
     if (productTags.length === 0) {
       productTags = undefined;

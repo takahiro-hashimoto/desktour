@@ -71,7 +71,10 @@ export interface ProductDetail {
   name: string;
   brand?: string;
   category: string;
+  subcategory?: string;
   tags?: string[]; // 種類タグ + 特徴タグ
+  lens_tags?: string[]; // レンズタグ（カメラドメイン用）
+  body_tags?: string[]; // ボディタグ（カメラドメイン用）
   price_range?: string;
   amazon_url?: string;
   amazon_image_url?: string;
@@ -141,6 +144,8 @@ export interface SearchParams {
   occupationTag?: string;
   category?: string;
   typeTag?: string;
+  lensTag?: string;
+  bodyTag?: string;
   setupTag?: string;
   brand?: string;
   priceRange?: string;

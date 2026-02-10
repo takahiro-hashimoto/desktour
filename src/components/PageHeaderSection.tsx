@@ -15,7 +15,13 @@ interface PageHeaderSectionProps {
   breadcrumbCurrent: string;
   breadcrumbMiddle?: BreadcrumbItem; // 中間パンくずリスト用（オプション）
   icon?: string; // Font Awesome icon class (例: "fa-keyboard")
+  domain?: "desktour" | "camera";
 }
+
+const DOMAIN_BREADCRUMB = {
+  desktour: { label: "PCデスク環境", href: "/desktour" },
+  camera: { label: "撮影機材", href: "/camera" },
+} as const;
 
 export function PageHeaderSection({
   label,
@@ -24,7 +30,10 @@ export function PageHeaderSection({
   breadcrumbCurrent,
   breadcrumbMiddle,
   icon = "fa-cube",
+  domain = "desktour",
 }: PageHeaderSectionProps) {
+  const domainBreadcrumb = DOMAIN_BREADCRUMB[domain];
+
   return (
     <div className="listing-page-header">
       <div className="listing-container">
@@ -33,7 +42,7 @@ export function PageHeaderSection({
           <span className="sep">
             <i className="fa-solid fa-chevron-right"></i>
           </span>
-          <Link href="/desktour">PCデスク環境</Link>
+          <Link href={domainBreadcrumb.href}>{domainBreadcrumb.label}</Link>
           <span className="sep">
             <i className="fa-solid fa-chevron-right"></i>
           </span>

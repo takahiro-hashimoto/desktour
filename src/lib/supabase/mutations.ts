@@ -3,6 +3,8 @@ import type { Video, Article, Product, ProductMention, Influencer } from "./type
 import { normalizeProductName } from "../product-normalize";
 import { generateProductSlug } from "../productSlug";
 import { extractProductTags } from "../productTags";
+import { normalizeBrand } from "./queries-common";
+import { BRAND_TAGS } from "../constants";
 
 // 動画が既に解析済みかチェック
 export async function isVideoAnalyzed(videoId: string): Promise<boolean> {
@@ -81,7 +83,22 @@ export async function saveVideo(video: Video): Promise<{ data: Video | null; isN
 }
 
 // 商品を保存（正規化名で重複チェック - 色違い・サイズ違いを統合）
-export async function saveProduct(product: Omit<Product, "id">): Promise<Product | null> {
+export interface SaveProductResult<T> {
+  product: T | null;
+  isExisting: boolean;
+}
+
+export async function saveProduct(product: Omit<Product, "id">): Promise<SaveProductResult<Product>> {
+  // ブランド名を正規化
+  if (product.brand) {
+    const originalBrand = product.brand;
+    const normalized = await normalizeBrand(product.brand, "products", BRAND_TAGS);
+    if (originalBrand !== normalized) {
+      console.log(`[saveProduct] Brand normalized: "${originalBrand}" → "${normalized}"`);
+      product = { ...product, brand: normalized };
+    }
+  }
+
   // 正規化名を生成（色・サイズ表記を除去）
   const normalizedName = normalizeProductName(product.name);
   console.log(`[saveProduct] Original: "${product.name}" → Normalized: "${normalizedName}"`);
@@ -102,6 +119,30 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
   }
 
   if (existing) {
+    // 既存商品のフィールドをアップデート（変更があるもののみ）
+    const updateData: Record<string, unknown> = {};
+
+    if (product.brand !== undefined && product.brand !== existing.brand) {
+      updateData.brand = product.brand;
+    }
+    if (product.category && product.category !== existing.category) {
+      updateData.category = product.category;
+    }
+    if (product.tags && product.tags.length > 0) {
+      updateData.tags = product.tags;
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      console.log(`[saveProduct] Updating existing "${existing.name}":`, Object.keys(updateData));
+      const { data: updated, error } = await supabase
+        .from("products")
+        .update(updateData)
+        .eq("id", existing.id)
+        .select()
+        .single();
+      if (!error && updated) existing = updated;
+    }
+
     // 既存の商品に新しいソースからの言及を追加
     await saveMention({
       product_id: existing.id,
@@ -111,7 +152,7 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
       reason: product.reason,
       confidence: product.confidence,
     });
-    return existing as Product;
+    return { product: existing as Product, isExisting: true };
   }
 
   // 新規商品を保存（正規化名とslugも一緒に保存）
@@ -135,7 +176,7 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
 
   if (error) {
     console.error("Error saving product:", error);
-    return null;
+    return { product: null, isExisting: false };
   }
 
   // 言及も保存
@@ -149,7 +190,7 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<Product
   });
 
   console.log(`[saveProduct] Created new product: "${data.name}" (normalized: "${normalizedName}", slug: "${slug}")`);
-  return data as Product;
+  return { product: data as Product, isExisting: false };
 }
 
 // 言及を保存
@@ -301,6 +342,8 @@ export async function updateProductWithAmazon(
       title: productInfo.amazon_title,
       features: productInfo.amazon_features,
       technicalInfo: productInfo.amazon_technical_info,
+      amazonCategories: productInfo.amazon_categories,
+      brand: productInfo.amazon_brand,
     });
   }
 

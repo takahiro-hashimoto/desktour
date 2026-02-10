@@ -7,9 +7,10 @@ import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
 interface ProductGridProps {
   products: DisplayProduct[];
+  domain?: "desktour" | "camera";
 }
 
-export function ProductGrid({ products }: ProductGridProps) {
+export function ProductGrid({ products, domain = "desktour" }: ProductGridProps) {
   const gridRef = useRevealOnScroll<HTMLDivElement>();
 
   const getRankBadgeClass = (rank?: number) => {
@@ -70,7 +71,7 @@ export function ProductGrid({ products }: ProductGridProps) {
               </div>
             )}
             {product.slug && (
-              <Link href={`/desktour/product/${product.slug}`} className="detail-product-cta">
+              <Link href={`/${domain}/product/${product.slug}`} className="detail-product-cta">
                 詳細を見る <i className="fa-solid fa-arrow-right"></i>
               </Link>
             )}

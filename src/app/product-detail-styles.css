@@ -689,6 +689,16 @@
   font-weight: 500;
 }
 
+.specs-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.specs-link:hover {
+  text-decoration: underline;
+}
+
 
 /* ===== PURCHASE SECTION ===== */
 .purchase-section {

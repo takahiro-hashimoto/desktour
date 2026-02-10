@@ -45,7 +45,7 @@ export async function saveMatchedProducts(
       `[SaveProduct] ${product.name} | tags: ${product.tags?.join(", ") || "none"}`
     );
 
-    const savedProduct = await saveProduct({
+    const result = await saveProduct({
       name: product.name,
       brand: product.brand || undefined,
       category: product.category,
@@ -55,6 +55,7 @@ export async function saveMatchedProducts(
       article_id: sourceRef.article_id,
       source_type: sourceRef.source_type,
     });
+    const savedProduct = result.product;
 
     if (savedProduct && !savedProduct.asin && product.amazon) {
       const priceRange = getPriceRange(product.amazon.price);

@@ -14,6 +14,8 @@ interface ProductInfo {
   title?: string;
   features?: string[];
   technicalInfo?: Record<string, string>;
+  amazonCategories?: string[];
+  brand?: string;
 }
 
 /**
@@ -179,5 +181,88 @@ export function extractProductTags(data: ProductInfo): string[] {
     }
   }
 
+  // Amazonカテゴリ階層からの補強タグ検出
+  if (data.amazonCategories && data.amazonCategories.length > 0) {
+    const categoryText = data.amazonCategories.join(" ").toLowerCase();
+
+    // カテゴリ階層から用途・特徴タグを補強
+    if (categoryText.includes("gaming") || categoryText.includes("ゲーミング")) {
+      tags.add("ゲーミング");
+    }
+    if (categoryText.includes("wireless") || categoryText.includes("ワイヤレス")) {
+      tags.add("ワイヤレス");
+    }
+    if (categoryText.includes("bluetooth")) {
+      tags.add("ワイヤレス");
+    }
+    if (categoryText.includes("usb") && categoryText.includes("type-c")) {
+      if (category === "ディスプレイ・モニター") {
+        tags.add("USB-C");
+      }
+    }
+
+    // サブカテゴリが未検出の場合、amazonCategoriesからフォールバック推定
+    if (!typeTag) {
+      const fallbackType = inferSubcategoryFromAmazonCategories(category, categoryText);
+      if (fallbackType) {
+        tags.add(fallbackType);
+      }
+    }
+  }
+
   return Array.from(tags);
+}
+
+/**
+ * Amazonカテゴリ階層からサブカテゴリを推定（inferSubcategoryのフォールバック）
+ */
+function inferSubcategoryFromAmazonCategories(category: string, categoryText: string): string | null {
+  // カテゴリ別のAmazonカテゴリ→サブカテゴリのマッピング
+  const amazonCategoryRules: Record<string, Array<{ result: string; keywords: string[] }>> = {
+    "キーボード": [
+      { result: "メカニカルキーボード", keywords: ["メカニカル", "mechanical"] },
+      { result: "テンキーレス", keywords: ["テンキーレス", "tenkeyless"] },
+    ],
+    "マウス": [
+      { result: "トラックボール", keywords: ["トラックボール", "trackball"] },
+      { result: "ゲーミングマウス", keywords: ["ゲーミングマウス", "gaming mouse"] },
+      { result: "エルゴノミクスマウス", keywords: ["エルゴノミクス", "ergonomic"] },
+    ],
+    "ディスプレイ・モニター": [
+      { result: "4Kモニター", keywords: ["4k"] },
+      { result: "ウルトラワイドモニター", keywords: ["ウルトラワイド", "ultrawide"] },
+      { result: "ゲーミングモニター", keywords: ["ゲーミングモニター", "gaming monitor"] },
+    ],
+    "ヘッドホン・イヤホン": [
+      { result: "ワイヤレスイヤホン", keywords: ["完全ワイヤレス", "true wireless"] },
+      { result: "ゲーミングヘッドセット", keywords: ["ゲーミングヘッドセット", "gaming headset"] },
+    ],
+    "チェア": [
+      { result: "ゲーミングチェア", keywords: ["ゲーミングチェア", "gaming chair"] },
+      { result: "オフィスチェア", keywords: ["オフィスチェア", "office chair"] },
+    ],
+    "デスク": [
+      { result: "昇降デスク", keywords: ["昇降", "standing", "height adjustable"] },
+    ],
+    "マイク": [
+      { result: "コンデンサーマイク", keywords: ["コンデンサー", "condenser"] },
+      { result: "ダイナミックマイク", keywords: ["ダイナミック", "dynamic"] },
+      { result: "USBマイク", keywords: ["usb"] },
+    ],
+    "スピーカー": [
+      { result: "Bluetoothスピーカー", keywords: ["bluetooth"] },
+      { result: "サウンドバー", keywords: ["サウンドバー", "soundbar"] },
+    ],
+  };
+
+  const rules = amazonCategoryRules[category];
+  if (!rules) return null;
+
+  for (const rule of rules) {
+    if (rule.keywords.some(kw => categoryText.includes(kw.toLowerCase()))) {
+      return rule.result;
+    }
+  }
+
+  return null;
 }

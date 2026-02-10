@@ -22,6 +22,7 @@ import {
   toAmazonField,
   type MatchedProduct,
 } from "@/lib/product-matching";
+import { checkExistingProducts } from "@/lib/supabase/queries-common";
 
 export async function POST(request: NextRequest) {
   try {
@@ -264,13 +265,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 既存商品チェック（プレビュー用）
+    const existingMap = await checkExistingProducts(
+      matchedProducts.map(p => p.name),
+      "products"
+    );
+    const productsWithExisting = matchedProducts.map(p => ({
+      ...p,
+      isExisting: !!existingMap[p.name],
+    }));
+
     return NextResponse.json({
       success: true,
       videoInfo,
       analysis: {
         ...analysisResult,
         // プレビュー用にマッチング済み商品情報を含める
-        products: matchedProducts,
+        products: productsWithExisting,
       },
       transcriptLength: transcript.length,
       savedToDb: saveToDb,

@@ -128,8 +128,8 @@ export async function getTranscript(videoId: string): Promise<string | null> {
   console.log(`[Transcript] Fetching transcript for ${videoId}...`);
 
   try {
-    // youtube-transcript ライブラリで字幕取得（Supadata API の代替）
-    const { YoutubeTranscript } = await import("youtube-transcript");
+    // youtube-transcript ライブラリで字幕取得（@danielxceron fork版 - オリジナルは2024年以降動作不能）
+    const { YoutubeTranscript } = await import("@danielxceron/youtube-transcript");
 
     let segments;
     try {

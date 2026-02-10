@@ -2,38 +2,71 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
+
+// ナビゲーション設定
+const DESKTOUR_NAV = {
+  logo: "デスクツアーDB",
+  logoHref: "/desktour",
+  desktop: [
+    { href: "/desktour/sources", label: "デスクツアー" },
+    { href: "/desktour/category", label: "デスク周りのガジェット" },
+    { href: "/desktour/occupation", label: "職業別" },
+    { href: "/desktour/style", label: "スタイル別" },
+    { href: "/desktour/brand", label: "ブランド別" },
+  ],
+  mobile: [
+    { href: "/desktour/sources", label: "デスクツアー", icon: "fa-solid fa-video" },
+    { href: "/desktour/category", label: "デスク周りのガジェット", icon: "fa-solid fa-layer-group" },
+    { href: "/desktour/occupation", label: "職業別", icon: "fa-solid fa-briefcase" },
+    { href: "/desktour/style", label: "スタイル別", icon: "fa-solid fa-palette" },
+    { href: "/desktour/brand", label: "ブランド別", icon: "fa-solid fa-star" },
+  ],
+};
+
+const CAMERA_NAV = {
+  logo: "撮影機材DB",
+  logoHref: "/camera",
+  desktop: [
+    { href: "/camera/sources", label: "撮影機材紹介" },
+    { href: "/camera/category", label: "機材カテゴリ" },
+    { href: "/camera/occupation", label: "職業別" },
+    { href: "/camera/brand", label: "ブランド別" },
+  ],
+  mobile: [
+    { href: "/camera/sources", label: "撮影機材紹介", icon: "fa-solid fa-video" },
+    { href: "/camera/category", label: "機材カテゴリ", icon: "fa-solid fa-camera" },
+    { href: "/camera/occupation", label: "職業別", icon: "fa-solid fa-briefcase" },
+    { href: "/camera/brand", label: "ブランド別", icon: "fa-solid fa-star" },
+  ],
+};
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // パスに応じてナビゲーションを切り替え（/admin/camera も含む）
+  const isCamera = pathname.startsWith("/camera") || pathname.startsWith("/admin/camera");
+  const nav = isCamera ? CAMERA_NAV : DESKTOUR_NAV;
 
   return (
     <header className="header-container">
       <div className="header-inner">
-        <Link href="/" className="header-logo">
-          デスクツアーDB
+        <Link href={nav.logoHref} className="header-logo">
+          {nav.logo}
         </Link>
 
         {/* Desktop Nav */}
         <nav className="header-nav-desktop">
-          <Link href="/desktour/sources" className="header-nav-link">
-            デスクツアー
-          </Link>
-          <Link href="/desktour/category" className="header-nav-link">
-            デスク周りのガジェット
-          </Link>
-          <Link href="/desktour/occupation" className="header-nav-link">
-            職業別
-          </Link>
-          <Link href="/desktour/style" className="header-nav-link">
-            スタイル別
-          </Link>
-          <Link href="/desktour/brand" className="header-nav-link">
-            ブランド別
-          </Link>
+          {nav.desktop.map((link) => (
+            <Link key={link.href} href={link.href} className="header-nav-link">
+              {link.label}
+            </Link>
+          ))}
           <Link href="/contact" className="header-nav-link">
             お問い合わせ
           </Link>
-          <Link href="/admin" className="header-nav-link header-nav-link-admin">
+          <Link href={isCamera ? "/admin/camera" : "/admin"} className="header-nav-link header-nav-link-admin">
             管理
           </Link>
         </nav>
@@ -55,46 +88,17 @@ export function Header() {
         <>
           <div className="header-overlay" onClick={() => setMenuOpen(false)}></div>
           <nav className="header-nav-mobile">
-            <Link
-              href="/desktour/sources"
-              className="header-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-video"></i>
-              デスクツアー
-            </Link>
-            <Link
-              href="/desktour/category"
-              className="header-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-layer-group"></i>
-              デスク周りのガジェット
-            </Link>
-            <Link
-              href="/desktour/occupation"
-              className="header-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-briefcase"></i>
-              職業別
-            </Link>
-            <Link
-              href="/desktour/style"
-              className="header-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-palette"></i>
-              スタイル別
-            </Link>
-            <Link
-              href="/desktour/brand"
-              className="header-nav-mobile-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-star"></i>
-              ブランド別
-            </Link>
+            {nav.mobile.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="header-nav-mobile-link"
+                onClick={() => setMenuOpen(false)}
+              >
+                <i className={link.icon}></i>
+                {link.label}
+              </Link>
+            ))}
             <Link
               href="/contact"
               className="header-nav-mobile-link"
@@ -104,7 +108,7 @@ export function Header() {
               お問い合わせ
             </Link>
             <Link
-              href="/admin"
+              href={isCamera ? "/admin/camera" : "/admin"}
               className="header-nav-mobile-link header-nav-mobile-link-admin"
               onClick={() => setMenuOpen(false)}
             >

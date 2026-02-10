@@ -13,6 +13,7 @@ interface SourceModalProps {
   sourceType: "video" | "article";
   sourceId: string;
   targetProductId?: string; // クリックされた商品のID
+  domain?: "desktour" | "camera"; // ドメイン（デフォルト: desktour）
 }
 
 export function SourceModal({
@@ -21,6 +22,7 @@ export function SourceModal({
   sourceType,
   sourceId,
   targetProductId,
+  domain = "desktour",
 }: SourceModalProps) {
   const [source, setSource] = useState<SourceDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,8 @@ export function SourceModal({
         type: sourceType,
         id: sourceId,
       });
-      fetch(`/api/source?${params.toString()}`)
+      const apiBase = domain === "camera" ? "/api/camera/source" : "/api/source";
+      fetch(`${apiBase}?${params.toString()}`)
         .then((res) => {
           if (!res.ok) throw new Error("Failed to fetch");
           return res.json();
@@ -168,9 +171,11 @@ export function SourceModal({
               {source.summary && (
                 <div>
                   <h4 className="font-medium text-gray-900 mb-2">内容サマリー</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                    {source.summary}
-                  </p>
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded space-y-2">
+                    {source.summary.split(/(?<=。)\s+/).map((paragraph, i) => (
+                      <p key={i}>{paragraph}</p>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -266,7 +271,7 @@ export function SourceModal({
                             return (
                               <div className="flex items-center gap-4 mt-3">
                                 <Link
-                                  href={`/desktour/product/${product.slug || product.id}`}
+                                  href={`/${domain}/product/${product.slug || product.id}`}
                                   className="text-sm text-blue-600 hover:underline"
                                   onClick={onClose}
                                 >

@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "管理画面",
@@ -10,5 +11,20 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <>
+      <nav className="bg-gray-800 text-white px-4 py-2">
+        <div className="max-w-[1080px] mx-auto px-4 flex items-center gap-6 text-sm">
+          <span className="font-semibold">管理画面</span>
+          <Link href="/admin" className="hover:text-blue-300 transition-colors">
+            デスクツアーDB
+          </Link>
+          <Link href="/admin/camera" className="hover:text-blue-300 transition-colors">
+            撮影機材DB
+          </Link>
+        </div>
+      </nav>
+      {children}
+    </>
+  );
 }
