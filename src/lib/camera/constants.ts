@@ -16,136 +16,19 @@ export const CAMERA_PRODUCT_CATEGORIES = [
   "ドローンカメラ",
 ] as const;
 
-// サブカテゴリ定義（MECE）
-export const CAMERA_TYPE_TAGS: Record<string, string[]> = {
-  "カメラ本体": [
-    "ミラーレス一眼",
-    "一眼レフ",
-    "コンパクトデジタルカメラ",
-    "シネマカメラ",
-    "アクションカメラ",
-  ],
-  "レンズ": [
-    "単焦点レンズ",
-    "ズームレンズ",
-    "シネマレンズ",
-  ],
-  "三脚": [
-    "三脚",
-    "一脚",
-    "ミニ三脚",
-    "トラベル三脚",
-    "ビデオ三脚",
-    "雲台",
-  ],
-  "ジンバル": [
-    "カメラ用ジンバル",
-    "スマホ用ジンバル",
-    "メカニカルスタビライザー",
-  ],
-  "マイク・音声": [
-    "マイク",
-    "レコーダー",
-    "オーディオインターフェース",
-  ],
-  "照明": [
-    "定常光ライト",
-    "ストロボ",
-    "照明アクセサリー",
-  ],
-  "ストレージ": [
-    "メモリーカード",
-    "外部ストレージ",
-    "カードリーダー",
-  ],
-  "カメラ装着アクセサリー": [
-    "外部モニター",
-    "ケージ・リグ",
-    "フォローフォーカス",
-    "レンズフィルター",
-    "電子マウントアダプター",
-    "バッテリー",
-    "充電器",
-    "カメラストラップ",
-    "ハンドストラップ",
-    "その他",
-  ],
-  "収録・制御機器": [
-    "キャプチャーデバイス",
-    "外部レコーダー",
-    "制御アクセサリー",
-    "キャリブレーションツール",
-  ],
-  "バッグ・収納": [
-    "カメラバッグ",
-    "バックパック",
-    "スリングバッグ",
-    "ハードケース",
-    "インナーケース",
-  ],
-  "ドローンカメラ": [],
-};
-
-// 全サブカテゴリのフラットリスト
-export const CAMERA_ALL_TYPE_TAGS = Object.values(CAMERA_TYPE_TAGS).flat();
-
 // ========================================
-// レンズ用タグ（MECE・複数軸）
+// タグ定義は camera-tag-definitions.ts に統合済み
+// 既存コードの import を維持するための re-export
 // ========================================
 
-export const CAMERA_LENS_TAGS: Record<string, string[]> = {
-  "焦点距離": [
-    "超広角",
-    "広角",
-    "標準",
-    "中望遠",
-    "望遠",
-    "超望遠",
-  ],
-  "明るさ": [
-    "F1.2-F1.4",
-    "F1.8-F2",
-    "F2.8",
-    "F4",
-    "可変F値",
-  ],
-  "機能": [
-    "マクロ対応",
-    "等倍マクロ",
-    "手ブレ補正",
-    "防塵防滴",
-  ],
-  "規格・対応": [
-    "フルサイズ対応",
-    "APS-C専用",
-    "Eマウント",
-    "RFマウント",
-    "Zマウント",
-    "Lマウント",
-    "Xマウント",
-    "MFT",
-  ],
-};
-
-// レンズ用タグのフラットリスト
-export const CAMERA_ALL_LENS_TAGS = Object.values(CAMERA_LENS_TAGS).flat();
-
-// ========================================
-// カメラ本体用タグ（MECE）
-// ========================================
-
-export const CAMERA_BODY_TAGS: Record<string, string[]> = {
-  "撮像サイズ": [
-    "フルサイズ",
-    "APS-C",
-    "マイクロフォーサーズ",
-    "1インチ",
-    "小型センサー",
-  ],
-};
-
-// カメラ本体用タグのフラットリスト
-export const CAMERA_ALL_BODY_TAGS = Object.values(CAMERA_BODY_TAGS).flat();
+export {
+  CAMERA_TYPE_TAGS,
+  CAMERA_ALL_TYPE_TAGS,
+  CAMERA_LENS_TAGS,
+  CAMERA_ALL_LENS_TAGS,
+  CAMERA_BODY_TAGS,
+  CAMERA_ALL_BODY_TAGS,
+} from "./camera-tag-definitions";
 
 // カテゴリ→英語スラッグのマッピング
 const CAMERA_CATEGORY_SLUG_MAP: Record<string, string> = {
@@ -218,6 +101,65 @@ const CAMERA_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "ハードケース": "hard-case",
   "インナーケース": "inner-case",
 };
+
+// ========================================
+// 被写体タグ（動画・記事解析時に付与）
+// ========================================
+
+export const CAMERA_SUBJECT_TAGS = [
+  "人物",
+  "商品",
+  "風景",
+  "動物",
+  "乗り物",
+] as const;
+
+// ========================================
+// 撮影目的タグ（動画・記事解析時に付与）
+// ========================================
+
+export const CAMERA_PURPOSE_TAGS = [
+  "日常記録",
+  "移動記録",
+  "旅行記録",
+  "アウトドア記録",
+  "商品紹介・検証",
+  "配信・収録",
+] as const;
+
+// 被写体タグ→英語スラッグのマッピング
+const CAMERA_SUBJECT_SLUG_MAP: Record<string, string> = {
+  "人物": "portrait",
+  "商品": "product",
+  "風景": "landscape",
+  "動物": "animal",
+  "乗り物": "vehicle",
+};
+
+// 全カメラソースタグ（被写体 + 撮影目的を統合）
+export const CAMERA_SOURCE_TAGS = [
+  ...CAMERA_SUBJECT_TAGS,
+  ...CAMERA_PURPOSE_TAGS,
+] as const;
+
+// ========================================
+// ソースページ用ブランドフィルター
+// ========================================
+
+export const CAMERA_SOURCE_BRAND_FILTERS = [
+  "Canon",
+  "Nikon",
+  "Sony",
+  "Fujifilm",
+  "Olympus",
+  "Panasonic",
+  "Leica",
+  "Hasselblad",
+  "Pentax",
+  "GoPro",
+  "DJI",
+  "Ricoh",
+] as const;
 
 // ========================================
 // 職業タグ（優先度順）
@@ -350,6 +292,15 @@ export function cameraBrandToSlug(brand: string): string {
 export function slugToCameraBrand(slug: string): string | undefined {
   const entry = Object.entries(CAMERA_BRAND_SLUG_MAP).find(([, s]) => s === slug);
   return entry ? entry[0] as typeof CAMERA_BRAND_TAGS[number] : undefined;
+}
+
+export function cameraSubjectToSlug(subject: string): string {
+  return CAMERA_SUBJECT_SLUG_MAP[subject] || subject.toLowerCase().replace(/\s+/g, "-");
+}
+
+export function slugToCameraSubject(slug: string): string | undefined {
+  const entry = Object.entries(CAMERA_SUBJECT_SLUG_MAP).find(([, s]) => s === slug);
+  return entry ? entry[0] as typeof CAMERA_SUBJECT_TAGS[number] : undefined;
 }
 
 // スラッグからブランド名を推測（登録外ブランドにも対応）

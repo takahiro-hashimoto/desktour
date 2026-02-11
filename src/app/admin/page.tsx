@@ -7,6 +7,7 @@ import {
   PRODUCT_CATEGORIES, OCCUPATION_TAGS,
   TAG_GROUP_STYLE, TAG_GROUP_MONITOR, TAG_GROUP_DESK, TAG_GROUP_OS, TAG_GROUP_FEATURES,
   EXCLUSIVE_TAG_GROUPS, DESK_SETUP_TAGS,
+  TYPE_TAGS_MULTI_AXIS, COMMON_FEATURE_TAGS, CATEGORY_FEATURE_TAGS,
 } from "@/lib/constants";
 import { extractVideoId } from "@/lib/video-utils";
 
@@ -1212,26 +1213,103 @@ export default function AdminPage() {
                         </p>
                       )}
 
-                      {/* タグ */}
-                      {product.tags && product.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {product.tags.map((tag, tagIdx) => (
-                            <span
-                              key={tagIdx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200"
-                            >
-                              {tag}
-                              <button
-                                onClick={() => handleRemoveProductTag(productIndex, tag)}
-                                className="text-emerald-400 hover:text-emerald-700 transition-colors"
-                                type="button"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {/* タグ（種類タグ + 特徴タグ） */}
+                      {(() => {
+                        const currentTags = product.tags || [];
+                        const axes = TYPE_TAGS_MULTI_AXIS[product.category] || [];
+                        const categoryFeatures = CATEGORY_FEATURE_TAGS[product.category] || [];
+                        return (
+                          <div className="space-y-2">
+                            {/* 付与済みタグ */}
+                            {currentTags.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {currentTags.map((tag, tagIdx) => (
+                                  <span
+                                    key={tagIdx}
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200"
+                                  >
+                                    {tag}
+                                    <button
+                                      onClick={() => handleRemoveProductTag(productIndex, tag)}
+                                      className="text-emerald-400 hover:text-emerald-700 transition-colors"
+                                      type="button"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {/* 種類タグ選択（軸ごとに排他） */}
+                            {axes.length > 0 && (
+                              <div className="space-y-1">
+                                {axes.map(({ axis, tags: axisTags }) => (
+                                  <div key={axis} className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-[10px] text-gray-400 font-medium w-16 flex-shrink-0">{axis}</span>
+                                    {axisTags.map((tag) => {
+                                      const isSelected = currentTags.includes(tag);
+                                      return (
+                                        <button
+                                          key={tag}
+                                          type="button"
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              handleRemoveProductTag(productIndex, tag);
+                                            } else {
+                                              // 同じ軸の既存タグを除去してから追加（排他）
+                                              const otherAxisTags = axisTags.filter(t => t !== tag);
+                                              const cleaned = currentTags.filter(t => !otherAxisTags.includes(t));
+                                              const updatedProducts = [...previewResult!.products];
+                                              updatedProducts[productIndex] = { ...updatedProducts[productIndex], tags: [...cleaned.filter(t => t !== tag), tag] };
+                                              setPreviewResult({ ...previewResult!, products: updatedProducts });
+                                            }
+                                          }}
+                                          className={`px-1.5 py-0.5 text-[11px] rounded border transition-colors ${
+                                            isSelected
+                                              ? "bg-blue-600 text-white border-blue-600"
+                                              : "bg-white text-gray-500 border-gray-200 hover:border-blue-300 hover:text-blue-600"
+                                          }`}
+                                        >
+                                          {isSelected ? "✓ " : ""}{tag}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* 特徴タグ選択（複数選択可） */}
+                            {(categoryFeatures.length > 0 || COMMON_FEATURE_TAGS.length > 0) && (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] text-gray-400 font-medium w-16 flex-shrink-0">特徴</span>
+                                {[...categoryFeatures, ...COMMON_FEATURE_TAGS.filter(t => !categoryFeatures.includes(t))].map((tag) => {
+                                  const isSelected = currentTags.includes(tag);
+                                  return (
+                                    <button
+                                      key={tag}
+                                      type="button"
+                                      onClick={() => {
+                                        if (isSelected) {
+                                          handleRemoveProductTag(productIndex, tag);
+                                        } else {
+                                          handleAddProductTag(productIndex, tag);
+                                        }
+                                      }}
+                                      className={`px-1.5 py-0.5 text-[11px] rounded border transition-colors ${
+                                        isSelected
+                                          ? "bg-amber-500 text-white border-amber-500"
+                                          : "bg-white text-gray-400 border-gray-200 hover:border-amber-300 hover:text-amber-600"
+                                      }`}
+                                    >
+                                      {isSelected ? "✓ " : ""}{tag}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* マッチ情報 + 再検索 */}
                       <div className={`flex items-center gap-3 rounded-lg px-3 py-2 ${product.amazon ? "bg-gray-50" : "bg-amber-50/60"}`}>

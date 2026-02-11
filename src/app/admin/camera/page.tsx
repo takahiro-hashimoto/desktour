@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import {
   CAMERA_PRODUCT_CATEGORIES, CAMERA_OCCUPATION_TAGS, CAMERA_TYPE_TAGS,
   CAMERA_LENS_TAGS, CAMERA_BODY_TAGS, CAMERA_ALL_LENS_TAGS, CAMERA_ALL_BODY_TAGS,
+  CAMERA_SUBJECT_TAGS, CAMERA_PURPOSE_TAGS,
 } from "@/lib/camera/constants";
 import { extractVideoId } from "@/lib/video-utils";
 
@@ -135,6 +136,9 @@ export default function CameraAdminPage() {
   const [editableOccupationTags, setEditableOccupationTags] = useState<string[]>([]);
   const [newOccupationTagInput, setNewOccupationTagInput] = useState("");
 
+  // 被写体・撮影目的タグ編集用
+  const [editableSourceTags, setEditableSourceTags] = useState<string[]>([]);
+
   // 商品検索モーダル（Amazon / 楽天）
   const [amazonSearchModal, setAmazonSearchModal] = useState<{
     productIndex: number;
@@ -173,6 +177,16 @@ export default function CameraAdminPage() {
     setEditableOccupationTags(editableOccupationTags.filter((t) => t !== tag));
   };
 
+  // 被写体・撮影目的タグ追加/削除
+  const addSourceTag = (tag: string) => {
+    if (tag && !editableSourceTags.includes(tag)) {
+      setEditableSourceTags([...editableSourceTags, tag]);
+    }
+  };
+  const removeSourceTag = (tag: string) => {
+    setEditableSourceTags(editableSourceTags.filter((t) => t !== tag));
+  };
+
   // サジェスト動画を取得
   const fetchSuggestions = async (query: string = searchQuery) => {
     setLoadingSuggestions(true);
@@ -193,6 +207,7 @@ export default function CameraAdminPage() {
   useEffect(() => {
     if (previewResult) {
       setEditableOccupationTags(previewResult.occupationTags);
+      setEditableSourceTags(previewResult.tags || []);
     }
   }, [previewResult]);
 
@@ -658,7 +673,7 @@ export default function CameraAdminPage() {
           videoInfo: previewResult.videoInfo,
           analysisData: {
             summary: previewResult.summary,
-            tags: [],
+            tags: editableSourceTags, // 編集可能な被写体・撮影目的タグを使用
             influencerOccupation: previewResult.occupation,
             influencerOccupationTags: editableOccupationTags, // 編集可能な職業タグを使用
           },
@@ -678,7 +693,7 @@ export default function CameraAdminPage() {
           title: previewResult.title,
           source: previewResult.source,
           summary: previewResult.summary,
-          tags: [],
+          tags: editableSourceTags, // 編集後の被写体・撮影目的タグを使用
           occupation: previewResult.occupation,
           occupationTags: editableOccupationTags, // 編集後の職業タグを使用
           products: productsToSave,
@@ -687,6 +702,7 @@ export default function CameraAdminPage() {
         setPreviewResult(null);
         setSelectedProducts(new Set());
         setEditableOccupationTags([]); // 職業タグをリセット
+        setEditableSourceTags([]); // 被写体・撮影目的タグをリセット
 
       } else {
         setMessage({
@@ -707,6 +723,7 @@ export default function CameraAdminPage() {
     setSelectedProducts(new Set());
     setEditableOccupationTags([]);
     setNewOccupationTagInput("");
+    setEditableSourceTags([]);
     setMessage(null);
   };
 
@@ -1004,6 +1021,79 @@ export default function CameraAdminPage() {
               >
                 追加
               </button>
+            </div>
+          </div>
+
+          {/* 被写体・撮影目的タグ編集 */}
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-gray-600 mb-2">被写体・撮影目的タグ</h3>
+
+            {/* 現在のタグ（削除可能） */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {editableSourceTags.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
+                    [...CAMERA_SUBJECT_TAGS as unknown as string[]].includes(tag)
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-amber-50 text-amber-700"
+                  }`}
+                >
+                  {tag}
+                  <button
+                    onClick={() => removeSourceTag(tag)}
+                    className="hover:opacity-70 ml-1"
+                    type="button"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+              {editableSourceTags.length === 0 && (
+                <span className="text-xs text-gray-400">タグがありません</span>
+              )}
+            </div>
+
+            {/* 被写体プリセット */}
+            <div className="mb-2">
+              <p className="text-xs text-gray-500 mb-1">被写体:</p>
+              <div className="flex flex-wrap gap-1">
+                {([...CAMERA_SUBJECT_TAGS] as string[]).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => editableSourceTags.includes(tag) ? removeSourceTag(tag) : addSourceTag(tag)}
+                    className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                      editableSourceTags.includes(tag)
+                        ? "bg-blue-600 text-white"
+                        : "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                    }`}
+                    type="button"
+                  >
+                    {editableSourceTags.includes(tag) ? "✓ " : "+ "}{tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 撮影目的プリセット */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1">撮影目的:</p>
+              <div className="flex flex-wrap gap-1">
+                {([...CAMERA_PURPOSE_TAGS] as string[]).map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => editableSourceTags.includes(tag) ? removeSourceTag(tag) : addSourceTag(tag)}
+                    className={`px-2 py-0.5 text-xs rounded transition-colors ${
+                      editableSourceTags.includes(tag)
+                        ? "bg-amber-600 text-white"
+                        : "bg-amber-100 text-amber-600 hover:bg-amber-200"
+                    }`}
+                    type="button"
+                  >
+                    {editableSourceTags.includes(tag) ? "✓ " : "+ "}{tag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
