@@ -3,7 +3,7 @@
  * 種類タグ（旧サブカテゴリ）と特徴タグを統合して返す
  */
 
-import { inferSubcategory } from "./subcategoryInference";
+import { inferSubcategoryMultiAxis } from "./subcategoryInference";
 
 export interface ProductTagsResult {
   tags: string[];
@@ -19,7 +19,7 @@ interface ProductInfo {
 }
 
 /**
- * 商品情報からタグを自動抽出（種類タグ + 特徴タグ）
+ * 商品情報からタグを自動抽出（種類タグ（多軸） + 特徴タグ）
  */
 export function extractProductTags(data: ProductInfo): string[] {
   const { category, title = "", features = [], technicalInfo = {} } = data;
@@ -30,15 +30,15 @@ export function extractProductTags(data: ProductInfo): string[] {
 
   const tags: Set<string> = new Set();
 
-  // 種類タグを検出・追加
-  const typeTag = inferSubcategory({
+  // 種類タグを検出・追加（多軸: 各軸から最大1つ）
+  const typeTags = inferSubcategoryMultiAxis({
     category,
     title,
     features,
     technicalInfo,
   });
-  if (typeTag) {
-    tags.add(typeTag);
+  for (const t of typeTags) {
+    tags.add(t);
   }
 
   // 接続方式タグ（特徴的なもののみ）
@@ -202,7 +202,7 @@ export function extractProductTags(data: ProductInfo): string[] {
     }
 
     // サブカテゴリが未検出の場合、amazonCategoriesからフォールバック推定
-    if (!typeTag) {
+    if (typeTags.length === 0) {
       const fallbackType = inferSubcategoryFromAmazonCategories(category, categoryText);
       if (fallbackType) {
         tags.add(fallbackType);
@@ -225,33 +225,40 @@ function inferSubcategoryFromAmazonCategories(category: string, categoryText: st
     ],
     "マウス": [
       { result: "トラックボール", keywords: ["トラックボール", "trackball"] },
-      { result: "ゲーミングマウス", keywords: ["ゲーミングマウス", "gaming mouse"] },
-      { result: "エルゴノミクスマウス", keywords: ["エルゴノミクス", "ergonomic"] },
+      { result: "縦型マウス", keywords: ["縦型", "vertical"] },
     ],
     "ディスプレイ・モニター": [
-      { result: "4Kモニター", keywords: ["4k"] },
-      { result: "ウルトラワイドモニター", keywords: ["ウルトラワイド", "ultrawide"] },
-      { result: "ゲーミングモニター", keywords: ["ゲーミングモニター", "gaming monitor"] },
+      { result: "4K", keywords: ["4k"] },
+      { result: "ウルトラワイド", keywords: ["ウルトラワイド", "ultrawide"] },
     ],
     "ヘッドホン・イヤホン": [
-      { result: "ワイヤレスイヤホン", keywords: ["完全ワイヤレス", "true wireless"] },
-      { result: "ゲーミングヘッドセット", keywords: ["ゲーミングヘッドセット", "gaming headset"] },
+      { result: "イヤホン", keywords: ["完全ワイヤレス", "true wireless", "イヤホン"] },
+      { result: "ヘッドホン", keywords: ["ヘッドホン", "headphone"] },
     ],
     "チェア": [
       { result: "ゲーミングチェア", keywords: ["ゲーミングチェア", "gaming chair"] },
-      { result: "オフィスチェア", keywords: ["オフィスチェア", "office chair"] },
+      { result: "メッシュチェア", keywords: ["メッシュ", "mesh"] },
     ],
     "デスク": [
       { result: "昇降デスク", keywords: ["昇降", "standing", "height adjustable"] },
+      { result: "L字デスク", keywords: ["l字", "l型", "l-shaped"] },
     ],
     "マイク": [
       { result: "コンデンサーマイク", keywords: ["コンデンサー", "condenser"] },
       { result: "ダイナミックマイク", keywords: ["ダイナミック", "dynamic"] },
-      { result: "USBマイク", keywords: ["usb"] },
+      { result: "USB", keywords: ["usb"] },
     ],
     "スピーカー": [
-      { result: "Bluetoothスピーカー", keywords: ["bluetooth"] },
+      { result: "ブックシェルフ型", keywords: ["モニタースピーカー", "ブックシェルフ", "bookshelf"] },
       { result: "サウンドバー", keywords: ["サウンドバー", "soundbar"] },
+    ],
+    "モニターアーム": [
+      { result: "デュアルアーム", keywords: ["デュアル", "dual", "2画面"] },
+      { result: "シングルアーム", keywords: ["シングル", "single"] },
+    ],
+    "ペンタブ": [
+      { result: "液タブ", keywords: ["液タブ", "液晶タブレット", "pen display"] },
+      { result: "板タブ", keywords: ["板タブ", "ペンタブレット", "pen tablet"] },
     ],
   };
 
