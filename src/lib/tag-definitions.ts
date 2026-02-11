@@ -505,22 +505,8 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
 };
 
 // ============================================================
-// 特徴タグ定義（共通 + カテゴリ固有）
+// 特徴タグ定義（カテゴリ固有のみ）
 // ============================================================
-
-/** 全カテゴリ共通の特徴タグ */
-export const COMMON_FEATURE_TAG_DEFS: FeatureTagDef[] = [
-  { name: "ワイヤレス", detect: [{ type: "keywords", keywords: ["wireless", "ワイヤレス", "bluetooth"] }] },
-  { name: "Bluetooth/2.4GHz両対応", detect: [{ type: "allOf", keywords: ["bluetooth", "2.4ghz"] }] },
-  { name: "2.4GHz", detect: [{ type: "keywords", keywords: ["2.4ghz"] }] },
-  { name: "ゲーミング", detect: [{ type: "keywords", keywords: ["gaming", "ゲーミング", "ゲーム"] }] },
-  { name: "配信向け", detect: [{ type: "keywords", keywords: ["streaming", "配信", "ストリーミング"] }] },
-  { name: "音楽制作", detect: [{ type: "keywords", keywords: ["dtm", "音楽制作", "music production"] }] },
-  { name: "静音", detect: [{ type: "keywords", keywords: ["静音", "silent", "quiet"] }] },
-  { name: "RGB", detect: [{ type: "keywords", keywords: ["rgb", "ライティング"] }] },
-  { name: "ノイズキャンセリング", detect: [{ type: "keywords", keywords: ["ノイズキャンセリング", "noise cancelling", "anc"] }] },
-  { name: "折りたたみ", detect: [{ type: "keywords", keywords: ["折りたたみ", "foldable", "折り畳み"] }] },
-];
 
 /** カテゴリ固有の特徴タグ */
 export const CATEGORY_FEATURE_TAG_DEFS: Record<string, FeatureTagDef[]> = {
@@ -601,9 +587,6 @@ export const TYPE_TAGS: Record<string, string[]> = Object.fromEntries(
 
 /** ALL_TYPE_TAGS 互換 */
 export const ALL_TYPE_TAGS = Object.values(TYPE_TAGS).flat();
-
-/** COMMON_FEATURE_TAGS 互換（名前のみ） */
-export const COMMON_FEATURE_TAGS = COMMON_FEATURE_TAG_DEFS.map((t) => t.name);
 
 /** CATEGORY_FEATURE_TAGS 互換（名前のみ） */
 export const CATEGORY_FEATURE_TAGS: Record<string, string[]> = Object.fromEntries(

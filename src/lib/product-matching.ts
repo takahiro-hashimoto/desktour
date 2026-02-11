@@ -1,6 +1,6 @@
 import { searchAmazonProduct } from "@/lib/product-search";
 import { findBestMatch } from "@/lib/description-links";
-import { extractProductTags } from "@/lib/productTags";
+import { extractProductTags } from "@/lib/tag-inference";
 import type { ProductInfo } from "@/lib/product-search";
 
 // マッチ済み商品の型定義（analyze / analyze-article 共通）

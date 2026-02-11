@@ -43,7 +43,6 @@ export {
   TYPE_TAGS_MULTI_AXIS,
   TYPE_TAGS,
   ALL_TYPE_TAGS,
-  COMMON_FEATURE_TAGS,
   CATEGORY_FEATURE_TAGS,
 } from "./tag-definitions";
 export type { TypeTagAxis } from "./tag-definitions";

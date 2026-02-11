@@ -7,7 +7,6 @@
 
 import {
   TYPE_TAG_DEFS,
-  COMMON_FEATURE_TAG_DEFS,
   CATEGORY_FEATURE_TAG_DEFS,
   type DetectionRule,
   type FeatureDetector,
@@ -143,19 +142,6 @@ export function inferFeatureTags(data: ProductInfo): string[] {
   const amazonCatText = data.amazonCategories?.length
     ? data.amazonCategories.join(" ").toLowerCase()
     : "";
-  // Amazonカテゴリからも共通キーワードを検出するための結合テキスト
-  const combinedText = allText + " " + amazonCatText;
-
-  // 共通特徴タグ
-  for (const tagDef of COMMON_FEATURE_TAG_DEFS) {
-    for (const detector of tagDef.detect) {
-      const result = evaluateFeatureDetector(detector, data, combinedText);
-      if (result) {
-        tags.add(tagDef.name);
-        break;
-      }
-    }
-  }
 
   // カテゴリ固有の特徴タグ
   const categoryDefs = CATEGORY_FEATURE_TAG_DEFS[data.category];

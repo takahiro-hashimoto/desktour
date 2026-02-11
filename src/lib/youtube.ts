@@ -161,7 +161,3 @@ export async function getTranscript(videoId: string): Promise<string | null> {
     return null;
   }
 }
-
-export function isEligibleVideo(viewCount: number): boolean {
-  return viewCount >= 5000;
-}

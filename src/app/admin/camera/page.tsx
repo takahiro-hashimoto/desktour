@@ -155,7 +155,8 @@ export default function CameraAdminPage() {
   // サジェスト動画
   const [suggestions, setSuggestions] = useState<SuggestedVideo[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("撮影機材紹介");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [usedQuery, setUsedQuery] = useState("");
 
   // 選ばれている理由の一括生成
   const [generatingReasons, setGeneratingReasons] = useState(false);
@@ -191,9 +192,12 @@ export default function CameraAdminPage() {
   const fetchSuggestions = async (query: string = searchQuery) => {
     setLoadingSuggestions(true);
     try {
-      const res = await fetch(`/api/camera/suggestions?q=${encodeURIComponent(query)}&maxResults=20`);
+      const params = new URLSearchParams({ maxResults: "20" });
+      if (query.trim()) params.set("q", query.trim());
+      const res = await fetch(`/api/camera/suggestions?${params}`);
       const data = await res.json();
       setSuggestions(data.suggestions || []);
+      setUsedQuery(data.query || query);
     } catch {
       console.error("サジェストの取得に失敗しました");
     } finally {
@@ -762,27 +766,11 @@ export default function CameraAdminPage() {
   return (
     <main className="max-w-[1080px] mx-auto px-4 py-8">
       <header className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">撮影機材DB 管理</h1>
-            <p className="text-gray-600 mt-1">
-              解析候補の動画を検索・管理
-            </p>
-          </div>
-          <div className="flex gap-4">
-            <Link
-              href="/admin"
-              className="text-blue-600 hover:underline text-sm"
-            >
-              ← デスクツアー管理
-            </Link>
-            <Link
-              href="/"
-              className="text-blue-600 hover:underline text-sm"
-            >
-              ← トップページに戻る
-            </Link>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">撮影機材DB 管理画面</h1>
+          <p className="text-gray-600 mt-1">
+            解析候補の動画を検索・管理
+          </p>
         </div>
       </header>
 
@@ -1521,7 +1509,7 @@ export default function CameraAdminPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="検索キーワード（例：撮影機材紹介）"
+            placeholder="空欄ならランダムキーワードで検索"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             onKeyDown={(e) => e.key === "Enter" && fetchSuggestions()}
           />
@@ -1543,6 +1531,10 @@ export default function CameraAdminPage() {
 
         {/* サジェスト動画リスト */}
         {suggestions.length > 0 && (
+          <div>
+            {usedQuery && (
+              <p className="text-xs text-gray-400 mb-3">検索ワード: 「{usedQuery}」 — {suggestions.length}件</p>
+            )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {suggestions.map((video) => (
               <div
@@ -1585,11 +1577,12 @@ export default function CameraAdminPage() {
               </div>
             ))}
           </div>
+          </div>
         )}
 
         {!loadingSuggestions && suggestions.length === 0 && (
           <p className="text-gray-500 text-center py-8">
-            「DB未登録リストを表示」ボタンを押すと、未登録の撮影機材動画をランダムで表示します。
+            「DB未登録リストを表示」ボタンを押すと、ランダムなキーワードで未登録動画を検索します。
           </p>
         )}
       </div>

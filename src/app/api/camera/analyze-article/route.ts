@@ -21,7 +21,7 @@ import {
   toAmazonField,
   type MatchedProduct,
 } from "@/lib/product-matching";
-import { enrichCameraTags } from "@/lib/camera/enrich-camera-tags";
+import { enrichCameraTags } from "@/lib/camera/camera-tag-inference";
 import { checkExistingProducts } from "@/lib/supabase/queries-common";
 
 export async function POST(request: NextRequest) {

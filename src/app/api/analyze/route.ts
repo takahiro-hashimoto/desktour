@@ -3,7 +3,6 @@ import {
   extractVideoId,
   getVideoInfo,
   getTranscript,
-  isEligibleVideo,
 } from "@/lib/youtube";
 import { analyzeTranscript } from "@/lib/gemini";
 import {
@@ -68,18 +67,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. 視聴回数をチェック
-    if (!isEligibleVideo(videoInfo.viewCount)) {
-      return NextResponse.json(
-        {
-          error: `視聴回数が5,000回未満のため対象外です（現在: ${videoInfo.viewCount.toLocaleString()}回）`,
-          videoInfo,
-        },
-        { status: 400 }
-      );
-    }
-
-    // 5. 文字起こしを取得
+    // 4. 文字起こしを取得
     console.log(`Fetching transcript for videoId: ${videoId}`);
     const transcript = await getTranscript(videoId);
     console.log(

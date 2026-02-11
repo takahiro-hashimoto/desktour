@@ -14,7 +14,7 @@ import { ProductInfo } from "@/lib/product-search";
 import { getPriceRange, summarizeProductFeaturesBatch } from "@/lib/gemini";
 import { generateAuthorId } from "@/lib/product-matching";
 import { isLowQualityFeatures } from "@/lib/featureQuality";
-import { enrichCameraTags } from "@/lib/camera/enrich-camera-tags";
+import { enrichCameraTags } from "@/lib/camera/camera-tag-inference";
 
 interface ProductToSave {
   name: string;

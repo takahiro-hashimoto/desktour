@@ -2,7 +2,7 @@ import { supabase } from "./client";
 import type { Video, Article, Product, ProductMention, Influencer } from "./types";
 import { normalizeProductName } from "../product-normalize";
 import { generateProductSlug } from "../productSlug";
-import { extractProductTags } from "../productTags";
+import { extractProductTags } from "../tag-inference";
 import { normalizeBrand } from "./queries-common";
 import { BRAND_TAGS } from "../constants";
 

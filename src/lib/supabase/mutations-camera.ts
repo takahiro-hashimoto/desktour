@@ -2,7 +2,7 @@ import { supabase } from "./client";
 import type { CameraVideo, CameraArticle, CameraProduct, CameraProductMention, CameraInfluencer } from "./types-camera";
 import { normalizeProductName } from "../product-normalize";
 import { generateProductSlug } from "../productSlug";
-import { extractProductTags } from "../productTags";
+import { extractProductTags } from "../tag-inference";
 import { normalizeBrand } from "./queries-common";
 import { CAMERA_BRAND_TAGS } from "../camera/constants";
 

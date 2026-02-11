@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { X } from "lucide-react";
 import {
   PRODUCT_CATEGORIES, OCCUPATION_TAGS,
   TAG_GROUP_STYLE, TAG_GROUP_MONITOR, TAG_GROUP_DESK, TAG_GROUP_OS, TAG_GROUP_FEATURES,
   EXCLUSIVE_TAG_GROUPS, DESK_SETUP_TAGS,
-  TYPE_TAGS_MULTI_AXIS, COMMON_FEATURE_TAGS, CATEGORY_FEATURE_TAGS,
+  TYPE_TAGS_MULTI_AXIS, CATEGORY_FEATURE_TAGS,
 } from "@/lib/constants";
 import { extractVideoId } from "@/lib/video-utils";
 
@@ -154,7 +153,8 @@ export default function AdminPage() {
   // サジェスト動画
   const [suggestions, setSuggestions] = useState<SuggestedVideo[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("デスクツアー");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [usedQuery, setUsedQuery] = useState("");
 
   // 選ばれている理由の一括生成
   const [generatingReasons, setGeneratingReasons] = useState(false);
@@ -217,9 +217,12 @@ export default function AdminPage() {
   const fetchSuggestions = async (query: string = searchQuery) => {
     setLoadingSuggestions(true);
     try {
-      const res = await fetch(`/api/suggestions?q=${encodeURIComponent(query)}&maxResults=20`);
+      const params = new URLSearchParams({ maxResults: "20" });
+      if (query.trim()) params.set("q", query.trim());
+      const res = await fetch(`/api/suggestions?${params}`);
       const data = await res.json();
       setSuggestions(data.suggestions || []);
+      setUsedQuery(data.query || query);
     } catch {
       console.error("サジェストの取得に失敗しました");
     } finally {
@@ -774,19 +777,11 @@ export default function AdminPage() {
   return (
     <main className="max-w-[1080px] mx-auto px-4 py-8">
       <header className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">管理画面</h1>
-            <p className="text-gray-600 mt-1">
-              解析候補の動画を検索・管理
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="text-blue-600 hover:underline text-sm"
-          >
-            ← トップページに戻る
-          </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">デスクツアーDB 管理画面</h1>
+          <p className="text-gray-600 mt-1">
+            解析候補の動画を検索・管理
+          </p>
         </div>
       </header>
 
@@ -1278,11 +1273,11 @@ export default function AdminPage() {
                                 ))}
                               </div>
                             )}
-                            {/* 特徴タグ選択（複数選択可） */}
-                            {(categoryFeatures.length > 0 || COMMON_FEATURE_TAGS.length > 0) && (
+                            {/* 特徴タグ選択（カテゴリ固有のみ・複数選択可） */}
+                            {categoryFeatures.length > 0 && (
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-[10px] text-gray-400 font-medium w-16 flex-shrink-0">特徴</span>
-                                {[...categoryFeatures, ...COMMON_FEATURE_TAGS.filter(t => !categoryFeatures.includes(t))].map((tag) => {
+                                {categoryFeatures.map((tag) => {
                                   const isSelected = currentTags.includes(tag);
                                   return (
                                     <button
@@ -1546,7 +1541,7 @@ export default function AdminPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="検索キーワード（例：デスクツアー）"
+            placeholder="空欄ならランダムキーワードで検索"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             onKeyDown={(e) => e.key === "Enter" && fetchSuggestions()}
           />
@@ -1568,6 +1563,10 @@ export default function AdminPage() {
 
         {/* サジェスト動画リスト */}
         {suggestions.length > 0 && (
+          <div>
+            {usedQuery && (
+              <p className="text-xs text-gray-400 mb-3">検索ワード: 「{usedQuery}」 — {suggestions.length}件</p>
+            )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {suggestions.map((video) => (
               <div
@@ -1610,11 +1609,12 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+          </div>
         )}
 
         {!loadingSuggestions && suggestions.length === 0 && (
           <p className="text-gray-500 text-center py-8">
-            「DB未登録リストを表示」ボタンを押すと、2023年以降の未登録デスクツアー動画をランダムで表示します。
+            「DB未登録リストを表示」ボタンを押すと、ランダムなキーワードで未登録動画を検索します。
           </p>
         )}
       </div>
