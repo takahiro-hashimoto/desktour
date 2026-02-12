@@ -6,20 +6,24 @@ import {
   styleTagToSlug,
   environmentTagToSlug,
   brandToSlug,
+  desktourSubcategoryToSlug,
   PRODUCT_CATEGORIES,
   OCCUPATION_TAGS,
   STYLE_TAGS,
   ENVIRONMENT_TAGS,
   BRAND_TAGS,
 } from "@/lib/constants";
+import { TYPE_TAGS } from "@/lib/tag-definitions";
 import {
   cameraCategoryToSlug,
   cameraOccupationToSlug,
   cameraBrandToSlug,
+  cameraSubcategoryToSlug,
   CAMERA_PRODUCT_CATEGORIES,
   CAMERA_OCCUPATION_TAGS,
   CAMERA_BRAND_TAGS,
 } from "@/lib/camera/constants";
+import { CAMERA_TYPE_TAGS } from "@/lib/camera/camera-tag-definitions";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
@@ -127,13 +131,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // デスクツアーDB ページ
   // ========================================
 
-  // カテゴリページ
+  // カテゴリページ（/desktour/${catSlug}）
   const categoryPages: MetadataRoute.Sitemap = PRODUCT_CATEGORIES.map((category) => ({
-    url: `${baseUrl}/desktour/category/${categoryToSlug(category)}`,
+    url: `${baseUrl}/desktour/${categoryToSlug(category)}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,
   }));
+
+  // サブカテゴリページ（/desktour/${catSlug}/${subSlug}）
+  const desktourSubcategoryPages: MetadataRoute.Sitemap = PRODUCT_CATEGORIES.flatMap((category) => {
+    const subcategories = TYPE_TAGS[category] || [];
+    const catSlug = categoryToSlug(category);
+    return subcategories.map((sub) => ({
+      url: `${baseUrl}/desktour/${catSlug}/${desktourSubcategoryToSlug(sub)}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+  });
 
   // 職業タグページ
   const occupationPages: MetadataRoute.Sitemap = OCCUPATION_TAGS.map((tag) => ({
@@ -167,7 +183,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // 商品詳細ページ（DBから動的取得）
+  // 商品詳細ページ（/desktour/${slug}）
   let productPages: MetadataRoute.Sitemap = [];
   try {
     const { data: products } = await supabase
@@ -177,7 +193,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     if (products) {
       productPages = products.map((product) => ({
-        url: `${baseUrl}/desktour/product/${product.slug}`,
+        url: `${baseUrl}/desktour/${product.slug}`,
         lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
         changeFrequency: "weekly" as const,
         priority: 0.6,
@@ -191,13 +207,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 撮影機材DB ページ
   // ========================================
 
-  // カメラ - カテゴリページ
+  // カメラ - カテゴリページ（/camera/${catSlug}）
   const cameraCategoryPages: MetadataRoute.Sitemap = CAMERA_PRODUCT_CATEGORIES.map((category) => ({
-    url: `${baseUrl}/camera/category/${cameraCategoryToSlug(category)}`,
+    url: `${baseUrl}/camera/${cameraCategoryToSlug(category)}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,
   }));
+
+  // カメラ - サブカテゴリページ（/camera/${catSlug}/${subSlug}）
+  const cameraSubcategoryPages: MetadataRoute.Sitemap = CAMERA_PRODUCT_CATEGORIES.flatMap((category) => {
+    const subcategories = CAMERA_TYPE_TAGS[category] || [];
+    const catSlug = cameraCategoryToSlug(category);
+    return subcategories.map((sub) => ({
+      url: `${baseUrl}/camera/${catSlug}/${cameraSubcategoryToSlug(sub)}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    }));
+  });
 
   // カメラ - 職業タグページ
   const cameraOccupationPages: MetadataRoute.Sitemap = CAMERA_OCCUPATION_TAGS.map((tag) => ({
@@ -215,7 +243,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // カメラ - 商品詳細ページ（DBから動的取得）
+  // カメラ - 商品詳細ページ（/camera/${slug}）
   let cameraProductPages: MetadataRoute.Sitemap = [];
   try {
     const { data: cameraProducts } = await supabase
@@ -225,7 +253,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     if (cameraProducts) {
       cameraProductPages = cameraProducts.map((product) => ({
-        url: `${baseUrl}/camera/product/${product.slug}`,
+        url: `${baseUrl}/camera/${product.slug}`,
         lastModified: product.updated_at ? new Date(product.updated_at) : new Date(),
         changeFrequency: "weekly" as const,
         priority: 0.6,
@@ -239,6 +267,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...staticPages,
     // デスクツアーDB
     ...categoryPages,
+    ...desktourSubcategoryPages,
     ...occupationPages,
     ...stylePages,
     ...environmentPages,
@@ -246,6 +275,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...productPages,
     // 撮影機材DB
     ...cameraCategoryPages,
+    ...cameraSubcategoryPages,
     ...cameraOccupationPages,
     ...cameraBrandPages,
     ...cameraProductPages,

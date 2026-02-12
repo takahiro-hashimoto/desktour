@@ -2,19 +2,56 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cache } from "react";
-import { getCameraProductDetailBySlug, getCameraCoOccurrenceProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { cameraCategoryToSlug, cameraBrandToSlug, cameraSubcategoryToSlug, CAMERA_OCCUPATION_TAGS } from "@/lib/camera/constants";
-import { CoUsedProduct } from "@/types";
+import { searchCameraProducts, getCameraSiteStats, getCameraSubcategories, getCameraProductDetailBySlug, getCameraCoOccurrenceProducts } from "@/lib/supabase/queries-camera";
+import {
+  CAMERA_PRODUCT_CATEGORIES,
+  CAMERA_ALL_LENS_TAGS,
+  CAMERA_ALL_BODY_TAGS,
+  slugToCameraCategory,
+  cameraCategoryToSlug,
+  cameraSubcategoryToSlug,
+  cameraBrandToSlug,
+  cameraProductUrl,
+  CAMERA_OCCUPATION_TAGS,
+} from "@/lib/camera/constants";
 import { getProductLinks } from "@/lib/affiliateLinks";
 import { isLowQualityFeatures } from "@/lib/featureQuality";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { FilterSection } from "@/components/detail/FilterSection";
+import { ResultsBar } from "@/components/detail/ResultsBar";
+import { ProductGrid } from "@/components/detail/ProductGrid";
+import { FAQSection } from "@/components/detail/FAQSection";
 import { ProductReviews } from "@/components/product/ProductReviews";
+import { assignRanks } from "@/lib/rankUtils";
 import { generateBreadcrumbStructuredData, generateProductStructuredData } from "@/lib/structuredData";
 import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
-import "../../../product-detail-styles.css";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import "../../detail-styles.css";
+import "../../listing-styles.css";
+import "../../product-detail-styles.css";
 
-// 単位変換ユーティリティ
+export const revalidate = 3600;
+
+interface PageProps {
+  params: { slug: string };
+  searchParams: {
+    lens?: string;
+    body?: string;
+    sort?: string;
+    page?: string;
+  };
+}
+
+// ============================================================
+// ユーティリティ
+// ============================================================
+
+function getCategoryFromSlug(slug: string): string | null {
+  const category = slugToCameraCategory(slug);
+  return category && (CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category) ? category : null;
+}
+
 function convertSize(sizeStr: string): string {
-  // インチをcmに変換 (1インチ = 2.54cm)
   return sizeStr.replace(/(\d+\.?\d*)インチ/g, (_, num) => {
     const cm = parseFloat(num) * 2.54;
     return `${cm.toFixed(1)}cm`;
@@ -22,7 +59,6 @@ function convertSize(sizeStr: string): string {
 }
 
 function convertWeight(weightStr: string): string {
-  // ポンドをgに変換 (1ポンド = 453.592g)
   return weightStr.replace(/(\d+\.?\d*)ポンド/g, (_, num) => {
     const g = parseFloat(num) * 453.592;
     return g >= 1000 ? `${(g / 1000).toFixed(1)}kg` : `${Math.round(g)}g`;
@@ -31,29 +67,44 @@ function convertWeight(weightStr: string): string {
 
 function formatReleaseDate(dateStr: string): string {
   const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr; // パースできない場合はそのまま
+  if (isNaN(date.getTime())) return dateStr;
   return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
-interface PageProps {
-  params: { slug: string };
-}
-
-// 【最適化】React cacheでリクエスト内のデータ取得を重複排除
-// generateMetadataとページ本体で同じslugの商品を取得する場合、1回のみDBアクセス
 const getCachedProductDetail = cache(async (slug: string) => {
   return getCameraProductDetailBySlug(slug);
 });
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const product = await getCachedProductDetail(params.slug);
+// ============================================================
+// generateMetadata — カテゴリ or 商品詳細
+// ============================================================
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const category = getCategoryFromSlug(params.slug);
+  if (category) {
+    const { total } = await searchCameraProducts({ category, limit: 1 });
+
+    const title = `撮影機材紹介に登場した${category}一覧【登録数${total}件】`;
+    const description = `撮影機材紹介動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+    const canonical = `/camera/${params.slug}`;
+
+    return {
+      title,
+      description,
+      alternates: { canonical },
+      openGraph: { title, description, url: canonical, type: "website" },
+      twitter: { card: "summary", title, description },
+    };
+  }
+
+  const product = await getCachedProductDetail(params.slug);
   if (!product) {
-    return { title: "商品が見つかりません | 撮影機材DB" };
+    return { title: "ページが見つかりません | 撮影機材DB" };
   }
 
   const commentsCount = product.all_comments?.length || 0;
   const shouldNoIndex = commentsCount < 3;
+  const canonicalUrl = `/camera/${params.slug}`;
 
   const title = `${product.name}の使用例・口コミまとめ【${product.mention_count}件の撮影機材紹介に登場】`;
   const description = `${product.mention_count}件の撮影機材紹介に登場した${product.name}。使用者コメント${commentsCount}件と使用環境の傾向を掲載しています。`;
@@ -61,12 +112,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title,
     description,
-    alternates: { canonical: `/camera/product/${params.slug}` },
+    alternates: { canonical: canonicalUrl },
     robots: shouldNoIndex ? { index: false, follow: true } : undefined,
     openGraph: {
       title,
       description,
-      url: `/camera/product/${params.slug}`,
+      url: canonicalUrl,
       ...(product.amazon_image_url ? {
         images: [{ url: product.amazon_image_url, width: 500, height: 500, alt: product.name }],
       } : {}),
@@ -79,22 +130,200 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function ProductDetailPage({ params }: PageProps) {
-  const product = await getCachedProductDetail(params.slug);
+// ============================================================
+// カテゴリ一覧ページ（サブカテゴリありの場合セクション表示）
+// ============================================================
 
-  if (!product) {
-    notFound();
+async function CategoryListPage({ params, searchParams }: PageProps) {
+  const category = getCategoryFromSlug(params.slug)!;
+  const sort = searchParams.sort || "mention";
+  const page = parseInt(searchParams.page || "1");
+  const limit = 20;
+
+  // DBからサブカテゴリー一覧を取得
+  const subcategories = await getCameraSubcategories(category);
+
+  // 撮影機材紹介動画・記事の件数を取得
+  const stats = await getCameraSiteStats();
+  const totalSources = stats.total_videos + stats.total_articles;
+
+  // 構造化データ - パンくずリスト
+  const breadcrumbData = generateBreadcrumbStructuredData([
+    { name: "トップ", url: "/" },
+    { name: "撮影機材", url: "/camera" },
+    { name: category },
+  ]);
+
+  // ===== サブカテゴリーが存在する場合：セクション表示 =====
+  if (subcategories.length > 0) {
+    const subcategoryProducts = await Promise.all(
+      subcategories.map(async (sub) => {
+        const { products, total } = await searchCameraProducts({
+          category,
+          typeTag: sub,
+          sortBy: "mention_count",
+          limit: 3,
+        });
+
+        return {
+          subcategory: sub,
+          products: products.map(formatProductForDisplay),
+          total,
+        };
+      })
+    );
+
+    const filteredSubs = subcategoryProducts.filter((s) => s.products.length > 0);
+    const { total: totalInCategory } = await searchCameraProducts({ category, limit: 1 });
+
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+        />
+        <PageHeaderSection
+          domain="camera"
+          label="Database Report"
+          title={`撮影機材紹介に登場した${category}一覧`}
+          description={
+            <>
+              {totalSources}件の
+              <Link href="/camera/sources" className="link">
+                撮影機材紹介
+              </Link>
+              で実際に使用されている{category}{totalInCategory}件をサブカテゴリー別に掲載。その他カテゴリーが気になる方は
+              <Link href="/camera/category" className="link">
+                撮影機材
+              </Link>
+              をご覧ください。
+            </>
+          }
+          breadcrumbCurrent={category}
+          breadcrumbMiddle={{ label: "カテゴリ", href: "/camera/category" }}
+          icon={getCameraCategoryIcon(category)}
+        />
+
+        <div className="detail-container" style={{ paddingTop: "48px" }}>
+          {filteredSubs.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-sub)" }}>
+              <i className="fa-solid fa-inbox" style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.3 }}></i>
+              <p style={{ fontSize: "15px" }}>このカテゴリーにはまだ商品が登録されていません。</p>
+            </div>
+          ) : (
+            filteredSubs.map(({ subcategory, products, total }) => (
+              <div key={subcategory} style={{ marginBottom: "60px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+                  <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{subcategory}</h2>
+                  {total > 3 && (
+                    <Link
+                      href={`/camera/${params.slug}/${cameraSubcategoryToSlug(subcategory)}`}
+                      style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
+                    </Link>
+                  )}
+                </div>
+                <ProductGrid products={products} domain="camera" />
+              </div>
+            ))
+          )}
+
+          <FAQSection items={[...COMMON_FAQ_ITEMS]} />
+        </div>
+      </>
+    );
   }
+
+  // ===== サブカテゴリーなし：フラット表示 =====
+  const lensTagFilter = searchParams.lens;
+  const bodyTagFilter = searchParams.body;
+
+  const lensTags = category === "レンズ" ? CAMERA_ALL_LENS_TAGS : [];
+  const bodyTags = category === "カメラ本体" ? CAMERA_ALL_BODY_TAGS : [];
+
+  const { products, total } = await searchCameraProducts({
+    category,
+    lensTag: lensTagFilter,
+    bodyTag: bodyTagFilter,
+    sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
+    page,
+    limit,
+  });
+
+  const formattedProducts = products.map(formatProductForDisplay);
+  const productsWithRank = sort === "mention"
+    ? assignRanks(formattedProducts, { page, limit })
+    : formattedProducts.map(p => ({ ...p, rank: undefined }));
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <PageHeaderSection
+        domain="camera"
+        label="Database Report"
+        title={`撮影機材紹介に登場した${category}一覧`}
+        description={
+          <>
+            {totalSources}件の
+            <Link href="/camera/sources" className="link">撮影機材紹介</Link>
+            で実際に使用されている{category}を使用者のコメント付きで紹介。その他カテゴリーが気になる方は
+            <Link href="/camera/category" className="link">撮影機材</Link>
+            をご覧ください。
+          </>
+        }
+        breadcrumbCurrent={category}
+        breadcrumbMiddle={{ label: "カテゴリ", href: "/camera/category" }}
+        icon={getCameraCategoryIcon(category)}
+      />
+
+      <div className="detail-container">
+        {lensTags.length > 0 && (
+          <FilterSection
+            label="レンズスペックで絞り込み"
+            filterKey="lens"
+            tags={lensTags}
+            currentFilter={lensTagFilter}
+          />
+        )}
+        {bodyTags.length > 0 && (
+          <FilterSection
+            label="センサーサイズで絞り込み"
+            filterKey="body"
+            tags={bodyTags}
+            currentFilter={bodyTagFilter}
+          />
+        )}
+
+        <ResultsBar total={total} currentSort={sort} />
+
+        <ProductGrid products={productsWithRank} domain="camera" />
+
+        <FAQSection items={[...COMMON_FAQ_ITEMS]} />
+      </div>
+    </>
+  );
+}
+
+// ============================================================
+// 商品詳細ページ
+// ============================================================
+
+async function ProductDetailPage({ params }: { params: { slug: string } }) {
+  const product = (await getCachedProductDetail(params.slug))!;
+
+  const correctCatSlug = cameraCategoryToSlug(product.category);
 
   const [coUsedProducts, stats] = await Promise.all([
     getCameraCoOccurrenceProducts(product.id, 4),
     getCameraSiteStats(),
   ]);
 
-  // パーセント計算用の合計
   const totalOccupation = product.occupation_breakdown?.reduce((sum, s) => sum + s.count, 0) || 1;
 
-  // 商品情報があるかチェック
   const hasProductInfo = product.amazon_model_number ||
     product.amazon_manufacturer ||
     product.brand ||
@@ -109,7 +338,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
     (product.lens_tags && product.lens_tags.length > 0) ||
     (product.body_tags && product.body_tags.length > 0);
 
-  // 商品の特徴があるかチェック
   const hasFeatures = product.amazon_features && product.amazon_features.length > 0 && !isLowQualityFeatures(product.amazon_features);
 
   const hasChosenReasons = product.chosen_reasons && product.chosen_reasons.length > 0;
@@ -118,31 +346,25 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const hasComments = product.all_comments && product.all_comments.length > 0;
   const hasCoUsedProducts = coUsedProducts.length > 0;
 
-  // アフィリエイトリンク生成
   const { amazonUrl, rakutenUrl } = getProductLinks({
     amazon_url: product.amazon_url,
     amazon_model_number: product.amazon_model_number,
     name: product.name,
   });
 
-  // 最終更新日（最新のコメント追加日）を取得
   const lastUpdated = product.updated_at || new Date().toISOString();
 
-  // 構造化データ - パンくずリスト
-  const categorySlug = cameraCategoryToSlug(product.category);
   const breadcrumbItems = [
     { name: "トップ", url: "/" },
     { name: "撮影機材", url: "/camera" },
-    { name: "カテゴリ", url: "/camera/category" },
-    { name: product.category, url: `/camera/category/${categorySlug}` },
+    { name: product.category, url: `/camera/${correctCatSlug}` },
     ...(product.subcategory
-      ? [{ name: product.subcategory, url: `/camera/category/${categorySlug}/${cameraSubcategoryToSlug(product.subcategory)}` }]
+      ? [{ name: product.subcategory, url: `/camera/${correctCatSlug}/${cameraSubcategoryToSlug(product.subcategory)}` }]
       : []),
     { name: product.name },
   ];
   const breadcrumbData = generateBreadcrumbStructuredData(breadcrumbItems);
 
-  // 構造化データ - 商品情報
   const productData = generateProductStructuredData({
     name: product.name,
     brand: product.brand,
@@ -158,7 +380,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   return (
     <>
-      {/* 構造化データ */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
@@ -168,7 +389,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productData) }}
       />
 
-      {/* PAGE HEADER + PRODUCT HERO */}
       <div className="product-page-header">
         <div className="product-detail-container">
           <div className="breadcrumb">
@@ -176,13 +396,11 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
             <Link href="/camera">撮影機材</Link>
             <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
-            <Link href="/camera/category">カテゴリ</Link>
-            <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
-            <Link href={`/camera/category/${categorySlug}`}>{product.category}</Link>
+            <Link href={`/camera/${correctCatSlug}`}>{product.category}</Link>
             {product.subcategory && (
               <>
                 <span className="sep"><i className="fa-solid fa-chevron-right"></i></span>
-                <Link href={`/camera/category/${categorySlug}/${cameraSubcategoryToSlug(product.subcategory)}`}>{product.subcategory}</Link>
+                <Link href={`/camera/${correctCatSlug}/${cameraSubcategoryToSlug(product.subcategory)}`}>{product.subcategory}</Link>
               </>
             )}
           </div>
@@ -204,7 +422,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <div className="product-stats">
                 <div className="pstat">
                   <div className="pstat-label">
-                    <Link href={`/camera/category/${cameraCategoryToSlug(product.category)}`} className="pstat-sub">
+                    <Link href={`/camera/${correctCatSlug}`} className="pstat-sub">
                       {product.category}カテゴリ
                     </Link>
                   </div>
@@ -262,9 +480,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
       <div className="product-detail-container">
-        {/* 01: REVIEWS */}
         {hasComments && (
           <ProductReviews
             comments={product.all_comments!}
@@ -275,7 +491,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           />
         )}
 
-        {/* 02: TRENDS */}
         {hasEnvironmentStats && (
           <div className="content-section product-reveal">
             <div className="section-title">
@@ -284,7 +499,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
             <div className="trend-card">
               <div className={`trend-grid${hasChosenReasons ? " trend-grid-3col" : ""}`}>
-                {/* Occupation */}
                 {product.occupation_breakdown && product.occupation_breakdown.length > 0 && (
                   <div className="trend-col">
                     <div className="trend-col-title">職種分布 (Occupation)</div>
@@ -304,7 +518,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   </div>
                 )}
 
-                {/* 選ばれている理由 (Why Chosen) */}
                 {hasChosenReasons && (
                   <div className="trend-col">
                     <div className="trend-col-title">選ばれている理由 (Why Chosen)</div>
@@ -325,7 +538,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 03: FEATURES */}
         {hasFeatures && (
           <div className="content-section product-reveal">
             <div className="section-title">
@@ -342,7 +554,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 04: RELATED PRODUCTS */}
         {hasCoUsedProducts && (
           <div className="content-section product-reveal">
             <div className="section-title">
@@ -351,7 +562,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
             <div className="related-grid">
               {coUsedProducts.filter(p => p.slug).map((coProduct) => (
-                <Link key={coProduct.id} href={`/camera/product/${coProduct.slug}`} className="related-item">
+                <Link key={coProduct.id} href={cameraProductUrl(coProduct)} className="related-item">
                   <div className="related-item-img">
                     {coProduct.amazon_image_url ? (
                       <img src={coProduct.amazon_image_url} alt={coProduct.name} width={120} height={120} loading="lazy" />
@@ -370,7 +581,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 05: SPECS */}
         {hasProductInfo && (
           <div className="content-section product-reveal">
             <div className="section-title">
@@ -419,7 +629,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                     <tr>
                       <th>カテゴリー</th>
                       <td>
-                        <Link href={`/camera/category/${cameraCategoryToSlug(product.category)}`} className="specs-link">
+                        <Link href={`/camera/${correctCatSlug}`} className="specs-link">
                           {product.category}
                         </Link>
                       </td>
@@ -470,7 +680,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* 06: RELATED CONTENT */}
         <div className="content-section product-reveal">
           <div className="section-title">
             <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
@@ -505,7 +714,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* PURCHASE */}
         <div className="purchase-section product-reveal">
           <div className="purchase-card">
             <div className="purchase-title">販売・在庫状況</div>
@@ -524,4 +732,22 @@ export default async function ProductDetailPage({ params }: PageProps) {
       </div>
     </>
   );
+}
+
+// ============================================================
+// デフォルトエクスポート — slug に応じてカテゴリ or 商品詳細を出し分け
+// ============================================================
+
+export default async function SlugPage({ params, searchParams }: PageProps) {
+  const category = getCategoryFromSlug(params.slug);
+  if (category) {
+    return <CategoryListPage params={params} searchParams={searchParams} />;
+  }
+
+  const product = await getCachedProductDetail(params.slug);
+  if (product) {
+    return <ProductDetailPage params={params} />;
+  }
+
+  notFound();
 }

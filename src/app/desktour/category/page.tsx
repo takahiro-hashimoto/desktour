@@ -128,7 +128,7 @@ export default async function CategoryIndexPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
                 <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
                 <Link
-                  href={`/desktour/category/${categoryToSlug(category)}`}
+                  href={`/desktour/${categoryToSlug(category)}`}
                   style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>

@@ -1,0 +1,133 @@
+import { Metadata } from "next";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { searchCameraProducts, getCameraSourceTagCounts } from "@/lib/supabase/queries-camera";
+import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug } from "@/lib/camera/constants";
+import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { ProductGrid } from "@/components/detail/ProductGrid";
+import { formatProductForDisplay } from "@/lib/format-utils";
+import "../../../detail-styles.css";
+import "../../../listing-styles.css";
+
+export const revalidate = 3600;
+
+interface PageProps {
+  params: { slug: string };
+  searchParams: Record<string, string>;
+}
+
+// 被写体名を取得
+function getSubjectFromSlug(slug: string): string | null {
+  const subject = slugToCameraSubject(slug);
+  return subject && (CAMERA_SUBJECT_TAGS as readonly string[]).includes(subject) ? subject : null;
+}
+
+// 被写体ごとのアイコン
+const SUBJECT_ICONS: Record<string, string> = {
+  "人物": "fa-user",
+  "商品": "fa-box",
+  "風景": "fa-mountain-sun",
+  "動物": "fa-paw",
+  "乗り物": "fa-car",
+};
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const subject = getSubjectFromSlug(params.slug);
+  if (!subject) return { title: "被写体が見つかりません" };
+
+  const tagCounts = await getCameraSourceTagCounts();
+  const sourceCount = tagCounts[subject] || 0;
+
+  const title = `${subject}撮影で使われている撮影機材一覧【${sourceCount}件の撮影機材紹介を分析】`;
+  const description = `${sourceCount}件の${subject}撮影の撮影機材紹介から収集した商品をカテゴリー別にまとめています。${subject}撮影に人気の機材が一目でわかります。`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/camera/subject/${params.slug}` },
+    openGraph: { title, description, url: `/camera/subject/${params.slug}`, type: "website" },
+    twitter: { card: "summary", title, description },
+  };
+}
+
+export default async function SubjectDetailPage({ params }: PageProps) {
+  const subject = getSubjectFromSlug(params.slug);
+  if (!subject) notFound();
+
+  // 被写体タグ別の撮影機材紹介数を取得
+  const tagCounts = await getCameraSourceTagCounts();
+  const subjectSourceCount = tagCounts[subject] || 0;
+
+  // 各カテゴリーごとにトップ3商品を取得
+  const categoryProducts = await Promise.all(
+    CAMERA_PRODUCT_CATEGORIES.map(async (category) => {
+      const { products, total } = await searchCameraProducts({
+        category,
+        setupTag: subject,
+        sortBy: "mention_count",
+        limit: 3,
+      });
+
+      return {
+        category,
+        products: products.map(formatProductForDisplay),
+        total,
+      };
+    })
+  );
+
+  // 商品があるカテゴリーのみ表示
+  const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
+
+  return (
+    <>
+      <PageHeaderSection
+        domain="camera"
+        label="Database Report"
+        title={`${subject}撮影で使われている撮影機材一覧`}
+        description={
+          <>
+            {subject}撮影の
+            <Link href="/camera/sources" className="link">
+              撮影機材紹介
+            </Link>
+            {subjectSourceCount}件で実際に使用されている商品をカテゴリー別に掲載。全被写体の一覧は
+            <Link href="/camera/subject" className="link">
+              被写体別
+            </Link>
+            で紹介中。
+          </>
+        }
+        breadcrumbCurrent={subject}
+        breadcrumbMiddle={{ label: "被写体別", href: "/camera/subject" }}
+        icon={SUBJECT_ICONS[subject] || "fa-crosshairs"}
+      />
+
+      <div className="detail-container" style={{ paddingTop: "48px" }}>
+        {filteredCategories.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-sub)" }}>
+            <i className="fa-solid fa-inbox" style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.3 }}></i>
+            <p style={{ fontSize: "15px" }}>この被写体にはまだ商品が登録されていません。</p>
+          </div>
+        ) : (
+          filteredCategories.map(({ category, products, total }) => (
+          <div key={category} style={{ marginBottom: "60px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+              <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
+              {total > 3 && (
+                <Link
+                  href={`/camera/subject/${params.slug}/${cameraCategoryToSlug(category)}`}
+                  style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
+                >
+                  全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
+                </Link>
+              )}
+            </div>
+            <ProductGrid products={products} domain="camera" />
+          </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}

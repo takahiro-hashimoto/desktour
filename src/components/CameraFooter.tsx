@@ -42,7 +42,7 @@ export async function CameraFooter() {
               {CAMERA_PRODUCT_CATEGORIES.map((category) => (
                 <li key={category}>
                   <Link
-                    href={`/camera/category/${cameraCategoryToSlug(category)}`}
+                    href={`/camera/${cameraCategoryToSlug(category)}`}
                     className="hover:text-white"
                   >
                     {category}

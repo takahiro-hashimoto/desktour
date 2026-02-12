@@ -45,7 +45,7 @@ export async function Footer() {
               {PRODUCT_CATEGORIES.slice(0, 10).map((category) => (
                 <li key={category}>
                   <Link
-                    href={`/desktour/category/${categoryToSlug(category)}`}
+                    href={`/desktour/${categoryToSlug(category)}`}
                     className="hover:text-white"
                   >
                     {category}

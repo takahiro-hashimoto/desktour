@@ -267,6 +267,11 @@ export function slugToCameraCategory(slug: string): string | undefined {
   return entry ? entry[0] : undefined;
 }
 
+/** カメラ商品詳細ページのURLを生成 */
+export function cameraProductUrl(product: { slug?: string; id: string }): string {
+  return `/camera/${product.slug || product.id}`;
+}
+
 export function cameraOccupationToSlug(occupation: string): string {
   return CAMERA_OCCUPATION_SLUG_MAP[occupation] || occupation.replace(/\s+/g, "-").toLowerCase();
 }

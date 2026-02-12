@@ -6,13 +6,16 @@ import {
   getCameraSetupTagCounts,
   getCameraTopBrandsByProductCount,
   getCameraLatestVideos,
+  getCameraSourceTagCounts,
 } from "@/lib/supabase/queries-camera";
 import {
   CAMERA_PRODUCT_CATEGORIES,
   CAMERA_OCCUPATION_TAGS,
+  CAMERA_SUBJECT_TAGS,
   cameraCategoryToSlug,
   cameraOccupationToSlug,
   cameraBrandToSlug,
+  cameraSubjectToSlug,
 } from "@/lib/camera/constants";
 import { Metadata } from "next";
 import { CameraHeroSection } from "@/components/camera-home/HeroSection";
@@ -38,15 +41,16 @@ export async function generateMetadata(): Promise<Metadata> {
 // ホームページのデータを5分間キャッシュ
 const getCachedHomeData = unstable_cache(
   async () => {
-    const [stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos] = await Promise.all([
+    const [stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos, sourceTagCounts] = await Promise.all([
       getCameraSiteStats(),
       getCameraProductCountByCategory(),
       getCameraOccupationTagCounts(),
       getCameraSetupTagCounts(),
       getCameraTopBrandsByProductCount(10),
       getCameraLatestVideos(3),
+      getCameraSourceTagCounts(),
     ]);
-    return { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos };
+    return { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos, sourceTagCounts };
   },
   ["camera-home-page-data"],
   { revalidate: 300 }
@@ -67,7 +71,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export default async function CameraPage() {
-  const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos } = await getCachedHomeData();
+  const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos, sourceTagCounts } = await getCachedHomeData();
 
   // トップページに表示するカテゴリ（収録・制御機器を除く）
   const EXCLUDED_TOP_CATEGORIES = ["収録・制御機器"];
@@ -94,6 +98,15 @@ export default async function CameraPage() {
     count: item.count,
     href: `/camera/brand/${item.slug}`,
   }));
+
+  // 被写体別データ
+  const subjects = [...CAMERA_SUBJECT_TAGS]
+    .map(tag => ({
+      name: tag,
+      count: sourceTagCounts[tag] || 0,
+      href: `/camera/subject/${cameraSubjectToSlug(tag)}`,
+    }))
+    .sort((a, b) => b.count - a.count);
 
   // 注目の撮影機材紹介（実際のデータを使用）
   const featured = latestVideos.map((video, index) => {
@@ -129,7 +142,7 @@ export default async function CameraPage() {
         "@type": "ListItem",
         "position": index + 1,
         "name": cat.name,
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera/category/${cameraCategoryToSlug(cat.name)}`,
+        "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera/${cameraCategoryToSlug(cat.name)}`,
       })),
     },
   };
@@ -144,7 +157,7 @@ export default async function CameraPage() {
 
       <CameraHeroSection stats={stats} />
       <CameraCategoryGridSection mainCategories={mainCategories} />
-      <CameraExploreSection occupations={occupations} brands={brands} />
+      <CameraExploreSection occupations={occupations} brands={brands} subjects={subjects} />
       <CameraFeaturedSection items={featured} />
     </div>
   );

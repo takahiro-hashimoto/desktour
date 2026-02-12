@@ -43,7 +43,7 @@ export function CategoryGridSection({ mainCategories, subCategories }: CategoryG
           {mainCategories.slice(0, 5).map((category) => (
             <Link
               key={category.name}
-              href={`/desktour/category/${categoryToSlug(category.name)}`}
+              href={`/desktour/${categoryToSlug(category.name)}`}
               className="home-category__card"
             >
               <div className="home-category__card-icon">
@@ -59,7 +59,7 @@ export function CategoryGridSection({ mainCategories, subCategories }: CategoryG
           {subCategories.map((sub) => (
             <Link
               key={sub.name}
-              href={`/desktour/category/${sub.slug}`}
+              href={`/desktour/${sub.slug}`}
               className="home-category__tag"
             >
               <span className="home-category__tag-icon">

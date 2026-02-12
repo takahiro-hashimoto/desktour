@@ -35,7 +35,7 @@ export function CameraCategoryGridSection({ mainCategories }: CategoryGridSectio
           {mainCategories.map((category) => (
             <Link
               key={category.name}
-              href={`/camera/category/${cameraCategoryToSlug(category.name)}`}
+              href={`/camera/${cameraCategoryToSlug(category.name)}`}
               className="home-category__card"
             >
               <div className="home-category__card-icon">
