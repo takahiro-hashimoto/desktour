@@ -1490,10 +1490,10 @@ export default function CameraAdminPage() {
                         </div>
                       )}
 
-                      {/* カメラ本体用タグ（カメラ本体カテゴリの場合のみ） */}
-                      {product.category === "カメラ本体" && (
+                      {/* カメラ用タグ（カメラカテゴリの場合のみ） */}
+                      {product.category === "カメラ" && (
                         <div>
-                          <label className="block text-[11px] font-medium text-gray-400 mb-1 uppercase tracking-wider">カメラ本体タグ</label>
+                          <label className="block text-[11px] font-medium text-gray-400 mb-1 uppercase tracking-wider">カメラタグ</label>
                           <div className="flex flex-wrap gap-1">
                             {CAMERA_ALL_BODY_TAGS.map((tag) => {
                               const isActive = product.bodyTags?.includes(tag);

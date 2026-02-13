@@ -54,26 +54,26 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const articleCount = articlesResult.total;
   const totalSources = videoCount + articleCount;
 
-  let title = `デスクツアー動画・記事一覧【${totalSources}件収録】`;
-  let description = `YouTube動画${videoCount}件・ブログ記事${articleCount}件を収録。再生数5,000回以上のデスクツアーを職業・スタイル別に絞り込めます。`;
+  let title = `デスクツアー動画・ブログ記事まとめ【登録数${totalSources}件】`;
+  let description = `YouTube動画${videoCount}件・ブログ記事${articleCount}件のデスクツアーを一覧で紹介。再生数5,000回以上の厳選コンテンツを職業・スタイル別に絞り込めます。`;
   let canonicalUrl = `${baseUrl}/sources`;
 
   // 職業フィルターが適用されている場合
   if (occupation && OCCUPATION_TAGS.includes(occupation as typeof OCCUPATION_TAGS[number])) {
-    title = `${occupation}のデスクツアー動画・記事一覧`;
-    description = `${occupation}が公開しているデスクツアー動画・記事をまとめています。${occupation}のデスク環境やガジェットの参考にどうぞ。`;
+    title = `${occupation}のデスクツアー動画・記事まとめ【登録数${totalSources}件】`;
+    description = `${occupation}が公開しているデスクツアー動画・記事を一覧で紹介。${occupation}のデスク環境やおすすめガジェットの参考にどうぞ。`;
     canonicalUrl = `${baseUrl}/sources?occupation=${encodeURIComponent(occupation)}`;
   }
   // 環境フィルターが適用されている場合
   else if (environment && ENVIRONMENT_TAGS.includes(environment as typeof ENVIRONMENT_TAGS[number])) {
-    title = `${environment}のデスクツアー動画・記事一覧`;
-    description = `${environment}環境のデスクツアー動画・記事をまとめています。${environment}のデスクセットアップの参考にどうぞ。`;
+    title = `${environment}のデスクツアー動画・記事まとめ【登録数${totalSources}件】`;
+    description = `${environment}環境のデスクツアー動画・記事を一覧で紹介。${environment}のデスクセットアップの参考にどうぞ。`;
     canonicalUrl = `${baseUrl}/sources?environment=${encodeURIComponent(environment)}`;
   }
   // スタイルフィルターが適用されている場合
   else if (style && STYLE_TAGS.includes(style as typeof STYLE_TAGS[number])) {
-    title = `${style}のデスクツアー動画・記事一覧`;
-    description = `${style}スタイルのデスクツアー動画・記事をまとめています。${style}なデスクセットアップの参考にどうぞ。`;
+    title = `${style}スタイルのデスクツアー動画・記事まとめ【登録数${totalSources}件】`;
+    description = `${style}スタイルのデスクツアー動画・記事を一覧で紹介。${style}なデスクセットアップの参考にどうぞ。`;
     canonicalUrl = `${baseUrl}/sources?style=${encodeURIComponent(style)}`;
   }
 
@@ -284,7 +284,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   const dbCount = siteStats.total_videos + siteStats.total_articles;
 
   // 【SEO最適化】フィルター適用時の動的タイトル・説明文（単一フィルターのみ）
-  let pageTitle = "デスクツアー動画・記事一覧";
+  let pageTitle = "デスクツアー動画・ブログ記事まとめ";
   let pageDescription = (
     <>
       Youtubeで5,000回以上再生されているデスクツアー動画やnote、ブログなどのデスクツアー記事をまとめています。頻繁に登場するアイテムは
@@ -298,7 +298,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
 
   // 職業フィルターが適用されている場合
   if (selectedOccupation && OCCUPATION_TAGS.includes(selectedOccupation as typeof OCCUPATION_TAGS[number])) {
-    pageTitle = `${selectedOccupation}のデスクツアー動画・記事一覧`;
+    pageTitle = `${selectedOccupation}のデスクツアー動画・記事まとめ`;
     pageDescription = (
       <>
         {selectedOccupation}が公開しているデスクツアー動画・記事をまとめています。{selectedOccupation}のデスク環境やおすすめガジェットを参考にしましょう。
@@ -308,7 +308,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   }
   // 環境フィルターが適用されている場合
   else if (selectedEnvironment && ENVIRONMENT_TAGS.includes(selectedEnvironment as typeof ENVIRONMENT_TAGS[number])) {
-    pageTitle = `${selectedEnvironment}のデスクツアー動画・記事一覧`;
+    pageTitle = `${selectedEnvironment}のデスクツアー動画・記事まとめ`;
     pageDescription = (
       <>
         {selectedEnvironment}環境のデスクツアー動画・記事をまとめています。{selectedEnvironment}のデスクセットアップを参考にしましょう。
@@ -318,7 +318,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   }
   // スタイルフィルターが適用されている場合
   else if (selectedStyle && STYLE_TAGS.includes(selectedStyle as typeof STYLE_TAGS[number])) {
-    pageTitle = `${selectedStyle}のデスクツアー動画・記事一覧`;
+    pageTitle = `${selectedStyle}スタイルのデスクツアー動画・記事まとめ`;
     pageDescription = (
       <>
         {selectedStyle}スタイルのデスクツアー動画・記事をまとめています。{selectedStyle}なデスクセットアップを参考にしましょう。

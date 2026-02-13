@@ -67,3 +67,21 @@ export function generateProductStructuredData(product: {
   };
 }
 
+/**
+ * FAQページの構造化データ（FAQPage schema）を生成
+ */
+export function generateFAQStructuredData(items: { question: string; answer: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": items.map(item => ({
+      "@type": "Question",
+      "name": item.question,
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": item.answer,
+      },
+    })),
+  };
+}
+

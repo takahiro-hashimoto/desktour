@@ -5,7 +5,9 @@ import { searchProducts, getSiteStats } from "@/lib/supabase";
 import { BRAND_TAGS, brandToSlug, slugToBrand, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { generateFAQStructuredData } from "@/lib/structuredData";
 import "../../../detail-styles.css";
 import "../../../listing-styles.css";
 
@@ -28,8 +30,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ brand, limit: 1 });
 
-  const title = `${brand}のデスクツアー登場商品一覧【登録数${total}件】`;
-  const description = `デスクツアーに登場した${brand}の商品をカテゴリー別にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${brand}の評判と人気商品一覧【${total}件掲載】`;
+  const description = `${brand}の商品を実際にデスク環境で使っている人のリアルな声を集約。カテゴリ別の人気商品と使用者コメントを掲載。【${total}件】`;
 
   return {
     title,
@@ -69,11 +71,30 @@ export default async function BrandDetailPage({ params }: PageProps) {
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
   const totalBrandProducts = filteredCategories.reduce((sum, cat) => sum + cat.total, 0);
 
+  // 動的FAQ：各カテゴリの1位を集約
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].name}（${c.category}、${c.products[0].mention_count}件のデスクツアーに登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + `。${brand}のデスクガジェットを登場回数順にランキングしています。`
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${brand}で人気のデスクガジェットは何ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         label="Database Report"
-        title={`デスクツアーに登場した${brand}の商品一覧`}
+        title={`${brand}の評判と人気商品一覧`}
         description={
           <>
             {totalSources}件の
@@ -114,6 +135,8 @@ export default async function BrandDetailPage({ params }: PageProps) {
           </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

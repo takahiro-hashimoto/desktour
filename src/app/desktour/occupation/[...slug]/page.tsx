@@ -36,8 +36,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slugPath = params.slug.join("/");
 
   if (category) {
-    const title = `${occupation}のPCデスク環境で使われている${category}一覧`;
-    const description = `デスクツアーで${occupation}が実際に使用している${category}を掲載。コメント付きで使用実態を確認できます。`;
+    const title = `${occupation}のデスク環境で人気の${category}まとめ`;
+    const description = `${occupation}が実際にデスク環境で使っている${category}を採用数順にランキング。使用者のリアルなコメント付きで比較できます。`;
     return {
       title,
       description,
@@ -46,8 +46,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `${occupation}のPCデスク環境で使われているガジェット一覧`;
-  const description = `デスクツアーで${occupation}が使用しているガジェットをカテゴリ別に掲載。実際の使用例とコメントを確認できます。`;
+  const title = `${occupation}のデスク環境で使われているガジェット一覧`;
+  const description = `${occupation}が実際に使っているデスク周りガジェットをカテゴリ別にまとめ。${occupation}に人気のおすすめアイテムが一目でわかります。`;
   return {
     title,
     description,
@@ -82,7 +82,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
       limit: 50,
     });
 
-    const pageTitle = `${occupation}のPCデスク環境で使われている${category}一覧`;
+    const pageTitle = `${occupation}のデスク環境で人気の${category}まとめ`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -98,11 +98,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
           title={pageTitle}
           subtitle={
             <>
-              {stats.total_videos}件の
-              <Link href="/desktour/sources" className="text-blue-600 hover:underline">
-                デスクツアー動画・記事
-              </Link>
-              から収集した、{occupation}が実際に使用している{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              {total}件の<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で{occupation}が実際に使用している{category}を使用者のコメント付きで紹介。
             </>
           }
         />
@@ -134,7 +130,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
 
       {/* Hero Section */}
       <PageHeader
-        title={`${occupation}のPCデスク環境で使われているガジェット一覧`}
+        title={`${occupation}のデスク環境で使われているガジェット一覧`}
         subtitle={
           <>
             {stats.total_videos}件の

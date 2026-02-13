@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ category, occupationTag: occupation, limit: 1 });
 
-  const title = `${occupation}が使用している${category}一覧【登録数${total}件】`;
-  const description = `${occupation}のデスクツアーに登場した${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${occupation}のデスク環境で人気の${category}まとめ`;
+  const description = `${occupation}が実際にデスク環境で使っている${category}を採用数順にランキング。使用者のリアルなコメント付きで比較できます。【${total}件掲載】`;
 
   return {
     title,
@@ -82,18 +82,10 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
     <>
       <PageHeaderSection
         label="Database Report"
-        title={`${occupation}が使用している${category}一覧`}
+        title={`${occupation}のデスク環境で人気の${category}まとめ`}
         description={
           <>
-            {totalSources}件の
-            <Link href="/desktour/sources" className="link">
-              デスクツアー動画
-            </Link>
-            ・
-            <Link href="/desktour/sources" className="link">
-              記事
-            </Link>
-            で{occupation}が実際に使用している{category}を、使用者のコメント付きでまとめています。デスク環境構築の参考にご活用ください。
+            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で{occupation}が実際に使用している{category}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={category}

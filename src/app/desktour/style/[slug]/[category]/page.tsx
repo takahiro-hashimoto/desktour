@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ category, setupTag: style, limit: 1 });
 
-  const title = `${style}スタイルの${category}一覧【登録数${total}件】`;
-  const description = `${style}スタイルのデスクツアーに登場した${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${style}スタイルのPCデスク環境で人気の${category}まとめ`;
+  const description = `${style}スタイルのデスク環境で実際に使われている${category}を採用数順にランキング。使用者コメント付きで比較できます。【${total}件掲載】`;
 
   return {
     title,
@@ -82,14 +82,10 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
     <>
       <PageHeaderSection
         label="Database Report"
-        title={`${style}スタイルの${category}一覧`}
+        title={`${style}スタイルのPCデスク環境で人気の${category}まとめ`}
         description={
           <>
-            {styleSourceCount}件の{style}スタイルの
-            <Link href="/desktour/sources" className="link">
-              デスクツアー
-            </Link>
-            で実際に使用されている{category}を、使用者のコメント付きでまとめています。デスク環境構築の参考にご活用ください。
+            {total}件の{style}スタイルの<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={category}

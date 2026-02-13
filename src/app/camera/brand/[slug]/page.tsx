@@ -5,7 +5,9 @@ import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries
 import { CAMERA_BRAND_TAGS, cameraBrandToSlug, slugToCameraBrand, CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { generateFAQStructuredData } from "@/lib/structuredData";
 import "../../../detail-styles.css";
 import "../../../listing-styles.css";
 
@@ -28,8 +30,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchCameraProducts({ brand, limit: 1 });
 
-  const title = `${brand}の撮影機材紹介登場商品一覧【登録数${total}件】`;
-  const description = `撮影機材紹介に登場した${brand}の商品をカテゴリー別にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `撮影機材紹介で人気の${brand}の商品一覧`;
+  const description = `撮影機材紹介に登場した${brand}の商品をカテゴリ別にまとめました。口コミ付き。`;
 
   return {
     title,
@@ -69,23 +71,37 @@ export default async function BrandDetailPage({ params }: PageProps) {
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
   const totalBrandProducts = filteredCategories.reduce((sum, cat) => sum + cat.total, 0);
 
+  // 動的FAQ：各カテゴリの1位を集約
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].name}（${c.category}、${c.products[0].mention_count}件の撮影機材紹介に登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + `。${brand}の撮影機材を登場回数順にランキングしています。`
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${brand}で人気の撮影機材は何ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`撮影機材紹介に登場した${brand}の商品一覧`}
+        title={`撮影機材紹介で人気の${brand}の商品一覧`}
         description={
           <>
-            {totalSources}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            に登場した{brand}の商品{totalBrandProducts}件をカテゴリー別に掲載。全ブランドの総合ランキングは
-            <Link href="/camera/category" className="link">
-              撮影機材
-            </Link>
-            で紹介中。
+            に登場した{brand}の商品をカテゴリ別にまとめました。口コミ付き。
           </>
         }
         breadcrumbCurrent={brand}
@@ -115,6 +131,8 @@ export default async function BrandDetailPage({ params }: PageProps) {
           </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

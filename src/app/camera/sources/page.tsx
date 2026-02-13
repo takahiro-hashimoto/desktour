@@ -52,14 +52,14 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
   const articleCount = articlesResult.total;
   const totalSources = videoCount + articleCount;
 
-  let title = `撮影機材紹介動画・記事一覧【${totalSources}件収録】`;
-  let description = `YouTube動画${videoCount}件・ブログ記事${articleCount}件を収録。再生数5,000回以上の撮影機材紹介を職業別に絞り込めます。`;
+  let title = `撮影機材やカメラバッグの中身を紹介したYoutube動画・記事まとめ【${totalSources}件】`;
+  let description = `Youtuberやフォトグラファーのカバンの中身紹介や愛用の撮影機材紹介コンテンツ${totalSources}件を収録。頻繁に登場するカメラ・周辺機器はランキング化して紹介中。`;
   let canonicalUrl = `${baseUrl}/camera/sources`;
 
   // 職業フィルターが適用されている場合
   if (occupation && CAMERA_OCCUPATION_TAGS.includes(occupation as typeof CAMERA_OCCUPATION_TAGS[number])) {
-    title = `${occupation}の撮影機材紹介動画・記事一覧`;
-    description = `${occupation}が公開している撮影機材紹介動画・記事をまとめています。${occupation}の撮影機材やセットアップの参考にどうぞ。`;
+    title = `${occupation}の撮影機材紹介動画・記事まとめ【${totalSources}件】`;
+    description = `${occupation}が公開しているカバンの中身・撮影機材紹介をまとめています。${occupation}の愛用機材やセットアップの参考にどうぞ。`;
     canonicalUrl = `${baseUrl}/camera/sources?occupation=${encodeURIComponent(occupation)}`;
   }
 
@@ -219,8 +219,8 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "name": "撮影機材紹介動画・記事まとめ",
-    "description": "人気YouTuberやブロガーの撮影機材紹介動画・記事を一覧で紹介。フォトグラファー、映像クリエイター、YouTuberなど職業別の撮影機材セットアップから、おすすめカメラ・レンズ・周辺機材が見つかります。",
+    "name": "撮影機材やカメラバッグの中身を紹介したYoutube動画・記事まとめ",
+    "description": "Youtuberやフォトグラファーのカバンの中身紹介や愛用の撮影機材紹介といったコンテンツをまとめています。頻繁に登場するカメラ・周辺機器は撮影機材カテゴリでランキング化して紹介中。",
     "url": `${baseUrl}/camera/sources`,
     "mainEntity": {
       "@type": "ItemList",
@@ -267,24 +267,24 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   const dbCount = siteStats.total_videos + siteStats.total_articles;
 
   // 【SEO最適化】フィルター適用時の動的タイトル・説明文（職業フィルターのみ）
-  let pageTitle = "撮影機材紹介動画・記事一覧";
+  let pageTitle = "撮影機材やカメラバッグの中身を紹介したYoutube動画・記事まとめ";
   let pageDescription = (
     <>
-      Youtubeで5,000回以上再生されている撮影機材紹介動画やnote、ブログなどの撮影機材紹介記事をまとめています。頻繁に登場するアイテムは
+      Youtuberやフォトグラファーのカバンの中身紹介や愛用の撮影機材紹介といったコンテンツをまとめています。頻繁に登場するカメラ・周辺機器は
       <Link href="/camera/category" className="link">
         撮影機材カテゴリ
       </Link>
-      で紹介中。
+      でランキング化して紹介中。
     </>
   );
   let breadcrumbCurrent = "撮影機材紹介";
 
   // 職業フィルターが適用されている場合
   if (selectedOccupation && CAMERA_OCCUPATION_TAGS.includes(selectedOccupation as typeof CAMERA_OCCUPATION_TAGS[number])) {
-    pageTitle = `${selectedOccupation}の撮影機材紹介動画・記事一覧`;
+    pageTitle = `${selectedOccupation}の撮影機材紹介動画・記事まとめ`;
     pageDescription = (
       <>
-        {selectedOccupation}が公開している撮影機材紹介動画・記事をまとめています。{selectedOccupation}の撮影機材やおすすめ機材を参考にしましょう。
+        {selectedOccupation}が公開しているカバンの中身・撮影機材紹介をまとめています。{selectedOccupation}の愛用機材やセットアップの参考にどうぞ。
       </>
     );
     breadcrumbCurrent = selectedOccupation;

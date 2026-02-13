@@ -27,7 +27,7 @@ export interface CameraTypeTagDef {
   detect: CameraDetectionRule[];
 }
 
-// --- レンズタグ / カメラ本体タグ用の検出方法 ---
+// --- レンズタグ / カメラタグ用の検出方法 ---
 
 /** 特徴タグの検出方法 */
 export type CameraFeatureDetector =
@@ -58,7 +58,7 @@ export type CameraFeatureDetector =
       fallbackTag: string;
     };
 
-/** レンズタグ / カメラ本体タグの軸定義 */
+/** レンズタグ / カメラタグの軸定義 */
 export interface CameraFeatureAxisDef {
   /** 軸名（例: "焦点距離", "撮像サイズ"） */
   axis: string;
@@ -68,7 +68,7 @@ export interface CameraFeatureAxisDef {
   tags: CameraFeatureTagDef[];
 }
 
-/** レンズタグ / カメラ本体タグの定義 */
+/** レンズタグ / カメラタグの定義 */
 export interface CameraFeatureTagDef {
   /** タグ表示名 */
   name: string;
@@ -81,7 +81,7 @@ export interface CameraFeatureTagDef {
 // ============================================================
 
 export const CAMERA_TYPE_TAG_DEFS: Record<string, CameraTypeTagDef[]> = {
-  "カメラ本体": [
+  "カメラ": [
     { name: "ミラーレス一眼", detect: [{ keywords: ["ミラーレス", "mirrorless"] }] },
     { name: "一眼レフ", detect: [{ keywords: ["一眼レフ", "デジタル一眼レフ", "dslr"] }] },
     { name: "コンパクトデジタルカメラ", detect: [{ keywords: ["コンパクト", "コンデジ", "compact camera", "point and shoot"] }] },
@@ -235,7 +235,7 @@ export const CAMERA_LENS_TAG_DEFS: CameraFeatureAxisDef[] = [
 ];
 
 // ============================================================
-// カメラ本体用タグ定義（検出キーワード付き）
+// カメラ用タグ定義（検出キーワード付き）
 // ============================================================
 
 export const CAMERA_BODY_TAG_DEFS: CameraFeatureAxisDef[] = [

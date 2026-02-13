@@ -17,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const totalSources = stats.total_videos + stats.total_articles;
   const occupationCount = OCCUPATION_TAGS.filter(t => (occupationCounts[t] || 0) > 0).length;
 
-  const title = `職業別デスクセットアップ一覧【${occupationCount}職種】`;
-  const description = `エンジニア・デザイナー・配信者など${occupationCount}職種のデスク環境を${totalSources}件のデスクツアーから分析。職業ごとに人気のガジェットがわかります。`;
+  const title = `職業別PCデスク環境まとめ【${occupationCount}職種を分析】`;
+  const description = `エンジニア・デザイナー・配信者など${occupationCount}職種のデスク環境を${totalSources}件のリアルデータから分析。職業ごとの人気ガジェットと採用傾向がわかります。`;
 
   return {
     title,
@@ -92,7 +92,7 @@ export default async function OccupationIndexPage() {
       />
       <PageHeaderSection
         label="Database Report"
-        title="職業別デスクセットアップ"
+        title="職業別PCデスク環境まとめ"
         description={
           <>
             {totalSources}件の

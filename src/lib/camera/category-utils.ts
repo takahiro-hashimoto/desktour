@@ -2,7 +2,7 @@ import type { ProductWithStats } from "@/types";
 
 // カテゴリの優先順序（主要カテゴリから表示）
 export const CAMERA_CATEGORY_PRIORITY = [
-  "カメラ本体",
+  "カメラ",
   "レンズ",
   "三脚",
   "ジンバル",
@@ -17,7 +17,7 @@ export const CAMERA_CATEGORY_PRIORITY = [
 
 // カテゴリ名の英語表記マッピング
 const CAMERA_CATEGORY_ENGLISH_MAP: Record<string, string> = {
-  "カメラ本体": "CAMERAS",
+  "カメラ": "CAMERAS",
   "レンズ": "LENSES",
   "三脚": "TRIPODS",
   "ジンバル": "GIMBALS",

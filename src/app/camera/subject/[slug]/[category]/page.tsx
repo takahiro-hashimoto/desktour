@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchCameraProducts({ category, setupTag: subject, limit: 1 });
 
-  const title = `${subject}撮影で使われている${category}一覧【登録数${total}件】`;
-  const description = `${subject}撮影の撮影機材紹介に登場した${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${subject}撮影向け撮影機材紹介で人気の${category}まとめ`;
+  const description = `${total}件のカバンの中身・撮影機材紹介で${subject}撮影に愛用されている${category}をコメント付きで紹介。セットアップ事例も掲載。`;
 
   return {
     title,
@@ -83,14 +83,14 @@ export default async function SubjectCategoryPage({ params, searchParams }: Page
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`${subject}撮影で使われている${category}一覧`}
+        title={`${subject}撮影向け撮影機材紹介で人気の${category}まとめ`}
         description={
           <>
-            {totalSources}件の
+            {total}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            で{subject}撮影に使用されている{category}を、使用者のコメント付きでまとめています。機材選びの参考にご活用ください。
+            で{subject}撮影に愛用されている{category}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
           </>
         }
         breadcrumbCurrent={category}

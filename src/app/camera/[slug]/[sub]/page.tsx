@@ -48,8 +48,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchCameraProducts({ category, typeTag: subcategory, limit: 1 });
 
-  const title = `人気の${subcategory}一覧【${total}件】| 撮影機材`;
-  const description = `撮影機材紹介動画・記事で実際に使用されている${subcategory}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `撮影機材紹介で人気の${subcategory}まとめ`;
+  const description = `${total}件のYouTube機材紹介・カバンの中身動画で愛用されている${subcategory}をコメント付きで紹介。セットアップ事例も掲載。`;
 
   return {
     title,
@@ -74,7 +74,7 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
   const limit = 20;
 
   const lensTags = category === "レンズ" ? CAMERA_ALL_LENS_TAGS : [];
-  const bodyTags = category === "カメラ本体" ? CAMERA_ALL_BODY_TAGS : [];
+  const bodyTags = category === "カメラ" ? CAMERA_ALL_BODY_TAGS : [];
 
   const { products, total } = await searchCameraProducts({
     category,
@@ -111,14 +111,12 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`人気の${subcategory}一覧`}
+        title={`撮影機材紹介で人気の${subcategory}まとめ`}
         description={
           <>
-            {totalSources}件の
+            {total}件の
             <Link href="/camera/sources" className="link">撮影機材紹介</Link>
-            で実際に使用されている{subcategory}を使用者のコメント付きで紹介。
-            <Link href={`/camera/${categorySlug}`} className="link">{category}一覧</Link>
-            に戻る。
+            で愛用されている{subcategory}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
           </>
         }
         breadcrumbCurrent={subcategory}

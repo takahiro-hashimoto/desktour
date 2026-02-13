@@ -17,8 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const totalSources = stats.total_videos + stats.total_articles;
   const occupationCount = CAMERA_OCCUPATION_TAGS.filter(t => (occupationCounts[t] || 0) > 0).length;
 
-  const title = `職業別撮影機材セットアップ一覧【${occupationCount}職種】`;
-  const description = `映像クリエイター・フォトグラファー・配信者など${occupationCount}職種の撮影機材を${totalSources}件の撮影機材紹介から分析。職業ごとに人気の機材がわかります。`;
+  const title = `職業別カメラバッグの中身まとめ【${occupationCount}職種】`;
+  const description = `映像クリエイター・フォトグラファー・YouTuberなど${occupationCount}職種のカメラバッグの中身を${totalSources}件の機材紹介から分析。職業ごとの愛用機材やセットアップ構成がわかります。`;
 
   return {
     title,
@@ -45,16 +45,16 @@ const OCCUPATION_ICONS: Record<string, string> = {
 
 // 職業ごとの説明文
 const OCCUPATION_DESCRIPTIONS: Record<string, string> = {
-  "映像クリエイター": "映像制作を主な仕事とするクリエイターがよく使っている撮影機材を紹介。",
-  "フォトグラファー": "写真撮影を行うフォトグラファーがよく使っている撮影機材を紹介。",
-  "配信者": "ライブ配信やストリーミングを行う配信者がよく使っている撮影機材を紹介。",
-  "Vlogger": "日常をVlogで発信するクリエイターがよく使っている撮影機材を紹介。",
-  "映画監督": "映画やショートフィルムの制作を行う映画監督がよく使っている撮影機材を紹介。",
-  "ウェディング": "ウェディング撮影を手がけるクリエイターがよく使っている撮影機材を紹介。",
-  "報道・ジャーナリスト": "報道やドキュメンタリー制作を行うジャーナリストがよく使っている撮影機材を紹介。",
-  "YouTuber": "YouTube動画制作を行うYouTuberがよく使っている撮影機材を紹介。",
-  "エンジニア": "ガジェットレビューなどを行うエンジニアがよく使っている撮影機材を紹介。",
-  "デザイナー": "クリエイティブ制作を行うデザイナーがよく使っている撮影機材を紹介。",
+  "映像クリエイター": "映像クリエイターのカバンの中身・愛用機材セットアップを紹介。カメラ・レンズ・周辺機器まで。",
+  "フォトグラファー": "フォトグラファーのカバンの中身・愛用機材を紹介。カメラ・レンズ・アクセサリーまで。",
+  "配信者": "配信者のカバンの中身・愛用機材セットアップを紹介。カメラ・マイク・周辺機器まで。",
+  "Vlogger": "Vloggerのカバンの中身・愛用機材を紹介。YouTube機材セットアップの参考に。",
+  "映画監督": "映画監督のカバンの中身・愛用機材セットアップを紹介。シネマカメラから周辺機器まで。",
+  "ウェディング": "ウェディング撮影のカバンの中身・愛用機材を紹介。カメラ・レンズ・アクセサリーまで。",
+  "報道・ジャーナリスト": "報道・ジャーナリストのカバンの中身・愛用機材を紹介。カメラから周辺機器まで。",
+  "YouTuber": "YouTuberのカバンの中身・愛用機材を紹介。YouTube機材セットアップの参考に。",
+  "エンジニア": "エンジニアのカバンの中身・愛用機材を紹介。ガジェットレビュー機材からアクセサリーまで。",
+  "デザイナー": "デザイナーのカバンの中身・愛用機材を紹介。カメラ・周辺機器のセットアップ事例。",
 };
 
 export default async function OccupationIndexPage() {
@@ -95,14 +95,14 @@ export default async function OccupationIndexPage() {
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title="職業別撮影機材セットアップ"
+        title="職業別カメラバッグの中身まとめ"
         description={
           <>
             {totalSources}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            から、職業別に人気の撮影機材を掲載。全職業の総合ランキングは
+            から、職業別にカバンの中身・愛用機材を掲載。全職業の総合ランキングは
             <Link href="/camera/category" className="link">
               撮影機材
             </Link>

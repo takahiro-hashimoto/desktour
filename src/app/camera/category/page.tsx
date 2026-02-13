@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const stats = await getCameraSiteStats();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  const title = `撮影機材紹介に登場した撮影機材【${totalSources}件分析】`;
-  const description = `${totalSources}件の撮影機材紹介を分析し、カメラ・レンズ・マイクなどカテゴリー別に人気商品をまとめています。`;
+  const title = `撮影機材紹介で人気のカメラ・レンズ・周辺機器まとめ【${totalSources}件分析】`;
+  const description = `${totalSources}件のYouTube機材紹介・カバンの中身動画を分析。カメラ・レンズ・アクセサリーなどカテゴリ別に愛用機材をまとめています。`;
 
   return {
     title,
@@ -67,14 +67,14 @@ export default async function CategoryIndexPage() {
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title="撮影機材紹介に登場した人気撮影機材まとめ"
+        title="撮影機材紹介で人気のカメラ・レンズ・周辺機器まとめ"
         description={
           <>
             {totalSources}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            から人気の撮影機材をカテゴリー別にまとめています。機材選びの参考にご活用ください。
+            からクリエイターの愛用機材をカテゴリー別にまとめています。YouTube機材セットアップの参考にどうぞ。
           </>
         }
         breadcrumbCurrent="カテゴリ"
@@ -100,7 +100,7 @@ export default async function CategoryIndexPage() {
                 </Link>
               </div>
               <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
-                登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）`}
+                {category}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
               </p>
               <ProductGrid products={products} domain="camera" />
             </div>

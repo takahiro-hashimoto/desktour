@@ -14,8 +14,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   const brandCount = Object.values(brandCounts).filter((count) => count > 0).length;
 
-  const title = `撮影機材紹介に登場するブランド一覧【${brandCount}ブランド】`;
-  const description = `Sony・Canon・DJIなど${brandCount}ブランドの商品を撮影機材紹介から分析。ブランド別の人気商品と使用者レビューを掲載しています。`;
+  const title = `撮影機材紹介で人気のブランド一覧【${brandCount}ブランド】`;
+  const description = `Sony・Canon・DJIなど${brandCount}ブランドの愛用機材をカバンの中身・撮影機材紹介から分析。カメラ・レンズ・周辺機器をブランド別に掲載。`;
 
   return {
     title,
@@ -52,26 +52,26 @@ const BRAND_ICONS: Record<string, string> = {
 
 // ブランドごとの説明文
 const BRAND_DESCRIPTIONS: Record<string, string> = {
-  "Sony": "ミラーレスカメラのリーディングブランド。動画・写真の両立で多くのクリエイターに支持されている。",
-  "Canon": "一眼レフ・ミラーレスで長い歴史を持つカメラメーカー。映像制作でも定番。",
-  "Nikon": "高品質な光学技術で知られるカメラメーカー。",
-  "Fujifilm": "独自のフィルムシミュレーションで人気のミラーレスカメラブランド。",
-  "Panasonic": "LUMIX シリーズで動画撮影に強いカメラメーカー。",
-  "DJI": "ドローンやジンバルで有名なメーカー。映像制作の定番ブランド。",
-  "GoPro": "アクションカメラの代名詞。過酷な環境での撮影に強い。",
-  "RODE": "高品質なマイクで知られるオーストラリアのオーディオメーカー。",
-  "Sennheiser": "プロフェッショナル向けマイクやワイヤレスシステムの老舗。",
-  "Aputure": "映像制作向けLEDライトのトップブランド。",
-  "Godox": "コスパの良い照明機材で人気のブランド。",
-  "ZHIYUN": "カメラ用ジンバルの大手メーカー。",
-  "Manfrotto": "三脚や雲台で世界的に有名なイタリアのブランド。",
-  "Blackmagic Design": "シネマカメラや映像制作ソフトで知られるメーカー。",
-  "SIGMA": "高品質なレンズで人気の日本メーカー。",
-  "TAMRON": "コスパの良いズームレンズで人気のレンズメーカー。",
-  "Hollyland": "ワイヤレスマイクやビデオトランスミッターを展開するブランド。",
-  "SmallRig": "カメラリグやアクセサリーで人気のブランド。",
-  "Peak Design": "カメラストラップやバッグで人気のブランド。",
-  "TILTA": "シネマカメラ用アクセサリーの専門ブランド。",
+  "Sony": "ミラーレスカメラのリーディングブランド。多くのクリエイターのカバンの中身に登場する愛用機材。",
+  "Canon": "一眼レフ・ミラーレスで長い歴史を持つカメラメーカー。映像制作セットアップの定番。",
+  "Nikon": "高品質な光学技術で知られるカメラメーカー。愛用するフォトグラファー多数。",
+  "Fujifilm": "独自のフィルムシミュレーションで人気。YouTubeの機材紹介でも愛用者多数。",
+  "Panasonic": "LUMIX シリーズで動画撮影に強い。映像セットアップの定番カメラメーカー。",
+  "DJI": "ドローンやジンバルなど周辺機器で有名。映像制作セットアップの定番ブランド。",
+  "GoPro": "アクションカメラの代名詞。Vloggerのカバンの中身にも頻繁に登場。",
+  "RODE": "高品質なマイクで知られるオーディオメーカー。YouTube機材セットアップの定番。",
+  "Sennheiser": "プロ向けマイクやワイヤレスの老舗。撮影セットアップの愛用者多数。",
+  "Aputure": "映像制作向けLEDライトのトップブランド。撮影セットアップに欠かせない周辺機器。",
+  "Godox": "コスパの良い照明機材で人気。YouTube機材セットアップでも愛用者多数。",
+  "ZHIYUN": "カメラ用ジンバルの大手メーカー。撮影セットアップの周辺機器として人気。",
+  "Manfrotto": "三脚や雲台で世界的に有名。撮影セットアップのアクセサリーとして定番。",
+  "Blackmagic Design": "シネマカメラや映像制作ソフトで知られるメーカー。愛用する映像クリエイター多数。",
+  "SIGMA": "高品質なレンズで人気の日本メーカー。カバンの中身動画でも愛用者多数。",
+  "TAMRON": "コスパの良いズームレンズで人気。撮影セットアップの定番レンズメーカー。",
+  "Hollyland": "ワイヤレスマイクやビデオトランスミッターを展開。撮影セットアップの周辺機器。",
+  "SmallRig": "カメラリグやアクセサリーで人気。撮影セットアップの周辺機器として定番。",
+  "Peak Design": "カメラストラップやバッグで人気。カバンの中身動画でも頻繁に登場するアクセサリー。",
+  "TILTA": "シネマカメラ用アクセサリーの専門ブランド。映像制作セットアップに人気。",
 };
 
 interface BrandWithCount {
@@ -120,14 +120,14 @@ export default async function BrandIndexPage() {
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title="撮影機材紹介に登場する人気ブランド一覧"
+        title="撮影機材紹介で人気のブランド一覧"
         description={
           <>
             {totalSources}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            から、ブランド別に人気の撮影機材を掲載。全ブランドの総合ランキングは
+            から、ブランド別に愛用機材を掲載。カメラ・レンズ・アクセサリーの総合ランキングは
             <Link href="/camera/category" className="link">
               撮影機材
             </Link>

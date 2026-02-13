@@ -5,7 +5,9 @@ import { searchCameraProducts, getCameraOccupationTagCounts } from "@/lib/supaba
 import { CAMERA_OCCUPATION_TAGS, cameraOccupationToSlug, slugToCameraOccupation, CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { generateFAQStructuredData } from "@/lib/structuredData";
 import "../../../detail-styles.css";
 import "../../../listing-styles.css";
 
@@ -29,8 +31,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const occupationCounts = await getCameraOccupationTagCounts();
   const sourceCount = occupationCounts[occupation] || 0;
 
-  const title = `${occupation}の撮影機材紹介に登場した商品一覧【${sourceCount}件の撮影機材紹介を分析】`;
-  const description = `${sourceCount}件の${occupation}の撮影機材紹介から収集した商品をカテゴリー別にまとめています。${occupation}に人気の機材が一目でわかります。`;
+  const title = `${occupation}の愛用撮影機材・カメラバッグの中身まとめ`;
+  const description = `${occupation}のカバンの中身・撮影機材紹介${sourceCount}件を分析。愛用カメラ・レンズ・周辺機器をカテゴリ別にまとめました。セットアップ構成の参考に。`;
 
   return {
     title,
@@ -70,23 +72,38 @@ export default async function OccupationDetailPage({ params }: PageProps) {
   // 商品があるカテゴリーのみ表示
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
 
+  // 動的FAQ：各カテゴリの1位を集約
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].brand ? c.products[0].brand + " " : ""}${c.products[0].name}（${c.products[0].mention_count}件の撮影機材紹介に登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + `。${occupation}が愛用している機材を登場回数順にランキングしています。`
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${occupation}に人気の撮影機材は何ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`${occupation}の撮影機材紹介に登場した商品一覧`}
+        title={`${occupation}の愛用撮影機材・カメラバッグの中身まとめ`}
         description={
           <>
             {occupation}の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            {occupationSourceCount}件で実際に使用されている商品をカテゴリー別に掲載。全職業の総合ランキングは
-            <Link href="/camera/category" className="link">
-              撮影機材
-            </Link>
-            で紹介中。
+            {occupationSourceCount}件を分析。愛用カメラ・レンズ・周辺機器をカテゴリ別にまとめました。セットアップ構成の参考にどうぞ。
           </>
         }
         breadcrumbCurrent={occupation}
@@ -116,6 +133,8 @@ export default async function OccupationDetailPage({ params }: PageProps) {
           </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

@@ -23,7 +23,7 @@ import { ProductGrid } from "@/components/detail/ProductGrid";
 import { FAQSection } from "@/components/detail/FAQSection";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { assignRanks } from "@/lib/rankUtils";
-import { generateBreadcrumbStructuredData, generateProductStructuredData } from "@/lib/structuredData";
+import { generateBreadcrumbStructuredData, generateProductStructuredData, generateFAQStructuredData } from "@/lib/structuredData";
 import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
 import { formatProductForDisplay, convertSize, convertWeight, formatReleaseDate, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import "../../detail-styles.css";
@@ -66,10 +66,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { products: topProducts, total } = await searchCameraProducts({ category, sortBy: "mention_count", limit: 1 });
     const topName = topProducts.length > 0 ? topProducts[0].name : null;
 
-    const title = `撮影機材紹介に登場した${category}一覧【登録数${total}件】`;
+    const title = `撮影機材紹介で人気の${category}まとめ`;
     const description = topName
-      ? `${total}件の${category}を分析。最も人気は${topName}。撮影機材紹介で実際に使用されている${category}を登場回数順にまとめています。`
-      : `撮影機材紹介動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+      ? `${total}件のYouTube機材紹介・カバンの中身動画を分析。最も愛用されている${category}は${topName}。セットアップで人気の${category}を登場回数順にまとめています。`
+      : `YouTube機材紹介やカバンの中身動画で実際に愛用されている${category}を登場回数順にまとめ。口コミ付き。【${total}件掲載】`;
     const canonical = `/camera/${params.slug}`;
 
     return {
@@ -90,8 +90,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const shouldNoIndex = commentsCount < 3;
   const canonicalUrl = `/camera/${params.slug}`;
 
-  const title = `${product.name}の使用例・口コミまとめ【${product.mention_count}件の撮影機材紹介に登場】`;
-  const description = `${product.mention_count}件の撮影機材紹介に登場した${product.name}。使用者コメント${commentsCount}件と使用環境の傾向を掲載しています。`;
+  const title = `${product.brand ? product.brand + " " : ""}${product.name}の評判・ユーザーの口コミを紹介`;
+  const description = `${product.mention_count}件のYouTube機材紹介に登場した${product.name}の口コミ${commentsCount}件。愛用者のセットアップや使用環境の傾向を掲載。`;
 
   return {
     title,
@@ -160,27 +160,42 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
     const filteredSubs = subcategoryProducts.filter((s) => s.products.length > 0);
     const { total: totalInCategory } = await searchCameraProducts({ category, limit: 1 });
 
+    // 動的FAQ：各サブカテゴリの1位を集約
+    const topBySubcat = filteredSubs
+      .filter(s => s.products[0])
+      .slice(0, 3)
+      .map((s, i) => `${i + 1}位: ${s.products[0].brand ? s.products[0].brand + " " : ""}${s.products[0].name}（${s.products[0].mention_count}件の撮影機材紹介に登場）`);
+    const rankingAnswer = topBySubcat.length > 0
+      ? topBySubcat.join("、") + "。実際のクリエイターが愛用している機材を登場回数順にランキングしています。"
+      : "まだデータがありません。";
+
+    const allFaqItems = [
+      { question: `${category}ではどんな商品が人気ですか？`, answer: rankingAnswer },
+      ...COMMON_FAQ_ITEMS,
+    ];
+    const faqData = generateFAQStructuredData(allFaqItems);
+
     return (
       <>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+        />
         <PageHeaderSection
           domain="camera"
           label="Database Report"
-          title={`撮影機材紹介に登場した${category}一覧`}
+          title={`撮影機材紹介で人気の${category}まとめ`}
           description={
             <>
-              {totalSources}件の
+              {totalInCategory}件の
               <Link href="/camera/sources" className="link">
                 撮影機材紹介
               </Link>
-              を分析し、実際に使用されている{category}{totalInCategory}件をサブカテゴリー別にまとめています。その他カテゴリーは
-              <Link href="/camera/category" className="link">
-                撮影機材
-              </Link>
-              をご覧ください。
+              でクリエイターが愛用している{category}をセットアップ事例とあわせて紹介。
             </>
           }
           breadcrumbCurrent={category}
@@ -209,14 +224,14 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
                   )}
                 </div>
                 <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
-                  登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）`}
+                  {subcategory}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
                 </p>
                 <ProductGrid products={products} domain="camera" />
               </div>
             ))
           )}
 
-          <FAQSection items={[...COMMON_FAQ_ITEMS]} />
+          <FAQSection items={allFaqItems} />
         </div>
       </>
     );
@@ -227,7 +242,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
   const bodyTagFilter = searchParams.body;
 
   const lensTags = category === "レンズ" ? CAMERA_ALL_LENS_TAGS : [];
-  const bodyTags = category === "カメラ本体" ? CAMERA_ALL_BODY_TAGS : [];
+  const bodyTags = category === "カメラ" ? CAMERA_ALL_BODY_TAGS : [];
 
   const { products, total } = await searchCameraProducts({
     category,
@@ -245,23 +260,37 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
 
   const topProductName = sort === "mention" && page === 1 && products.length > 0 ? products[0].name : null;
 
+  // 動的FAQ：人気商品ランキング（上位3件）
+  const top3 = products.slice(0, 3);
+  const rankingAnswer = top3.length > 0
+    ? top3.map((p, i) => `${i + 1}位: ${p.brand ? p.brand + " " : ""}${p.name}（${p.mention_count}件の撮影機材紹介に登場）`).join("、") + "。実際のクリエイターが愛用している機材を登場回数順にランキングしています。"
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${category}ではどんな商品が人気ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`撮影機材紹介に登場した${category}一覧`}
+        title={`撮影機材紹介で人気の${category}まとめ`}
         description={
           <>
-            {totalSources}件の
+            {total}件の
             <Link href="/camera/sources" className="link">撮影機材紹介</Link>
-            を分析した結果、{topProductName ? `最も人気の${category}は${topProductName}でした。` : ""}登録{total}件を登場回数順に使用者のコメント付きで紹介します。その他カテゴリーは
-            <Link href="/camera/category" className="link">撮影機材</Link>
-            をご覧ください。
+            でクリエイターが愛用している{category}を口コミ・セットアップ事例つきで紹介。
           </>
         }
         breadcrumbCurrent={category}
@@ -291,7 +320,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
 
         <ProductGrid products={productsWithRank} domain="camera" />
 
-        <FAQSection items={[...COMMON_FAQ_ITEMS]} />
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );
@@ -415,7 +444,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
             </a>
             <div className="product-info">
               <h1 className="page-subtitle">
-                {product.brand && `${product.brand} `}{product.name}の使用例・口コミ情報まとめ
+                {product.brand && `${product.brand} `}{product.name}の評判・ユーザーの口コミを紹介
               </h1>
               <p className="page-title">{product.brand && `${product.brand} `}{product.name}</p>
 
@@ -589,7 +618,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
-              <h2>{product.brand && `${product.brand} `}{product.name}の代替品・類似商品</h2>
+              <h2>{product.brand && `${product.brand} `}{product.name}と同じカテゴリーの人気商品</h2>
             </div>
             <p className="section-summary">同じ{product.category}カテゴリでタグやスペックが近い商品です。別ブランドの選択肢を探す際の参考にどうぞ。</p>
             <div className="related-grid">
@@ -605,7 +634,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
                   <div className="related-item-info">
                     <div className="related-item-cat">{simProduct.brand || simProduct.category}</div>
                     <div className="related-item-name">{simProduct.name}</div>
-                    <div className="related-item-usage">タグ{simProduct.matched_tag_count}個一致</div>
+                    <div className="related-item-usage">{simProduct.mention_count}回登場</div>
                   </div>
                 </Link>
               ))}

@@ -16,8 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const setupCounts = await getSetupTagCounts();
   const styleCount = ALL_SETUP_TAGS.filter((style) => (setupCounts[style] || 0) > 0).length;
 
-  const title = `スタイル別デスクセットアップ一覧【${styleCount}スタイル】`;
-  const description = `ミニマル・ゲーミング・ホワイトなど${styleCount}スタイルのデスク環境を${totalSources}件のデスクツアーから分析。スタイル別の人気ガジェットを掲載しています。`;
+  const title = `スタイル別デスク環境まとめ【${styleCount}スタイル比較】`;
+  const description = `ミニマル・ゲーミング・ホワイトなど${styleCount}種類のデスク環境を${totalSources}件のリアルデータから分析。スタイル別の人気ガジェットと採用傾向を掲載。`;
 
   return {
     title,
@@ -97,7 +97,7 @@ export default async function StyleIndexPage() {
       />
       <PageHeaderSection
         label="Database Report"
-        title="スタイル別デスクセットアップ"
+        title="スタイル別デスク環境まとめ"
         description={
           <>
             {totalSources}件の

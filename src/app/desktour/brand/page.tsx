@@ -23,8 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
   }
   const brandCount = brandSet.size;
 
-  const title = `デスクツアーに登場するブランド一覧【${brandCount}ブランド】`;
-  const description = `FlexiSpot・Logicool・Keychronなど${brandCount}ブランドの商品をデスクツアーから分析。ブランド別の人気商品と使用者レビューを掲載しています。`;
+  const title = `デスク周りの人気ブランド一覧【${brandCount}ブランド比較】`;
+  const description = `FlexiSpot・Logicool・Keychronなど${brandCount}ブランドの採用実績をリアルデータから分析。ブランド別の人気商品と使用者の声を掲載しています。`;
 
   return {
     title,
@@ -164,7 +164,7 @@ export default async function BrandIndexPage() {
       />
       <PageHeaderSection
         label="Database Report"
-        title="デスクツアーに登場する人気ブランド一覧"
+        title="デスク周りの人気ブランド一覧"
         description={
           <>
             {totalSources}件の

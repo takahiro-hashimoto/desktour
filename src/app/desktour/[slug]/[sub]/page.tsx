@@ -53,8 +53,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ category, typeTag: subcategory, limit: 1 });
 
-  const title = `デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}一覧【${total}件】`;
-  const description = `デスクツアーで実際に使用されている${subcategory}を登場回数順にまとめました。使用者コメント付き。【${total}件】`;
+  const title = `デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}まとめ`;
+  const description = `デスク環境で実際に使われている${formatSubcategoryTitle(subcategory, category)}を採用数順にランキング。使用者のリアルなコメント付き。【${total}件掲載】`;
   const canonical = `/desktour/${params.slug}/${params.sub}`;
 
   return {
@@ -109,14 +109,10 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
       />
       <PageHeaderSection
         label="Database Report"
-        title={`デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}一覧`}
+        title={`デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}まとめ`}
         description={
           <>
-            {totalSources}件の
-            <Link href="/desktour/sources" className="link">デスクツアー</Link>
-            で実際に使用されている{subcategory}を使用者のコメント付きで紹介。
-            <Link href={`/desktour/${categorySlug}`} className="link">{category}一覧</Link>
-            に戻る。
+            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{subcategory}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={subcategory}

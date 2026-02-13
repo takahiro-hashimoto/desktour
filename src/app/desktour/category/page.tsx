@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const stats = await getSiteStats();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  const title = `デスクツアーに登場したPC周辺機器・ガジェット【${totalSources}件分析】`;
-  const description = `${totalSources}件のデスクツアーを分析し、キーボード・マウス・モニターなどカテゴリー別に人気商品をまとめています。`;
+  const title = `デスク周りのおすすめガジェット一覧【${totalSources}件分析】`;
+  const description = `${totalSources}件のデスクツアーを分析し、キーボード・マウス・モニターなどカテゴリ別に人気ガジェットをランキング。実際の使用者コメント付き。`;
 
   return {
     title,
@@ -102,7 +102,7 @@ export default async function CategoryIndexPage() {
       />
       <PageHeaderSection
         label="Database Report"
-        title="デスクツアーに登場した人気ガジェットまとめ"
+        title="デスク周りのおすすめガジェット一覧"
         description={
           <>
             {totalSources}件の
@@ -135,7 +135,7 @@ export default async function CategoryIndexPage() {
                 </Link>
               </div>
               <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
-                登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件のデスクツアーに登場）`}
+                {category}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件のデスクツアーに登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
               </p>
               <ProductGrid products={products} />
             </div>

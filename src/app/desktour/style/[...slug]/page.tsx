@@ -68,8 +68,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slugPath = params.slug.join("/");
 
   if (category) {
-    const title = `${getStyleTitle(styleTag, category)}｜デスクツアー掲載環境`;
-    const description = `デスクツアーで実際に使われている${styleTag}スタイルの${category}を掲載。使用者のコメントと掲載環境を確認できます。`;
+    const title = `${styleTag}スタイルのPCデスク環境で人気の${category}まとめ`;
+    const description = `${styleTag}スタイルのデスク環境で実際に使われている${category}を採用数順にランキング。使用者コメント付きで比較できます。`;
     return {
       title,
       description,
@@ -78,8 +78,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `${getStyleTitle(styleTag)}｜デスクツアー掲載環境`;
-  const description = `デスクツアーで実際に使われている${styleTag}スタイルのガジェットをカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`;
+  const title = `${styleTag}デスクのおすすめガジェット一覧`;
+  const description = `${styleTag}スタイルのデスク環境で実際に使われているガジェットをカテゴリ別にまとめ。使用者のリアルなコメント付きで選び方の参考になります。`;
   return {
     title,
     description,
@@ -115,7 +115,7 @@ export default async function StylePage({ params, searchParams }: PageProps) {
       limit: 50,
     });
 
-    const pageTitle = getStyleTitle(styleTag, category);
+    const pageTitle = `${styleTag}スタイルのPCデスク環境で人気の${category}まとめ`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -131,11 +131,7 @@ export default async function StylePage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {styleSourceCount}件の{styleTag}スタイルの
-              <Link href="/desktour/sources" className="text-blue-600 hover:underline">
-                デスクツアー
-              </Link>
-              で実際に使われている{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              {total}件の{styleTag}スタイルの<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
             </>
           }
         />
@@ -167,7 +163,7 @@ export default async function StylePage({ params, searchParams }: PageProps) {
 
       {/* Hero Section */}
       <PageHeader
-        title={getStyleTitle(styleTag)}
+        title={`${styleTag}デスクのおすすめガジェット一覧`}
         subtitle={
           <>
             {styleSourceCount}件の{styleTag}スタイルの

@@ -28,8 +28,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const { stats } = await getCachedHomeData();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  const title = `撮影機材紹介で使われている撮影機材データベース【${stats.total_products}件】`;
-  const description = `${totalSources}件の撮影機材紹介動画・記事から収集した${stats.total_products}件の商品データベース。職業・ブランド別に、実際に使われている撮影機材を探せます。`;
+  const title = `撮影機材紹介・カメラバッグの中身データベース【${stats.total_products}件】`;
+  const description = `${totalSources}件のYouTube機材紹介やカバンの中身動画を分析。カメラ・レンズ・周辺機器など${stats.total_products}件の愛用機材を職業・ブランド別に検索できます。`;
 
   return {
     title,
@@ -118,12 +118,12 @@ export default async function CameraPage() {
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "Creator Clip - 撮影機材",
-    "description": "撮影機材紹介動画・記事から本当に選ばれている撮影機材をデータ分析。職業・ブランド別に人気商品を探せるデータベース。",
+    "description": "カバンの中身・撮影機材紹介動画から本当に愛用されている撮影機材をデータ分析。YouTube機材セットアップを職業・ブランド別に探せるデータベース。",
     "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera`,
     "mainEntity": {
       "@type": "ItemList",
       "name": "撮影機材 カテゴリー一覧",
-      "description": `${stats.total_videos + stats.total_articles}件以上の撮影機材紹介から収集した人気撮影機材`,
+      "description": `${stats.total_videos + stats.total_articles}件以上のカバンの中身・撮影機材紹介から収集した愛用機材`,
       "numberOfItems": mainCategories.length,
       "itemListElement": mainCategories.map((cat, index) => ({
         "@type": "ListItem",

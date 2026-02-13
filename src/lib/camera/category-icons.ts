@@ -3,7 +3,7 @@
  */
 
 const CAMERA_CATEGORY_ICON_MAP: Record<string, string> = {
-  "カメラ本体": "fa-camera",
+  "カメラ": "fa-camera",
   "レンズ": "fa-circle-dot",
   "三脚": "fa-maximize",
   "ジンバル": "fa-rotate",

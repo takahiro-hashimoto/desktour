@@ -13,8 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const tagCounts = await getCameraSourceTagCounts();
   const subjectCount = CAMERA_SUBJECT_TAGS.filter(t => (tagCounts[t] || 0) > 0).length;
 
-  const title = `被写体別の撮影機材一覧【${subjectCount}カテゴリ】`;
-  const description = `人物・風景・商品・動物・乗り物など、被写体ごとに撮影機材紹介で使われている機材をまとめています。`;
+  const title = `被写体別カメラバッグの中身まとめ【${subjectCount}カテゴリ】`;
+  const description = `人物・風景・商品・動物・乗り物など、被写体別にカメラバッグの中身・愛用機材を撮影機材紹介から分析。セットアップ構成の参考に。`;
 
   return {
     title,
@@ -36,11 +36,11 @@ const SUBJECT_ICONS: Record<string, string> = {
 
 // 被写体ごとの説明文
 const SUBJECT_DESCRIPTIONS: Record<string, string> = {
-  "人物": "ポートレートやウェディングなど、人物を撮影するクリエイターに人気の撮影機材を紹介。",
-  "商品": "物撮りやレビュー動画など、商品撮影で使われている撮影機材を紹介。",
-  "風景": "風景写真や旅行動画など、風景を撮影するクリエイターに人気の撮影機材を紹介。",
-  "動物": "動物やペットを撮影するクリエイターがよく使っている撮影機材を紹介。",
-  "乗り物": "車やバイクなど、乗り物を撮影するクリエイターに人気の撮影機材を紹介。",
+  "人物": "ポートレート・ウェディング撮影のカバンの中身・愛用機材を紹介。カメラ・レンズ・アクセサリーまで。",
+  "商品": "物撮り・レビュー動画のカバンの中身・愛用機材を紹介。カメラからライト等の周辺機器まで。",
+  "風景": "風景写真・旅行動画のカバンの中身・愛用機材を紹介。カメラ・レンズ・アクセサリーまで。",
+  "動物": "動物・ペット撮影のカバンの中身・愛用機材を紹介。カメラ・レンズ・周辺機器まで。",
+  "乗り物": "車・バイク撮影のカバンの中身・愛用機材を紹介。カメラ・レンズ・アクセサリーまで。",
 };
 
 export default async function SubjectIndexPage() {
@@ -81,14 +81,14 @@ export default async function SubjectIndexPage() {
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title="被写体別の撮影機材一覧"
+        title="被写体別カメラバッグの中身まとめ"
         description={
           <>
             {totalSources}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            から、被写体別に人気の撮影機材を掲載。全カテゴリーの総合ランキングは
+            から、被写体別にカバンの中身・愛用機材を掲載。全カテゴリーの総合ランキングは
             <Link href="/camera/category" className="link">
               撮影機材
             </Link>

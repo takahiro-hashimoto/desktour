@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchCameraProducts({ category, occupationTag: occupation, limit: 1 });
 
-  const title = `${occupation}が使用している${category}一覧【登録数${total}件】`;
-  const description = `${occupation}の撮影機材紹介に登場した${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${occupation}の撮影機材紹介で人気の${category}まとめ`;
+  const description = `${total}件のカバンの中身・撮影機材紹介で${occupation}が愛用している${category}をコメント付きで紹介。セットアップ事例も掲載。`;
 
   return {
     title,
@@ -83,18 +83,14 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`${occupation}が使用している${category}一覧`}
+        title={`${occupation}の撮影機材紹介で人気の${category}まとめ`}
         description={
           <>
-            {totalSources}件の
+            {total}件の
             <Link href="/camera/sources" className="link">
-              撮影機材紹介動画
+              撮影機材紹介
             </Link>
-            ・
-            <Link href="/camera/sources" className="link">
-              記事
-            </Link>
-            で{occupation}が実際に使用している{category}を、使用者のコメント付きでまとめています。機材選びの参考にご活用ください。
+            で{occupation}が愛用している{category}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
           </>
         }
         breadcrumbCurrent={category}

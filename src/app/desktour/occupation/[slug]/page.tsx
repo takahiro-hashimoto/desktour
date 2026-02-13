@@ -5,7 +5,9 @@ import { searchProducts, getOccupationTagCounts } from "@/lib/supabase";
 import { OCCUPATION_TAGS, occupationToSlug, slugToOccupation, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { generateFAQStructuredData } from "@/lib/structuredData";
 import "../../../detail-styles.css";
 import "../../../listing-styles.css";
 
@@ -29,8 +31,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const occupationCounts = await getOccupationTagCounts();
   const sourceCount = occupationCounts[occupation] || 0;
 
-  const title = `${occupation}のデスクツアーに登場した商品一覧【${sourceCount}件のデスクツアーを分析】`;
-  const description = `${sourceCount}件の${occupation}のデスクツアーから収集した商品をカテゴリー別にまとめています。${occupation}に人気のガジェットが一目でわかります。`;
+  const title = `${occupation}のデスク環境で使われているガジェット一覧`;
+  const description = `${sourceCount}人の${occupation}が実際に使っているデスク周りガジェットをカテゴリ別にまとめ。${occupation}に人気のおすすめアイテムが一目でわかります。`;
 
   return {
     title,
@@ -70,11 +72,30 @@ export default async function OccupationDetailPage({ params }: PageProps) {
   // 商品があるカテゴリーのみ表示
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
 
+  // 動的FAQ：各カテゴリの1位を集約
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].brand ? c.products[0].brand + " " : ""}${c.products[0].name}（${c.category}、${c.products[0].mention_count}件のデスクツアーに登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + `。${occupation}が愛用しているアイテムを登場回数順にランキングしています。`
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${occupation}に人気のデスクガジェットは何ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         label="Database Report"
-        title={`${occupation}のデスクツアーに登場した商品一覧`}
+        title={`${occupation}のデスク環境で使われているガジェット一覧`}
         description={
           <>
             {occupation}の
@@ -115,6 +136,8 @@ export default async function OccupationDetailPage({ params }: PageProps) {
           </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

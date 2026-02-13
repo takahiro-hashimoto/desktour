@@ -38,8 +38,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slugPath = params.slug.join("/");
 
   if (category) {
-    const title = `撮影機材紹介で人気の${brand}の${category}一覧`;
-    const description = `撮影機材紹介動画・記事で実際に使用されている${brand}の${category}を掲載。使用者のコメントと掲載環境を確認できます。`;
+    const title = `撮影機材紹介で人気の${brand} ${category}まとめ`;
+    const description = `カバンの中身・撮影機材紹介で愛用されている${brand}の${category}をコメント付きで紹介。セットアップ事例も掲載。`;
     return {
       title,
       description,
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `撮影機材紹介で人気の${brand}の商品一覧`;
-  const description = `撮影機材紹介動画・記事で実際に使用されている${brand}の商品をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`;
+  const description = `カバンの中身・撮影機材紹介に登場した${brand}の愛用機材をカテゴリ別にまとめました。セットアップ構成も掲載。`;
   return {
     title,
     description,
@@ -87,7 +87,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
       limit: 50,
     });
 
-    const pageTitle = `撮影機材紹介で人気の${brand}の${category}一覧`;
+    const pageTitle = `撮影機材紹介で人気の${brand} ${category}まとめ`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -103,11 +103,10 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {stats.total_videos}件の
               <Link href="/camera/sources" className="text-blue-600 hover:underline">
-                撮影機材紹介動画・記事
+                撮影機材紹介
               </Link>
-              で実際に使用されている{brand}の{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              で愛用されている{brand}の{category}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
             </>
           }
         />
@@ -142,11 +141,10 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
         title={`撮影機材紹介で人気の${brand}の商品一覧`}
         subtitle={
           <>
-            {stats.total_videos}件の
             <Link href="/camera/sources" className="text-blue-600 hover:underline">
-              撮影機材紹介動画・記事
+              撮影機材紹介
             </Link>
-            で実際に使用されている{brand}の商品をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
+            に登場した{brand}の愛用機材をカテゴリ別にまとめました。セットアップ構成も掲載。
           </>
         }
       />
@@ -189,7 +187,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
                 {brand}の商品はどのようなソースから収集していますか？
               </h3>
               <p className="text-gray-600 text-sm">
-                YouTubeやブログで撮影機材紹介を公開している方々が実際に使用している{brand}の商品データです。
+                YouTubeのカバンの中身動画や撮影機材紹介を公開している方々が愛用している{brand}の機材データです。
               </p>
             </div>
             <div>
@@ -197,7 +195,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
                 ランキングの基準は何ですか？
               </h3>
               <p className="text-gray-600 text-sm">
-                撮影機材紹介で紹介された回数を基準にランキングを作成しています。
+                カバンの中身・撮影機材紹介で紹介された回数を基準にランキングを作成しています。
               </p>
             </div>
           </div>

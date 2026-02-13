@@ -5,7 +5,9 @@ import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
 import { STYLE_TAGS, styleTagToSlug, slugToStyleTag, PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { generateFAQStructuredData } from "@/lib/structuredData";
 import "../../../detail-styles.css";
 import "../../../listing-styles.css";
 
@@ -28,8 +30,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ setupTag: style, limit: 1 });
 
-  const title = `${style}スタイルのデスクツアー登場商品一覧【登録数${total}件】`;
-  const description = `${style}スタイルのデスクツアーに登場した商品をカテゴリー別にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `${style}デスクのおすすめガジェット一覧【${total}件】`;
+  const description = `${style}スタイルのデスク環境で実際に使われているガジェットをカテゴリ別にまとめ。使用者のリアルなコメント付きで選び方の参考になります。`;
 
   return {
     title,
@@ -68,11 +70,30 @@ export default async function StyleDetailPage({ params }: PageProps) {
   // 商品があるカテゴリーのみ表示
   const filteredCategories = categoryProducts.filter((cat) => cat.products.length > 0);
 
+  // 動的FAQ：各カテゴリの1位を集約
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].brand ? c.products[0].brand + " " : ""}${c.products[0].name}（${c.category}、${c.products[0].mention_count}件のデスクツアーに登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + `。${style}スタイルのデスクで愛用されているアイテムを登場回数順にランキングしています。`
+    : "まだデータがありません。";
+
+  const allFaqItems = [
+    { question: `${style}スタイルのデスクで人気のガジェットは何ですか？`, answer: rankingAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
       <PageHeaderSection
         label="Database Report"
-        title={`${style}スタイルのデスクツアーに登場した商品一覧`}
+        title={`${style}デスクのおすすめガジェット一覧`}
         description={
           <>
             {styleSourceCount}件の{style}スタイルの
@@ -113,6 +134,8 @@ export default async function StyleDetailPage({ params }: PageProps) {
             </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

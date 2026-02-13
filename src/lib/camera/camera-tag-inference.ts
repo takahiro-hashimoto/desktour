@@ -203,11 +203,11 @@ export function inferLensTags(
 }
 
 // ============================================================
-// カメラ本体タグ推論
+// カメラタグ推論
 // ============================================================
 
 /**
- * Amazon情報からカメラ本体タグを推論・補強
+ * Amazon情報からカメラタグを推論・補強
  */
 export function inferBodyTags(
   existingTags: string[],
@@ -259,7 +259,7 @@ export interface CameraEnrichmentResult {
   subcategory?: string;
   /** マージ後のレンズタグ */
   lensTags: string[];
-  /** マージ後のカメラ本体タグ */
+  /** マージ後のカメラタグ */
   bodyTags: string[];
 }
 
@@ -275,8 +275,8 @@ export function enrichCameraTags(input: CameraEnrichmentInput): CameraEnrichment
     ? inferLensTags(lensTags, amazonInfo)
     : [...lensTags];
 
-  // カメラ本体タグ補強
-  const enrichedBodyTags = category === "カメラ本体"
+  // カメラタグ補強
+  const enrichedBodyTags = category === "カメラ"
     ? inferBodyTags(bodyTags, amazonInfo)
     : [...bodyTags];
 

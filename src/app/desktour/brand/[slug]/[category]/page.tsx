@@ -34,8 +34,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ category, brand, limit: 1 });
 
-  const title = `${brand}の${category}一覧【登録数${total}件】`;
-  const description = `デスクツアーに登場した${brand}の${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+  const title = `デスクツアーで人気の${brand} ${category}まとめ`;
+  const description = `${brand}の${category}を実際に使っている人の声をもとに採用数順にランキング。使用者コメント付きで比較できます。【${total}件掲載】`;
 
   return {
     title,
@@ -82,18 +82,10 @@ export default async function BrandCategoryPage({ params, searchParams }: PagePr
     <>
       <PageHeaderSection
         label="Database Report"
-        title={`${brand}の${category}一覧`}
+        title={`デスクツアーで人気の${brand} ${category}まとめ`}
         description={
           <>
-            {totalSources}件の
-            <Link href="/desktour/sources" className="link">
-              デスクツアー動画
-            </Link>
-            ・
-            <Link href="/desktour/sources" className="link">
-              記事
-            </Link>
-            で{brand}の{category}が実際に使用されている様子を、使用者のコメント付きでまとめています。デスク環境構築の参考にご活用ください。
+            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{brand}の{category}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={category}

@@ -38,8 +38,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slugPath = params.slug.join("/");
 
   if (category) {
-    const title = `デスクツアーで人気の${brand}の${category}一覧`;
-    const description = `デスクツアー動画・記事で実際に使用されている${brand}の${category}を掲載。使用者のコメントと掲載環境を確認できます。`;
+    const title = `デスクツアーで人気の${brand} ${category}まとめ`;
+    const description = `${brand}の${category}を実際に使っている人の声をもとに採用数順にランキング。使用者コメント付きで比較できます。`;
     return {
       title,
       description,
@@ -48,8 +48,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `デスクツアーで人気の${brand}の商品一覧`;
-  const description = `デスクツアー動画・記事で実際に使用されている${brand}の商品をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。`;
+  const title = `${brand}の評判と人気商品一覧`;
+  const description = `${brand}の商品を実際にデスク環境で使っている人のリアルな声を集約。カテゴリ別の人気商品と使用者コメントを掲載。`;
   return {
     title,
     description,
@@ -87,7 +87,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
       limit: 50,
     });
 
-    const pageTitle = `デスクツアーで人気の${brand}の${category}一覧`;
+    const pageTitle = `デスクツアーで人気の${brand} ${category}まとめ`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -103,11 +103,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {stats.total_videos}件の
-              <Link href="/desktour/sources" className="text-blue-600 hover:underline">
-                デスクツアー動画・記事
-              </Link>
-              で実際に使用されている{brand}の{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              {total}件の<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{brand}の{category}を使用者のコメント付きで紹介。
             </>
           }
         />
@@ -139,7 +135,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
 
       {/* Hero Section */}
       <PageHeader
-        title={`デスクツアーで人気の${brand}の商品一覧`}
+        title={`${brand}の評判と人気商品一覧`}
         subtitle={
           <>
             {stats.total_videos}件の

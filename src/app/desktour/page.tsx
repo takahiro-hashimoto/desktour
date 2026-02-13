@@ -27,8 +27,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const { stats } = await getCachedHomeData();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  const title = `デスクツアーで使われているガジェットデータベース【${stats.total_products}件】`;
-  const description = `${totalSources}件のデスクツアー動画・記事から収集した${stats.total_products}件の商品データベース。職業・スタイル・ブランド別に、実際に使われているデスク周りガジェットを探せます。`;
+  const title = `PCデスク環境のおすすめガジェット【実使用データ${stats.total_products}件】`;
+  const description = `${totalSources}件のデスクツアーから集計した${stats.total_products}件のリアル使用データ。職業・スタイル・ブランド別に、実際に使われているデスク周りガジェットが見つかります。`;
 
   return {
     title,

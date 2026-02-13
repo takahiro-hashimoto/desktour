@@ -36,8 +36,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const slugPath = params.slug.join("/");
 
   if (category) {
-    const title = `${occupation}の撮影環境で使われている${category}一覧`;
-    const description = `撮影機材紹介で${occupation}が実際に使用している${category}を掲載。コメント付きで使用実態を確認できます。`;
+    const title = `${occupation}の撮影機材紹介で人気の${category}まとめ`;
+    const description = `カバンの中身・撮影機材紹介で${occupation}が愛用している${category}をコメント付きで紹介。セットアップ事例も掲載。`;
     return {
       title,
       description,
@@ -46,8 +46,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
-  const title = `${occupation}の撮影環境で使われている機材一覧`;
-  const description = `撮影機材紹介で${occupation}が使用している機材をカテゴリ別に掲載。実際の使用例とコメントを確認できます。`;
+  const title = `${occupation}の愛用撮影機材・カメラバッグの中身まとめ`;
+  const description = `${occupation}のカバンの中身・撮影機材紹介を分析。愛用カメラ・レンズ・周辺機器をカテゴリ別にまとめました。セットアップ構成の参考に。`;
   return {
     title,
     description,
@@ -82,7 +82,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
       limit: 50,
     });
 
-    const pageTitle = `${occupation}の撮影環境で使われている${category}一覧`;
+    const pageTitle = `${occupation}の撮影機材紹介で人気の${category}まとめ`;
 
     return (
       <div className="max-w-[1080px] mx-auto px-4 py-8">
@@ -98,11 +98,10 @@ export default async function OccupationPage({ params, searchParams }: PageProps
           title={pageTitle}
           subtitle={
             <>
-              {stats.total_videos}件の
               <Link href="/camera/sources" className="text-blue-600 hover:underline">
-                撮影機材紹介動画・記事
+                撮影機材紹介
               </Link>
-              から収集した、{occupation}が実際に使用している{category}を掲載しています。使用者のコメントと掲載環境を確認できます。
+              で{occupation}が愛用している{category}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
             </>
           }
         />
@@ -134,14 +133,14 @@ export default async function OccupationPage({ params, searchParams }: PageProps
 
       {/* Hero Section */}
       <PageHeader
-        title={`${occupation}の撮影環境で使われている機材一覧`}
+        title={`${occupation}の愛用撮影機材・カメラバッグの中身まとめ`}
         subtitle={
           <>
-            {stats.total_videos}件の
+            {occupation}の
             <Link href="/camera/sources" className="text-blue-600 hover:underline">
-              撮影機材紹介動画・記事
+              撮影機材紹介
             </Link>
-            で{occupation}が実際に使用している機材をカテゴリ別に掲載。使用者のコメントと掲載環境を確認できます。
+            を分析。愛用カメラ・レンズ・周辺機器をカテゴリ別にまとめました。セットアップ構成の参考にどうぞ。
           </>
         }
       />
@@ -175,7 +174,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
               どのような{occupation}のデータですか？
             </h3>
             <p className="text-gray-600 text-sm">
-              YouTubeやブログで撮影機材紹介を公開している{occupation}の方々が実際に使用している商品データです。
+              YouTubeのカバンの中身動画や撮影機材紹介を公開している{occupation}の方々が実際に愛用している機材データです。
             </p>
           </div>
           <div>
@@ -191,7 +190,7 @@ export default async function OccupationPage({ params, searchParams }: PageProps
               ランキングの基準は何ですか？
             </h3>
             <p className="text-gray-600 text-sm">
-              撮影機材紹介で紹介された回数（採用数）を基準にランキングを作成しています。
+              カバンの中身・撮影機材紹介で紹介された回数（採用数）を基準にランキングを作成しています。
             </p>
           </div>
         </div>
