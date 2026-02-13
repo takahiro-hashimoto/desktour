@@ -4,6 +4,8 @@ import Link from "next/link";
 import { formatPrice, formatPriceDate } from "@/lib/format-utils";
 import type { DisplayProduct } from "@/lib/format-utils";
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
+import { productUrl } from "@/lib/constants";
+import { cameraProductUrl } from "@/lib/camera/constants";
 
 interface ProductGridProps {
   products: DisplayProduct[];
@@ -70,8 +72,8 @@ export function ProductGrid({ products, domain = "desktour" }: ProductGridProps)
                 <p className="detail-product-desc">{product.user_comment}</p>
               </div>
             )}
-            {product.slug && (
-              <Link href={`/${domain}/product/${product.slug}`} className="detail-product-cta">
+            {product.slug && product.category && (
+              <Link href={domain === "camera" ? cameraProductUrl(product as { slug?: string; id: string; category: string }) : productUrl(product as { slug?: string; id: string; category: string })} className="detail-product-cta">
                 詳細を見る <i className="fa-solid fa-arrow-right"></i>
               </Link>
             )}

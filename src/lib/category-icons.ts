@@ -14,7 +14,7 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   "ヘッドホン・イヤホン": "fa-headphones",
   "スピーカー": "fa-volume-high",
   "照明・ライト": "fa-lightbulb",
-  "PCスタンド・ノートPCスタンド": "fa-laptop",
+  "ノートPCスタンド": "fa-laptop",
   "モニターアーム": "fa-desktop",
   "マイクアーム": "fa-grip-lines-vertical",
   "USBハブ": "fa-usb",

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { cache } from "react";
-import { searchProducts, getSiteStats, getProductDetailBySlug, getCoOccurrenceProducts } from "@/lib/supabase";
+import { searchProducts, getSiteStats, getProductDetailBySlug, getCoOccurrenceProducts, getSimilarProducts } from "@/lib/supabase";
 import {
   PRODUCT_CATEGORIES,
   TYPE_TAGS,
@@ -20,7 +20,7 @@ import { ProductReviews } from "@/components/product/ProductReviews";
 import { assignRanks } from "@/lib/rankUtils";
 import { generateBreadcrumbStructuredData, generateProductStructuredData } from "@/lib/structuredData";
 import { getCategoryIcon } from "@/lib/category-icons";
-import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { formatProductForDisplay, convertSize, convertWeight, formatReleaseDate, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import { getProductLinks } from "@/lib/affiliateLinks";
 import { isLowQualityFeatures } from "@/lib/featureQuality";
 import "../../detail-styles.css";
@@ -47,25 +47,6 @@ function getCategoryFromSlug(slug: string): string | null {
   return category && PRODUCT_CATEGORIES.includes(category) ? category : null;
 }
 
-function convertSize(sizeStr: string): string {
-  return sizeStr.replace(/(\d+\.?\d*)インチ/g, (_, num) => {
-    const cm = parseFloat(num) * 2.54;
-    return `${cm.toFixed(1)}cm`;
-  });
-}
-
-function convertWeight(weightStr: string): string {
-  return weightStr.replace(/(\d+\.?\d*)ポンド/g, (_, num) => {
-    const g = parseFloat(num) * 453.592;
-    return g >= 1000 ? `${(g / 1000).toFixed(1)}kg` : `${Math.round(g)}g`;
-  });
-}
-
-function formatReleaseDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-}
 
 const getCachedProductDetail = cache(async (slug: string) => {
   return getProductDetailBySlug(slug);
@@ -78,10 +59,13 @@ const getCachedProductDetail = cache(async (slug: string) => {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const category = getCategoryFromSlug(params.slug);
   if (category) {
-    const { total } = await searchProducts({ category, limit: 1 });
+    const { products: topProducts, total } = await searchProducts({ category, sortBy: "mention_count", limit: 1 });
+    const topName = topProducts.length > 0 ? topProducts[0].name : null;
 
     const title = `デスクツアーに登場した${category}一覧【登録数${total}件】`;
-    const description = `デスクツアー動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+    const description = topName
+      ? `${total}件の${category}を分析。最も人気は${topName}。デスクツアーで実際に使用されている${category}を登場回数順にまとめています。`
+      : `デスクツアー動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
     const canonical = `/desktour/${params.slug}`;
 
     return {
@@ -95,7 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const product = await getCachedProductDetail(params.slug);
   if (!product) {
-    return { title: "ページが見つかりません | デスクツアーDB" };
+    return { title: "ページが見つかりません | Creator Clip" };
   }
 
   const commentsCount = product.all_comments?.length || 0;
@@ -153,6 +137,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
   const typeTags = TYPE_TAGS[category] || [];
+  const topProductName = sort === "mention" && page === 1 && products.length > 0 ? products[0].name : null;
 
   const breadcrumbItems = [
     { name: "トップ", url: "/" }, { name: "PCデスク環境", url: "/desktour" },
@@ -173,7 +158,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
           <>
             {totalSources}件の
             <Link href="/desktour/sources" className="link">デスクツアー</Link>
-            で実際に使用されている{category}を使用者のコメント付きで紹介。その他カテゴリーが気になる方は
+            を分析した結果、{topProductName ? `最も人気の${category}は${topProductName}でした。` : ""}登録{total}件を登場回数順に使用者のコメント付きで紹介します。その他カテゴリーは
             <Link href="/desktour/category" className="link">デスク周りのガジェット</Link>
             をご覧ください。
           </>
@@ -228,8 +213,15 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
   const categoryTypeTags = TYPE_TAGS[product.category] || [];
   const productSubcategory = product.tags?.find((tag: string) => categoryTypeTags.includes(tag)) || null;
 
-  const [coUsedProducts, stats] = await Promise.all([
+  const [coUsedProducts, similarProducts, stats] = await Promise.all([
     getCoOccurrenceProducts(product.id, 4),
+    getSimilarProducts({
+      id: product.id,
+      category: product.category,
+      tags: product.tags,
+      brand: product.brand,
+      price_range: product.price_range,
+    }, 4),
     getSiteStats(),
   ]);
 
@@ -255,6 +247,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
     styleStats.length > 0 || hasChosenReasons;
   const hasComments = product.all_comments && product.all_comments.length > 0;
   const hasCoUsedProducts = coUsedProducts.length > 0;
+  const hasSimilarProducts = similarProducts.length > 0;
 
   const { amazonUrl, rakutenUrl } = getProductLinks({
     amazon_url: product.amazon_url,
@@ -379,6 +372,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
             productName={`${product.brand ? `${product.brand} ` : ""}${product.name}`}
             productId={product.id}
             sectionNumber={++sectionNum}
+            mentionCount={product.mention_count}
           />
         )}
 
@@ -388,6 +382,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}が登場しているデスク環境の傾向</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}を使用している{product.occupation_breakdown?.[0]?.occupation_tag || "クリエイター"}を中心に、選ばれた理由やデスクスタイルの傾向をまとめています。</p>
             <div className="trend-card">
               <div className={`trend-grid${hasChosenReasons ? " trend-grid-3col" : ""}`}>
                 {product.occupation_breakdown && product.occupation_breakdown.length > 0 && (
@@ -446,6 +441,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}の特徴</h2>
             </div>
+            <p className="section-summary">Amazon商品ページに掲載されている{product.brand && `${product.brand} `}{product.name}の主な特徴です。</p>
             <div className="feature-card">
               <ul className="feature-list">
                 {product.amazon_features!.map((feature, index) => (
@@ -462,6 +458,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}と一緒に使われている周辺機器</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}と同じデスクで使われている周辺機器を、共起回数順に紹介します。</p>
             <div className="related-grid">
               {coUsedProducts.filter(p => p.slug).map((coProduct) => (
                 <Link key={coProduct.id} href={productUrl(coProduct)} className="related-item">
@@ -483,12 +480,41 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
           </div>
         )}
 
+        {hasSimilarProducts && (
+          <div className="content-section product-reveal">
+            <div className="section-title">
+              <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
+              <h2>{product.brand && `${product.brand} `}{product.name}の代替品・類似商品</h2>
+            </div>
+            <p className="section-summary">同じ{product.category}カテゴリでタグやスペックが近い商品です。別ブランドの選択肢を探す際の参考にどうぞ。</p>
+            <div className="related-grid">
+              {similarProducts.filter(p => p.slug).map((simProduct) => (
+                <Link key={simProduct.id} href={productUrl(simProduct)} className="related-item">
+                  <div className="related-item-img">
+                    {simProduct.amazon_image_url ? (
+                      <img src={simProduct.amazon_image_url} alt={simProduct.name} width={120} height={120} loading="lazy" />
+                    ) : (
+                      <i className={`fa-solid ${getCategoryIcon(simProduct.category || "")}`}></i>
+                    )}
+                  </div>
+                  <div className="related-item-info">
+                    <div className="related-item-cat">{simProduct.brand || simProduct.category}</div>
+                    <div className="related-item-name">{simProduct.name}</div>
+                    <div className="related-item-usage">タグ{simProduct.matched_tag_count}個一致</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {hasProductInfo && (
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}の基本情報</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}のスペック・仕様情報です。</p>
             <div className="specs-card">
               <table className="specs-table">
                 <tbody>

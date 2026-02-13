@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 // ナビゲーション設定
 const DESKTOUR_NAV = {
-  logo: "デスクツアーDB",
+  logo: "Creator Clips - デスク環境",
   logoHref: "/desktour",
   desktop: [
     { href: "/desktour/sources", label: "デスクツアー" },
@@ -25,7 +25,7 @@ const DESKTOUR_NAV = {
 };
 
 const CAMERA_NAV = {
-  logo: "撮影機材DB",
+  logo: "Creator Clips - カメラ機材",
   logoHref: "/camera",
   desktop: [
     { href: "/camera/sources", label: "撮影機材紹介" },

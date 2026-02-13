@@ -5,6 +5,7 @@ import { generateProductSlug } from "../productSlug";
 import { extractProductTags } from "../tag-inference";
 import { normalizeBrand } from "./queries-common";
 import { BRAND_TAGS } from "../constants";
+import { fuzzyMatchProduct } from "../fuzzy-product-match";
 
 // 動画が既に解析済みかチェック
 export async function isVideoAnalyzed(videoId: string): Promise<boolean> {
@@ -88,7 +89,13 @@ export interface SaveProductResult<T> {
   isExisting: boolean;
 }
 
-export async function saveProduct(product: Omit<Product, "id">): Promise<SaveProductResult<Product>> {
+// ファジーマッチ用カテゴリキャッシュ型（ループ内で使い回してSupabaseクエリを削減）
+export type FuzzyCategoryCache = Map<string, Array<{ id: string; name: string; normalized_name: string; brand: string | null }>>;
+
+export async function saveProduct(
+  product: Omit<Product, "id">,
+  fuzzyCategoryCache?: FuzzyCategoryCache
+): Promise<SaveProductResult<Product>> {
   // ブランド名を正規化
   if (product.brand) {
     const originalBrand = product.brand;
@@ -116,6 +123,41 @@ export async function saveProduct(product: Omit<Product, "id">): Promise<SavePro
     existing = existingProducts.find(p => p.normalized_name === normalizedName)
       || existingProducts[0];
     console.log(`[saveProduct] Found existing: "${existing.name}" (matched by ${existing.normalized_name === normalizedName ? 'normalized_name' : 'name'})`);
+  }
+
+  // --- ファジーマッチフォールバック ---
+  if (!existing && product.category) {
+    // キャッシュがあればカテゴリ単位で再利用（同カテゴリの商品を何度もDBから取得しない）
+    let sameCategoryProducts = fuzzyCategoryCache?.get(product.category);
+
+    if (!sameCategoryProducts) {
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, normalized_name, brand")
+        .eq("category", product.category)
+        .limit(200);
+      sameCategoryProducts = (data || []) as Array<{ id: string; name: string; normalized_name: string; brand: string | null }>;
+      fuzzyCategoryCache?.set(product.category, sameCategoryProducts);
+    }
+
+    if (sameCategoryProducts.length > 0) {
+      const fuzzyResult = fuzzyMatchProduct(
+        normalizedName,
+        sameCategoryProducts,
+        product.brand
+      );
+      if (fuzzyResult) {
+        const matched = sameCategoryProducts[fuzzyResult.index];
+        console.log(`[saveProduct] Fuzzy match: "${product.name}" → "${matched.name}" (score: ${fuzzyResult.score.toFixed(3)}, ${fuzzyResult.matchReason})`);
+        // 既存商品のフルデータを取得
+        const { data: fullProduct } = await supabase
+          .from("products")
+          .select("*")
+          .eq("id", matched.id)
+          .single();
+        if (fullProduct) existing = fullProduct;
+      }
+    }
   }
 
   if (existing) {
@@ -504,4 +546,193 @@ export async function saveInfluencer(influencer: Omit<Influencer, "id" | "create
   }
 
   return null;
+}
+
+// ========== 再編集用の更新関数 ==========
+
+// 動画/記事のメタデータ更新（summary, tags）
+export async function updateSourceMetadata(
+  sourceType: "video" | "article",
+  sourceId: string,
+  data: { summary: string; tags: string[] }
+): Promise<boolean> {
+  if (sourceType === "video") {
+    const { error } = await supabase
+      .from("videos")
+      .update({ summary: data.summary, tags: data.tags })
+      .eq("video_id", sourceId);
+    if (error) {
+      console.error("Error updating video metadata:", error);
+      return false;
+    }
+    return true;
+  } else {
+    const { error } = await supabase
+      .from("articles")
+      .update({ summary: data.summary, tags: data.tags })
+      .eq("url", sourceId);
+    if (error) {
+      console.error("Error updating article metadata:", error);
+      return false;
+    }
+    return true;
+  }
+}
+
+// インフルエンサーの職業タグ更新
+export async function updateInfluencerOccupationTags(
+  sourceType: "video" | "article",
+  sourceId: string,
+  occupationTags: string[]
+): Promise<boolean> {
+  if (sourceType === "video") {
+    const { data: video } = await supabase
+      .from("videos")
+      .select("channel_id")
+      .eq("video_id", sourceId)
+      .single();
+    if (!video?.channel_id) return false;
+
+    const { error } = await supabase
+      .from("influencers")
+      .update({ occupation_tags: occupationTags })
+      .eq("channel_id", video.channel_id);
+    if (error) {
+      console.error("Error updating influencer occupation_tags:", error);
+      return false;
+    }
+    return true;
+  } else {
+    // 記事の場合: author_idのドメインマッチでインフルエンサーを特定
+    const { data: influencers } = await supabase
+      .from("influencers")
+      .select("id, author_id")
+      .not("author_id", "is", null);
+
+    const match = influencers?.find(inf => {
+      if (!inf.author_id) return false;
+      const domain = inf.author_id.split(":")[0];
+      return domain && sourceId.includes(domain);
+    });
+    if (!match) return false;
+
+    const { error } = await supabase
+      .from("influencers")
+      .update({ occupation_tags: occupationTags })
+      .eq("id", match.id);
+    if (error) {
+      console.error("Error updating article author occupation_tags:", error);
+      return false;
+    }
+    return true;
+  }
+}
+
+// 商品のコメント文（reason）更新
+export async function updateMentionReason(
+  productId: string,
+  sourceType: "video" | "article",
+  sourceId: string,
+  reason: string
+): Promise<boolean> {
+  const column = sourceType === "video" ? "video_id" : "article_id";
+  const { error } = await supabase
+    .from("product_mentions")
+    .update({ reason })
+    .eq("product_id", productId)
+    .eq(column, sourceId);
+  if (error) {
+    console.error("Error updating mention reason:", error);
+    return false;
+  }
+  return true;
+}
+
+// ソース（動画/記事）を削除
+// 関連するproduct_mentionsも削除し、mentionが0になった商品も削除する
+export async function deleteSource(
+  sourceType: "video" | "article",
+  sourceId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const mentionColumn = sourceType === "video" ? "video_id" : "article_id";
+
+    // 1. 関連するproduct_mentionsを取得（orphan商品チェック用）
+    const { data: mentions } = await supabase
+      .from("product_mentions")
+      .select("product_id")
+      .eq(mentionColumn, sourceId);
+
+    const affectedProductIds = [...new Set((mentions || []).map(m => m.product_id))];
+
+    // 2. product_mentionsを削除
+    const { error: mentionError } = await supabase
+      .from("product_mentions")
+      .delete()
+      .eq(mentionColumn, sourceId);
+
+    if (mentionError) {
+      console.error("Error deleting product_mentions:", mentionError);
+      return { success: false, error: "product_mentionsの削除に失敗" };
+    }
+
+    // 3. ソース本体を削除
+    if (sourceType === "video") {
+      const { error } = await supabase.from("videos").delete().eq("video_id", sourceId);
+      if (error) {
+        console.error("Error deleting video:", error);
+        return { success: false, error: "動画の削除に失敗" };
+      }
+    } else {
+      const { error } = await supabase.from("articles").delete().eq("url", sourceId);
+      if (error) {
+        console.error("Error deleting article:", error);
+        return { success: false, error: "記事の削除に失敗" };
+      }
+    }
+
+    // 4. orphanになった商品（mentionが0件）を削除
+    let orphanDeleted = 0;
+    for (const productId of affectedProductIds) {
+      const { count } = await supabase
+        .from("product_mentions")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", productId);
+
+      if (count === 0) {
+        await supabase.from("products").delete().eq("id", productId);
+        orphanDeleted++;
+      }
+    }
+
+    console.log(`[deleteSource] Deleted ${sourceType} ${sourceId}, ${mentions?.length || 0} mentions removed, ${orphanDeleted} orphan products cleaned up`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error in deleteSource:", error);
+    return { success: false, error: "削除中にエラーが発生しました" };
+  }
+}
+
+// 商品メタデータ更新（name, brand, category, tags）
+export async function updateProductMetadata(
+  productId: string,
+  data: { name?: string; brand?: string; category?: string; tags?: string[] }
+): Promise<boolean> {
+  const updateData: Record<string, unknown> = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.brand !== undefined) updateData.brand = data.brand;
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.tags !== undefined) updateData.tags = data.tags;
+
+  if (Object.keys(updateData).length === 0) return true;
+
+  const { error } = await supabase
+    .from("products")
+    .update(updateData)
+    .eq("id", productId);
+  if (error) {
+    console.error("Error updating product metadata:", error);
+    return false;
+  }
+  return true;
 }

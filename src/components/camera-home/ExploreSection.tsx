@@ -57,9 +57,10 @@ function ExploreCard({ icon, title, description, items, viewAllHref }: ExploreCa
 interface CameraExploreSectionProps {
   occupations: ExploreItem[];
   brands: ExploreItem[];
+  subjects: ExploreItem[];
 }
 
-export function CameraExploreSection({ occupations, brands }: CameraExploreSectionProps) {
+export function CameraExploreSection({ occupations, brands, subjects }: CameraExploreSectionProps) {
   return (
     <section className="home-explore">
       <div className="home-explore__inner">
@@ -69,7 +70,7 @@ export function CameraExploreSection({ occupations, brands }: CameraExploreSecti
               <i className="fas fa-search home-explore__title-icon"></i>
               切り口から探す
             </h2>
-            <p className="home-explore__subtitle">職業・ブランドの切り口で人気の撮影機材を確認できます</p>
+            <p className="home-explore__subtitle">職業・ブランド・被写体の切り口で人気の撮影機材を確認できます</p>
           </div>
         </div>
 
@@ -88,6 +89,14 @@ export function CameraExploreSection({ occupations, brands }: CameraExploreSecti
             description="紹介された機材数が多い人気ブランドから探せます"
             items={brands}
             viewAllHref="/camera/brand"
+          />
+
+          <ExploreCard
+            icon={<i className="fas fa-crosshairs"></i>}
+            title="被写体別"
+            description="撮影対象ごとに、どんな機材が使われているか探せます"
+            items={subjects}
+            viewAllHref="/camera/subject"
           />
         </div>
       </div>

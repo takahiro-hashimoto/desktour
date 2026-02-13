@@ -91,6 +91,18 @@ const SUB_CATEGORY_ICONS: Record<string, string> = {
   "HDD・SSD": "fa-solid fa-hard-drive",
   "デスクシェルフ・モニター台": "fa-solid fa-layer-group",
   "配線整理グッズ": "fa-solid fa-grip-lines",
+  "モバイルモニター": "fa-solid fa-mobile-screen",
+  "ノートPCスタンド": "fa-solid fa-laptop",
+  "USBハブ": "fa-brands fa-usb",
+  "デスクマット": "fa-solid fa-rectangle-list",
+  "タブレット": "fa-solid fa-tablet",
+  "ペンタブ": "fa-solid fa-pen-nib",
+  "左手デバイス": "fa-solid fa-gamepad",
+  "コントローラー": "fa-solid fa-gamepad",
+  "キャプチャーボード": "fa-solid fa-video",
+  "NAS": "fa-solid fa-server",
+  "ケーブル": "fa-solid fa-link",
+  "スマートホーム": "fa-solid fa-house-signal",
 };
 
 export default async function DesktourPage() {
@@ -104,17 +116,18 @@ export default async function DesktourPage() {
     icon: CATEGORY_ICONS[cat] || "📦",
   }));
 
-  // サブカテゴリ
-  const subCategories = [
-    "マイク", "スピーカー", "照明・ライト", "PC本体", "ヘッドホン・イヤホン",
-    "オーディオインターフェース", "モニターアーム", "ドッキングステーション",
-    "ウェブカメラ", "マイクアーム", "収納・整理", "充電器・電源タップ", "HDD・SSD", "デスクシェルフ・モニター台", "配線整理グッズ"
-  ].map(cat => ({
-    name: cat,
-    count: categoryCounts[cat] || 0,
-    icon: SUB_CATEGORY_ICONS[cat] || "📦",
-    slug: categoryToSlug(cat),
-  }));
+  // サブカテゴリ（掲載数が多い順にソート、その他デスクアクセサリーは除外）
+  const mainCategoryNames = ["デスク", "ディスプレイ・モニター", "チェア", "キーボード", "マウス"];
+  const subCategories = PRODUCT_CATEGORIES
+    .filter(cat => !mainCategoryNames.includes(cat) && cat !== "その他デスクアクセサリー")
+    .map(cat => ({
+      name: cat,
+      count: categoryCounts[cat] || 0,
+      icon: SUB_CATEGORY_ICONS[cat] || "📦",
+      slug: categoryToSlug(cat),
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 16);
 
   // 職業別データ
   const occupations = OCCUPATION_TAGS
@@ -163,7 +176,7 @@ export default async function DesktourPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "デスクツアーDB",
+    "name": "Creator Clip - デスクツアー",
     "description": "デスクツアー動画・記事から本当に選ばれているデスク周りガジェットをデータ分析。職業・スタイル・ブランド別に人気商品を探せるデータベース。",
     "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/desktour`,
     "mainEntity": {

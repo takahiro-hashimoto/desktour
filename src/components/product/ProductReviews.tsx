@@ -11,6 +11,8 @@ interface Comment {
   source_thumbnail_url?: string;
   source_video_id?: string;
   source_type?: string;
+  channel_title?: string;
+  author?: string;
 }
 
 interface ProductReviewsProps {
@@ -19,9 +21,10 @@ interface ProductReviewsProps {
   productId: string;
   sectionNumber: number;
   domain?: "desktour" | "camera";
+  mentionCount?: number;
 }
 
-export function ProductReviews({ comments, productName, productId, sectionNumber, domain = "desktour" }: ProductReviewsProps) {
+export function ProductReviews({ comments, productName, productId, sectionNumber, domain = "desktour", mentionCount }: ProductReviewsProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalSource, setModalSource] = useState<{
     type: "video" | "article";
@@ -54,6 +57,11 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
           <span className="section-number">{String(sectionNumber).padStart(2, "0")}</span>
           <h2>{productName}の口コミ・実際の使用例</h2>
         </div>
+        <p className="section-summary">
+          {mentionCount
+            ? `${mentionCount}件の${domain === "camera" ? "撮影機材紹介" : "デスクツアー"}から集めた、${productName}の実際の使用者コメントです。`
+            : `${domain === "camera" ? "撮影機材紹介" : "デスクツアー"}動画・記事から集めた、${productName}の実際の使用者コメントです。`}
+        </p>
         {comments.map((comment, index) => (
           <blockquote
             key={index}
@@ -71,6 +79,11 @@ export function ProductReviews({ comments, productName, productId, sectionNumber
             </figure>
             <div className="review-body">
               <p className="review-text">{comment.comment}</p>
+              {(comment.channel_title || comment.author) && (
+                <span className="review-author">
+                  — {comment.channel_title || comment.author}
+                </span>
+              )}
             </div>
           </blockquote>
         ))}

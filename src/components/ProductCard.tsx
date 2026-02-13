@@ -6,6 +6,7 @@ import type { ProductWithStats } from "@/types";
 import { getPriceRangeLabel } from "@/types";
 import { SourceModal } from "./SourceModal";
 import { resolveImageUrl } from "@/lib/imageUtils";
+import { productUrl } from "@/lib/constants";
 
 interface ProductCardProps {
   product: ProductWithStats;
@@ -84,7 +85,7 @@ export const ProductCard = memo(function ProductCard({
             {/* 商品名 */}
             <h3 className="font-medium text-gray-900 line-clamp-2 mb-2">
               <Link
-                href={`/desktour/product/${product.slug || product.id}`}
+                href={productUrl(product)}
                 className="hover:text-blue-600"
               >
                 {product.name}
@@ -140,7 +141,7 @@ export const ProductCard = memo(function ProductCard({
           {/* リンク - 常に最下部 */}
           <div className="flex items-center gap-2 mt-auto pt-3 border-t border-gray-100">
             <Link
-              href={`/desktour/product/${product.slug || product.id}`}
+              href={productUrl(product)}
               className="text-xs text-blue-600 hover:underline"
             >
               詳細を見る

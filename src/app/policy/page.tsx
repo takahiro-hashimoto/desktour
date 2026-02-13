@@ -5,7 +5,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "コンテンツ制作ポリシー",
-  description: "デスクツアーDBのコンテンツ制作ポリシーをご紹介します。",
+  description: "Creator Clipのコンテンツ制作ポリシーをご紹介します。",
   alternates: { canonical: "/policy" },
 };
 
@@ -15,9 +15,10 @@ export default function PolicyPage() {
       <PageHeaderSection
         label="Policy"
         title="コンテンツ制作ポリシー"
-        description="デスクツアーDBのコンテンツ制作における方針をご紹介します。"
+        description="Creator Clipのコンテンツ制作における方針をご紹介します。"
         breadcrumbCurrent="コンテンツ制作ポリシー"
         icon="fa-file-alt"
+        showPrNote={false}
       />
       <div className="detail-container" style={{ paddingTop: "48px", paddingBottom: "80px" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto" }}>

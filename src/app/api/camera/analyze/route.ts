@@ -11,6 +11,7 @@ import {
   saveCameraInfluencer,
   saveCameraProduct,
   updateCameraProductWithAmazon,
+  type CameraFuzzyCategoryCache,
 } from "@/lib/supabase/mutations-camera";
 import { getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct } from "@/lib/description-links";
@@ -26,7 +27,7 @@ import {
   type MatchedProduct,
 } from "@/lib/product-matching";
 import { enrichCameraTags } from "@/lib/camera/camera-tag-inference";
-import { checkExistingProducts } from "@/lib/supabase/queries-common";
+import { checkExistingProducts, findExistingProducts, buildBrandNormalizationMap } from "@/lib/supabase/queries-common";
 
 export async function POST(request: NextRequest) {
   try {
@@ -90,28 +91,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. 概要欄からEC系リンクを抽出（並行実行）
+    // 6. 概要欄からEC系リンクを抽出（Geminiに商品ヒントとして渡すため先に実行）
     console.log("Extracting product links from description...");
-    const descriptionLinksPromise = extractProductsFromDescription(videoInfo.description);
-
-    // 7. Gemini APIで解析（撮影機材用のカテゴリで解析）
-    console.log("Analyzing transcript with Gemini (camera domain)...");
-    const analysisResult = await analyzeTranscript(
-      transcript,
-      videoInfo.title,
-      videoInfo.description,
-      videoInfo.channelDescription,
-      videoInfo.thumbnailUrl,
-      "camera"
-    );
-    console.log(`Found ${analysisResult.products.length} products`);
-    console.log(`Influencer occupation: ${analysisResult.influencerOccupation}`);
-
-    // 概要欄リンク抽出の結果を待機
-    const descriptionLinks = await descriptionLinksPromise;
+    const descriptionLinks = await extractProductsFromDescription(videoInfo.description);
     console.log(`Found ${descriptionLinks.length} product links in description`);
 
-    // 8. 概要欄のASINから商品情報を一括取得（API効率化）
+    // 6.5. 概要欄のASINから商品情報を一括取得（商品ヒント構築のため先に実行）
     const asinsFromDescription = descriptionLinks
       .filter((link): link is ExtractedProduct & { asin: string } => !!link.asin)
       .map(link => link.asin);
@@ -122,12 +107,65 @@ export async function POST(request: NextRequest) {
       asinProductMap = await getProductsByAsins(asinsFromDescription);
     }
 
+    // 6.7. 商品ヒントを構築（Amazon商品タイトルをGeminiに渡す）
+    const productHints: string[] = [];
+    for (const [, productInfo] of asinProductMap) {
+      if (productInfo?.title) {
+        productHints.push(productInfo.title);
+      }
+    }
+    if (productHints.length > 0) {
+      console.log(`Product hints for Gemini: ${productHints.length} items`);
+    }
+
+    // 7. Gemini APIで解析（撮影機材用のカテゴリ + 商品ヒントで解析）
+    console.log("Analyzing transcript with Gemini (camera domain)...");
+    const analysisResult = await analyzeTranscript(
+      transcript,
+      videoInfo.title,
+      videoInfo.description,
+      videoInfo.channelDescription,
+      videoInfo.thumbnailUrl,
+      "camera",
+      videoInfo.channelTitle,
+      productHints
+    );
+    console.log(`Found ${analysisResult.products.length} products`);
+    console.log(`Influencer occupation: ${analysisResult.influencerOccupation}`);
+
+    // 8. 概要欄のASIN商品情報は6.5で取得済み — 以降はマッチングに使用
+
     // 8.5. 公式サイトリンクから取得した情報を収集
     const officialLinks = descriptionLinks
       .filter((link): link is ExtractedProduct & { officialInfo: NonNullable<ExtractedProduct["officialInfo"]> } =>
         link.source === "official" && !!link.officialInfo
       );
     console.log(`Found ${officialLinks.length} official site links with OGP info`);
+
+    // 8.7. DB既存商品ルックアップ（過去の登録データを「学習データ」として再利用）
+    const productNamesForLookup = analysisResult.products
+      .filter(p => p.confidence === "high" || p.confidence === "medium")
+      .map(p => p.name);
+    const existingProductMap = await findExistingProducts(productNamesForLookup, "products_camera");
+    console.log(`DB existing product matches: ${existingProductMap.size} / ${productNamesForLookup.length}`);
+
+    // 8.8. ブランド名の正規化（DB既存ブランドを正とし、表記揺れを解消）
+    const rawBrands = analysisResult.products
+      .map(p => p.brand)
+      .filter((b): b is string => !!b);
+    const brandNormMap = await buildBrandNormalizationMap(rawBrands, "products_camera");
+    if (brandNormMap.size > 0) {
+      console.log(`Brand normalization: ${brandNormMap.size} brands mapped`);
+      for (const product of analysisResult.products) {
+        if (product.brand && brandNormMap.has(product.brand)) {
+          const normalized = brandNormMap.get(product.brand)!;
+          if (normalized !== product.brand) {
+            console.log(`  Brand: "${product.brand}" → "${normalized}"`);
+            product.brand = normalized;
+          }
+        }
+      }
+    }
 
     // 9. 商品のAmazon/楽天マッチング（プレビュー・保存共通）
     console.log(`Matching ${analysisResult.products.length} products with Amazon/Rakuten...`);
@@ -171,6 +209,36 @@ export async function POST(request: NextRequest) {
           matchReason: "Low confidence (手動検索推奨)",
         });
       } else {
+        // ★最優先: DB既存商品マッチ（過去に登録済みの商品を再利用）
+        const existingMatch = existingProductMap.get(product.name);
+        if (existingMatch && existingMatch.asin) {
+          console.log(`  ✓ DB existing match: "${product.name}" → ${existingMatch.asin} (${existingMatch.amazon_title?.substring(0, 50)})`);
+          usedAsins.add(existingMatch.asin);
+          matchedProducts.push({
+            name: product.name,
+            brand: product.brand || existingMatch.brand || undefined,
+            category: product.category,
+            subcategory: product.subcategory,
+            lensTags: product.lensTags,
+            bodyTags: product.bodyTags,
+            reason: product.reason,
+            confidence: product.confidence,
+            tags: existingMatch.tags || undefined,
+            amazon: existingMatch.amazon_url ? {
+              asin: existingMatch.asin,
+              title: existingMatch.amazon_title || existingMatch.name,
+              url: existingMatch.amazon_url,
+              imageUrl: existingMatch.amazon_image_url || "",
+              price: existingMatch.amazon_price || undefined,
+            } : null,
+            source: (existingMatch.product_source as "amazon" | "rakuten") || undefined,
+            matchScore: 300,
+            matchReason: `DB existing: ${existingMatch.asin}`,
+            isExisting: true,
+          });
+          continue;
+        }
+
         // 高・中確度の商品のみ検索
         const result = await matchProductWithAmazon({
           productName: product.name,
@@ -279,6 +347,7 @@ export async function POST(request: NextRequest) {
       });
 
       // 商品を保存（camera用）
+      const fuzzyCategoryCache: CameraFuzzyCategoryCache = new Map();
       for (const product of matchedProducts) {
         console.log(
           `[SaveCameraProduct] ${product.name} | tags: ${product.tags?.join(", ") || "none"}`
@@ -295,7 +364,7 @@ export async function POST(request: NextRequest) {
           confidence: product.confidence,
           video_id: videoInfo.videoId,
           source_type: "video",
-        });
+        }, fuzzyCategoryCache);
         const savedProduct = saveResult.product;
 
         if (savedProduct && !savedProduct.asin && product.amazon) {

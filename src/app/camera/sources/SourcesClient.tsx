@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SourceModal } from "@/components/SourceModal";
+import { CAMERA_SOURCE_BRAND_FILTERS } from "@/lib/camera/constants";
 import type { SourceItem } from "./page";
 import "./sources-styles.css";
 
@@ -13,6 +14,11 @@ interface SourcesClientProps {
   tagCounts: Record<string, number>;
   occupationTags: string[];
   selectedOccupation?: string;
+  allBrands: string[];
+  selectedBrand?: string;
+  subjectTags: string[];
+  purposeTags: string[];
+  selectedTag?: string;
   sortOrder: "newest" | "oldest";
   currentPage: number;
   limit: number;
@@ -23,6 +29,11 @@ export function SourcesClient({
   total,
   occupationTags,
   selectedOccupation,
+  allBrands,
+  selectedBrand,
+  subjectTags,
+  purposeTags,
+  selectedTag,
   sortOrder,
   currentPage,
   limit,
@@ -61,7 +72,7 @@ export function SourcesClient({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const updateUrl = (params: { occupation?: string | null; sort?: "newest" | "oldest"; page?: number }, shouldScroll = false) => {
+  const updateUrl = (params: { occupation?: string | null; brand?: string | null; tag?: string | null; sort?: "newest" | "oldest"; page?: number }, shouldScroll = false) => {
     const newParams = new URLSearchParams();
     const currentSort = searchParams.get("sort");
     if (params.sort !== undefined) {
@@ -76,8 +87,31 @@ export function SourcesClient({
       newParams.set("page", params.page.toString());
     }
 
-    if (params.occupation !== undefined && params.occupation !== null) {
-      newParams.set("occupation", params.occupation);
+    // occupation: 明示的にnullなら削除、undefinedなら現在値維持
+    if (params.occupation !== undefined) {
+      if (params.occupation !== null) {
+        newParams.set("occupation", params.occupation);
+      }
+    } else if (selectedOccupation) {
+      newParams.set("occupation", selectedOccupation);
+    }
+
+    // brand: 明示的にnullなら削除、undefinedなら現在値維持
+    if (params.brand !== undefined) {
+      if (params.brand !== null) {
+        newParams.set("brand", params.brand);
+      }
+    } else if (selectedBrand) {
+      newParams.set("brand", selectedBrand);
+    }
+
+    // tag: 明示的にnullなら削除、undefinedなら現在値維持
+    if (params.tag !== undefined) {
+      if (params.tag !== null) {
+        newParams.set("tag", params.tag);
+      }
+    } else if (selectedTag) {
+      newParams.set("tag", selectedTag);
     }
 
     const queryString = newParams.toString();
@@ -93,6 +127,22 @@ export function SourcesClient({
       updateUrl({ occupation: null, page: 1 });
     } else {
       updateUrl({ occupation, page: 1 });
+    }
+  };
+
+  const handleBrandChange = (brand: string) => {
+    if (selectedBrand === brand) {
+      updateUrl({ brand: null, page: 1 });
+    } else {
+      updateUrl({ brand, page: 1 });
+    }
+  };
+
+  const handleTagChange = (tag: string) => {
+    if (selectedTag === tag) {
+      updateUrl({ tag: null, page: 1 });
+    } else {
+      updateUrl({ tag, page: 1 });
     }
   };
 
@@ -130,7 +180,7 @@ export function SourcesClient({
     setModalOpen(true);
   };
 
-  const hasActiveFilters = !!selectedOccupation;
+  const hasActiveFilters = !!selectedOccupation || !!selectedBrand || !!selectedTag;
   const activeFilter = selectedOccupation;
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -163,6 +213,57 @@ export function SourcesClient({
                 ))}
               </div>
             </div>
+            {/* ブランド */}
+            {allBrands.length > 0 && (
+              <div>
+                <div className="sources-filter-group-label">カメラブランド</div>
+                <div className="sources-filter-tags">
+                  {allBrands.map((brand) => (
+                    <button
+                      key={brand}
+                      onClick={() => handleBrandChange(brand)}
+                      className={`sources-filter-tag ${selectedBrand === brand ? 'active' : ''}`}
+                    >
+                      {brand}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* 被写体 */}
+            {subjectTags.length > 0 && (
+              <div>
+                <div className="sources-filter-group-label">被写体</div>
+                <div className="sources-filter-tags">
+                  {subjectTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagChange(tag)}
+                      className={`sources-filter-tag ${selectedTag === tag ? 'active' : ''}`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* 撮影目的 */}
+            {purposeTags.length > 0 && (
+              <div>
+                <div className="sources-filter-group-label">撮影目的</div>
+                <div className="sources-filter-tags">
+                  {purposeTags.map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => handleTagChange(tag)}
+                      className={`sources-filter-tag ${selectedTag === tag ? 'active' : ''}`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {hasActiveFilters && (
@@ -284,6 +385,22 @@ export function SourcesClient({
                     )}
                   </div>
                 )}
+                {(() => {
+                  const brandFilterSet = new Set<string>(CAMERA_SOURCE_BRAND_FILTERS as unknown as string[]);
+                  let displayBrands = (item.brands || []).filter(b => brandFilterSet.has(b));
+                  if (selectedBrand && displayBrands.includes(selectedBrand)) {
+                    displayBrands = [selectedBrand, ...displayBrands.filter(b => b !== selectedBrand)];
+                  }
+                  return displayBrands.length > 0 ? (
+                    <div className="sources-article-brands">
+                      {displayBrands.map((brand) => (
+                        <span key={brand} className={brand === selectedBrand ? 'highlighted' : ''}>
+                          {brand}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
               </div>
             </button>
           );

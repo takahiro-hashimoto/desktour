@@ -15,14 +15,14 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "デスクツアーDB - デスクツアー商品データベース",
-    template: "%s | デスクツアーDB",
+    default: "Creator Clip - デスクツアー・撮影機材データベース",
+    template: "%s | Creator Clip",
   },
   description: "YouTubeデスクツアー動画・ブログ記事から収集した商品データベース。職業・スタイル・ブランド別に人気のデスク周りガジェットを探せます。",
   openGraph: {
     type: "website",
     locale: "ja_JP",
-    siteName: "デスクツアーDB",
+    siteName: "Creator Clip",
   },
   twitter: {
     card: "summary",

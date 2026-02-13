@@ -51,7 +51,7 @@
   text-align: center;
   background: #fff;
   border-radius: 16px;
-  padding: 3rem 2.5rem;
+  padding: 3rem 1.5rem;
   box-shadow: var(--home-shadow);
   border: 1px solid var(--home-border);
   transition: box-shadow 0.2s;

@@ -397,6 +397,31 @@
   border-color: var(--text);
 }
 
+/* ===== BRAND TAGS ===== */
+.sources-article-brands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.sources-article-brands span {
+  padding: 2px 9px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sources-article-brands .highlighted {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 /* ===== EMPTY STATE ===== */
 .sources-empty-state {
   text-align: center;

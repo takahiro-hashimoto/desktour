@@ -42,7 +42,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "ヘッドホン・イヤホン": Headphones,
   "スピーカー": Speaker,
   "照明・ライト": Lamp,
-  "PCスタンド・ノートPCスタンド": Laptop,
+  "ノートPCスタンド": Laptop,
   "モニターアーム": MonitorUp,
   "マイクアーム": GripVertical,
   "デスクマット": Square,

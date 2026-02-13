@@ -6,6 +6,7 @@ import type { ProductWithStats } from "@/types";
 import { resolveImageUrl } from "@/lib/imageUtils";
 import { generateAmazonSearchUrl, generateRakutenSearchUrl } from "@/lib/affiliateLinks";
 import { formatPriceWithSymbol, formatPriceDate } from "@/lib/format-utils";
+import { productUrl } from "@/lib/constants";
 
 interface RankingProductCardProps {
   product: ProductWithStats;
@@ -118,7 +119,7 @@ export const RankingProductCard = memo(function RankingProductCard({
 
         {/* CTAボタン */}
         <Link
-          href={`/desktour/product/${product.slug || product.id}`}
+          href={productUrl(product)}
           className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded-lg text-sm font-medium transition-colors mb-2"
         >
           詳細を見る

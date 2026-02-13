@@ -326,16 +326,32 @@ export function calculateMatchScore(
     }
   }
 
-  // 4. 単語一致数をカウント（各単語 +10）
+  // 4. 単語一致数をカウント（各単語 +10）— ワード境界マッチ
   const productWords = normalizedProduct
     .replace(/[（）()]/g, " ")
     .split(/\s+/)
     .filter(w => w.length > 1 && !getBrandAliases(brandLower).includes(w));
 
+  // ASIN側もワード分割して Set 化（境界マッチ用）
+  const asinWords = new Set(
+    normalizedAsin
+      .replace(/[（）()]/g, " ")
+      .split(/\s+/)
+      .filter(w => w.length > 1)
+  );
+
   let matchedWords = 0;
   for (const word of productWords) {
-    if (word.length >= 2 && normalizedAsin.includes(word)) {
-      matchedWords++;
+    if (word.length >= 2) {
+      // 完全ワード一致（境界ベース）を優先
+      if (asinWords.has(word)) {
+        matchedWords++;
+      }
+      // 3文字以下の短い単語は完全ワード一致のみ（"pro"→"protect" 誤マッチ防止）
+      // 4文字以上の場合は部分文字列マッチもフォールバック（"ergonomic" を "エルゴノミック" と一致等）
+      else if (word.length >= 4 && normalizedAsin.includes(word)) {
+        matchedWords++;
+      }
     }
   }
   score += matchedWords * 10;
@@ -356,7 +372,8 @@ export function calculateMatchScore(
 }
 
 // マッチしたとみなす最小スコア
-const MIN_MATCH_SCORE = 30; // brand(20) + 1 word(10) or 3 words(30)
+// brand(20)+3words(30)=50, model(100), brand(20)+partial_model(50)=70 etc.
+const MIN_MATCH_SCORE = 50;
 
 // Gemini抽出商品とASIN商品のマッチングを行う（後方互換性のため残す）
 export function matchProductWithAsin(

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { cache } from "react";
-import { searchCameraProducts, getCameraSiteStats, getCameraSubcategories, getCameraProductDetailBySlug, getCameraCoOccurrenceProducts } from "@/lib/supabase/queries-camera";
+import { searchCameraProducts, getCameraSiteStats, getCameraSubcategories, getCameraProductDetailBySlug, getCameraCoOccurrenceProducts, getCameraSimilarProducts } from "@/lib/supabase/queries-camera";
 import {
   CAMERA_PRODUCT_CATEGORIES,
   CAMERA_ALL_LENS_TAGS,
@@ -25,7 +25,7 @@ import { ProductReviews } from "@/components/product/ProductReviews";
 import { assignRanks } from "@/lib/rankUtils";
 import { generateBreadcrumbStructuredData, generateProductStructuredData } from "@/lib/structuredData";
 import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
-import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { formatProductForDisplay, convertSize, convertWeight, formatReleaseDate, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 import "../../product-detail-styles.css";
@@ -51,25 +51,6 @@ function getCategoryFromSlug(slug: string): string | null {
   return category && (CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category) ? category : null;
 }
 
-function convertSize(sizeStr: string): string {
-  return sizeStr.replace(/(\d+\.?\d*)インチ/g, (_, num) => {
-    const cm = parseFloat(num) * 2.54;
-    return `${cm.toFixed(1)}cm`;
-  });
-}
-
-function convertWeight(weightStr: string): string {
-  return weightStr.replace(/(\d+\.?\d*)ポンド/g, (_, num) => {
-    const g = parseFloat(num) * 453.592;
-    return g >= 1000 ? `${(g / 1000).toFixed(1)}kg` : `${Math.round(g)}g`;
-  });
-}
-
-function formatReleaseDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return dateStr;
-  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-}
 
 const getCachedProductDetail = cache(async (slug: string) => {
   return getCameraProductDetailBySlug(slug);
@@ -82,10 +63,13 @@ const getCachedProductDetail = cache(async (slug: string) => {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const category = getCategoryFromSlug(params.slug);
   if (category) {
-    const { total } = await searchCameraProducts({ category, limit: 1 });
+    const { products: topProducts, total } = await searchCameraProducts({ category, sortBy: "mention_count", limit: 1 });
+    const topName = topProducts.length > 0 ? topProducts[0].name : null;
 
     const title = `撮影機材紹介に登場した${category}一覧【登録数${total}件】`;
-    const description = `撮影機材紹介動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
+    const description = topName
+      ? `${total}件の${category}を分析。最も人気は${topName}。撮影機材紹介で実際に使用されている${category}を登場回数順にまとめています。`
+      : `撮影機材紹介動画・記事で実際に使用されている${category}を登場回数順にまとめています。使用者コメント付き。【登録数${total}件】`;
     const canonical = `/camera/${params.slug}`;
 
     return {
@@ -99,7 +83,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const product = await getCachedProductDetail(params.slug);
   if (!product) {
-    return { title: "ページが見つかりません | 撮影機材DB" };
+    return { title: "ページが見つかりません | Creator Clip" };
   }
 
   const commentsCount = product.all_comments?.length || 0;
@@ -192,7 +176,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
               <Link href="/camera/sources" className="link">
                 撮影機材紹介
               </Link>
-              で実際に使用されている{category}{totalInCategory}件をサブカテゴリー別に掲載。その他カテゴリーが気になる方は
+              を分析し、実際に使用されている{category}{totalInCategory}件をサブカテゴリー別にまとめています。その他カテゴリーは
               <Link href="/camera/category" className="link">
                 撮影機材
               </Link>
@@ -213,7 +197,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
           ) : (
             filteredSubs.map(({ subcategory, products, total }) => (
               <div key={subcategory} style={{ marginBottom: "60px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                   <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{subcategory}</h2>
                   {total > 3 && (
                     <Link
@@ -224,6 +208,9 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
                     </Link>
                   )}
                 </div>
+                <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
+                  登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）`}
+                </p>
                 <ProductGrid products={products} domain="camera" />
               </div>
             ))
@@ -256,6 +243,8 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
     ? assignRanks(formattedProducts, { page, limit })
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
+  const topProductName = sort === "mention" && page === 1 && products.length > 0 ? products[0].name : null;
+
   return (
     <>
       <script
@@ -270,7 +259,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
           <>
             {totalSources}件の
             <Link href="/camera/sources" className="link">撮影機材紹介</Link>
-            で実際に使用されている{category}を使用者のコメント付きで紹介。その他カテゴリーが気になる方は
+            を分析した結果、{topProductName ? `最も人気の${category}は${topProductName}でした。` : ""}登録{total}件を登場回数順に使用者のコメント付きで紹介します。その他カテゴリーは
             <Link href="/camera/category" className="link">撮影機材</Link>
             をご覧ください。
           </>
@@ -317,8 +306,18 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
 
   const correctCatSlug = cameraCategoryToSlug(product.category);
 
-  const [coUsedProducts, stats] = await Promise.all([
+  const [coUsedProducts, similarProducts, stats] = await Promise.all([
     getCameraCoOccurrenceProducts(product.id, 4),
+    getCameraSimilarProducts({
+      id: product.id,
+      category: product.category,
+      subcategory: product.subcategory,
+      tags: product.tags,
+      lens_tags: product.lens_tags,
+      body_tags: product.body_tags,
+      brand: product.brand,
+      price_range: product.price_range,
+    }, 4),
     getCameraSiteStats(),
   ]);
 
@@ -345,6 +344,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
     hasChosenReasons;
   const hasComments = product.all_comments && product.all_comments.length > 0;
   const hasCoUsedProducts = coUsedProducts.length > 0;
+  const hasSimilarProducts = similarProducts.length > 0;
 
   const { amazonUrl, rakutenUrl } = getProductLinks({
     amazon_url: product.amazon_url,
@@ -488,6 +488,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
             productId={product.id}
             sectionNumber={++sectionNum}
             domain="camera"
+            mentionCount={product.mention_count}
           />
         )}
 
@@ -497,6 +498,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}が登場している撮影環境の傾向</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}を使用している{product.occupation_breakdown?.[0]?.occupation_tag || "クリエイター"}を中心に、選ばれた理由や使用環境の傾向をまとめています。</p>
             <div className="trend-card">
               <div className={`trend-grid${hasChosenReasons ? " trend-grid-3col" : ""}`}>
                 {product.occupation_breakdown && product.occupation_breakdown.length > 0 && (
@@ -544,6 +546,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}の特徴</h2>
             </div>
+            <p className="section-summary">Amazon商品ページに掲載されている{product.brand && `${product.brand} `}{product.name}の主な特徴です。</p>
             <div className="feature-card">
               <ul className="feature-list">
                 {product.amazon_features!.map((feature, index) => (
@@ -560,6 +563,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}と一緒に使われている撮影機材</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}と同じ撮影環境で使われている機材を、共起回数順に紹介します。</p>
             <div className="related-grid">
               {coUsedProducts.filter(p => p.slug).map((coProduct) => (
                 <Link key={coProduct.id} href={cameraProductUrl(coProduct)} className="related-item">
@@ -581,12 +585,41 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
           </div>
         )}
 
+        {hasSimilarProducts && (
+          <div className="content-section product-reveal">
+            <div className="section-title">
+              <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
+              <h2>{product.brand && `${product.brand} `}{product.name}の代替品・類似商品</h2>
+            </div>
+            <p className="section-summary">同じ{product.category}カテゴリでタグやスペックが近い商品です。別ブランドの選択肢を探す際の参考にどうぞ。</p>
+            <div className="related-grid">
+              {similarProducts.filter(p => p.slug).map((simProduct) => (
+                <Link key={simProduct.id} href={cameraProductUrl(simProduct)} className="related-item">
+                  <div className="related-item-img">
+                    {simProduct.amazon_image_url ? (
+                      <img src={simProduct.amazon_image_url} alt={simProduct.name} width={120} height={120} loading="lazy" />
+                    ) : (
+                      <i className={`fa-solid ${getCameraCategoryIcon(simProduct.category || "")}`}></i>
+                    )}
+                  </div>
+                  <div className="related-item-info">
+                    <div className="related-item-cat">{simProduct.brand || simProduct.category}</div>
+                    <div className="related-item-name">{simProduct.name}</div>
+                    <div className="related-item-usage">タグ{simProduct.matched_tag_count}個一致</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {hasProductInfo && (
           <div className="content-section product-reveal">
             <div className="section-title">
               <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
               <h2>{product.brand && `${product.brand} `}{product.name}の基本情報</h2>
             </div>
+            <p className="section-summary">{product.brand && `${product.brand} `}{product.name}のスペック・仕様情報です。</p>
             <div className="specs-card">
               <table className="specs-table">
                 <tbody>

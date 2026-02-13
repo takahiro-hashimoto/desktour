@@ -10,7 +10,19 @@ import {
 } from "@/lib/camera/constants";
 import { extractVideoId } from "@/lib/video-utils";
 
+interface SourceListItem {
+  type: "video" | "article";
+  title: string;
+  sourceId: string;
+  channelTitle?: string | null;
+  author?: string | null;
+  publishedAt?: string | null;
+  thumbnailUrl?: string | null;
+  productCount?: number;
+}
+
 interface Product {
+  id?: string; // DB product ID（保存済みデータ読み込み時に設定）
   name: string;
   brand?: string;
   category: string;
@@ -152,11 +164,23 @@ export default function CameraAdminPage() {
   // 解析結果表示用（保存後）
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
+  // 過去の解析結果（再表示）
+  const [sourceType, setSourceType] = useState<"video" | "article">("video");
+  const [sourceList, setSourceList] = useState<SourceListItem[]>([]);
+  const [loadingSourceList, setLoadingSourceList] = useState(false);
+  const [sourcePage, setSourcePage] = useState(1);
+  const [sourceTotal, setSourceTotal] = useState(0);
+  const [selectedSource, setSelectedSource] = useState<{ type: "video" | "article"; id: string } | null>(null);
+  const [loadingSourceDetail, setLoadingSourceDetail] = useState(false);
+
   // サジェスト動画
   const [suggestions, setSuggestions] = useState<SuggestedVideo[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [usedQuery, setUsedQuery] = useState("");
+
+  // ソース削除
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
 
   // 選ばれている理由の一括生成
   const [generatingReasons, setGeneratingReasons] = useState(false);
@@ -215,6 +239,192 @@ export default function CameraAdminPage() {
     }
   }, [previewResult]);
 
+  // 過去の解析結果一覧を取得
+  const fetchSourceList = async (page: number = 1) => {
+    setLoadingSourceList(true);
+    try {
+      const params = new URLSearchParams({
+        type: sourceType,
+        domain: "camera",
+        page: String(page),
+        limit: "20",
+      });
+      const res = await fetch(`/api/admin/sources?${params.toString()}`);
+      const data = await res.json();
+      setSourceList(data.items || []);
+      setSourceTotal(data.total || 0);
+      setSourcePage(page);
+    } catch {
+      setMessage({ type: "error", text: "過去データの取得に失敗しました" });
+    } finally {
+      setLoadingSourceList(false);
+    }
+  };
+
+  // 過去の解析結果詳細を読み込み（編集モードに入る）
+  const loadSourceDetail = async (type: "video" | "article", id: string) => {
+    setLoadingSourceDetail(true);
+    setMessage(null);
+    setPreviewResult(null);
+    setAnalysisResult(null);
+    try {
+      const params = new URLSearchParams({ type, id, domain: "camera" });
+      const res = await fetch(`/api/source?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "取得に失敗しました");
+      }
+
+      const products: Product[] = (data.products || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        brand: p.brand || undefined,
+        category: p.category || "その他",
+        reason: p.reason || "",
+        confidence: "medium",
+        tags: p.tags || undefined,
+        amazon: p.amazon_url || p.amazon_image_url ? {
+          asin: "",
+          title: p.name,
+          url: p.amazon_url || "",
+          imageUrl: p.amazon_image_url || "",
+        } : null,
+      }));
+
+      setPreviewResult({
+        title: data.title || (type === "video" ? "動画" : "記事"),
+        source: type,
+        summary: data.summary || "",
+        tags: data.tags || [],
+        occupation: null,
+        occupationTags: data.occupation_tags || [],
+        products,
+        articleInfo: type === "article" ? {
+          url: data.url || id,
+          title: data.title || "記事",
+          author: data.author,
+          siteName: null,
+          sourceType: "article",
+          thumbnailUrl: data.thumbnail_url || null,
+          publishedAt: data.published_at || null,
+        } : undefined,
+        videoInfo: type === "video" ? {
+          videoId: data.video_id || id,
+          title: data.title || "動画",
+          channelId: "",
+          channelTitle: data.channel_title || "",
+          thumbnailUrl: data.thumbnail_url || null,
+          publishedAt: data.published_at || null,
+          description: "",
+        } : undefined,
+      });
+      setEditableSourceTags(data.tags || []);
+      setEditableOccupationTags(data.occupation_tags || []);
+      setSelectedProducts(new Set(products.map((p) => `${p.name}|${p.category}`)));
+      setSelectedSource({ type, id });
+    } catch {
+      setMessage({ type: "error", text: "解析結果の取得に失敗しました" });
+    } finally {
+      setLoadingSourceDetail(false);
+    }
+  };
+
+  // 表示中の結果を更新
+  const refreshSelectedSource = async () => {
+    if (!selectedSource) return;
+    await loadSourceDetail(selectedSource.type, selectedSource.id);
+  };
+
+  // ソースを削除
+  const handleDeleteSource = async (type: "video" | "article", sourceId: string, title: string) => {
+    if (!confirm(`「${title}」を削除しますか？\n関連する商品データも削除されます。この操作は取り消せません。`)) {
+      return;
+    }
+
+    setDeletingSourceId(sourceId);
+    setMessage(null);
+
+    try {
+      const res = await fetch("/api/admin/sources", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType: type, sourceId, domain: "camera" }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setMessage({ type: "success", text: `「${title}」を削除しました` });
+        setSourceList(prev => prev.filter(item => item.sourceId !== sourceId));
+        setSourceTotal(prev => prev - 1);
+        if (selectedSource?.id === sourceId) {
+          handleCancelPreview();
+        }
+      } else {
+        setMessage({ type: "error", text: data.error || "削除に失敗しました" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setDeletingSourceId(null);
+    }
+  };
+
+  // 保存済みソースの変更を保存
+  const handleUpdateSource = async () => {
+    if (!previewResult || !selectedSource) return;
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const productsPayload = previewResult.products
+        .filter(p => p.id)
+        .map(p => ({
+          id: p.id,
+          name: p.name,
+          brand: p.brand || null,
+          category: p.category,
+          tags: p.tags || [],
+          reason: p.reason || "",
+        }));
+
+      const response = await fetch("/api/admin/sources", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceType: selectedSource.type,
+          sourceId: selectedSource.id,
+          domain: "camera",
+          summary: previewResult.summary,
+          tags: editableSourceTags,
+          occupationTags: editableOccupationTags,
+          products: productsPayload,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({ type: "success", text: "変更を保存しました" });
+        await loadSourceDetail(selectedSource.type, selectedSource.id);
+      } else {
+        setMessage({ type: "error", text: data.error || "更新に失敗しました" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // コメント文（reason）を変更
+  const handleProductReasonChange = (productIndex: number, newReason: string) => {
+    if (!previewResult) return;
+    const updatedProducts = [...previewResult.products];
+    updatedProducts[productIndex] = { ...updatedProducts[productIndex], reason: newReason };
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+  };
+
   // サジェスト動画をクリックして自動解析開始
   const handleSuggestionClick = async (video: SuggestedVideo) => {
     const videoUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
@@ -225,6 +435,7 @@ export default function CameraAdminPage() {
     setMessage(null);
     setAnalysisResult(null);
     setPreviewResult(null);
+    setSelectedSource(null);
 
     try {
       const response = await fetch("/api/camera/analyze", {
@@ -479,6 +690,36 @@ export default function CameraAdminPage() {
     });
   };
 
+  // 商品を手動追加
+  const handleAddManualProduct = () => {
+    if (!previewResult) return;
+    const newProduct: Product = {
+      name: "",
+      brand: "",
+      category: CAMERA_PRODUCT_CATEGORIES[0],
+      reason: "",
+      confidence: "medium",
+    };
+    const updatedProducts = [...previewResult.products, newProduct];
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+    const key = `${newProduct.name}|${newProduct.category}`;
+    setSelectedProducts(prev => new Set([...prev, key]));
+  };
+
+  // 商品を削除
+  const handleRemoveProduct = (productIndex: number) => {
+    if (!previewResult) return;
+    const product = previewResult.products[productIndex];
+    const key = `${product.name}|${product.category}`;
+    const updatedProducts = previewResult.products.filter((_, i) => i !== productIndex);
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(key);
+      return newSet;
+    });
+  };
+
   // Amazon情報のフィールド変更
   const handleAmazonFieldChange = (
     productIndex: number,
@@ -514,6 +755,7 @@ export default function CameraAdminPage() {
     setMessage(null);
     setAnalysisResult(null);
     setPreviewResult(null);
+    setSelectedSource(null);
 
     try {
       const response = await fetch("/api/camera/analyze", {
@@ -576,6 +818,7 @@ export default function CameraAdminPage() {
     setMessage(null);
     setAnalysisResult(null);
     setPreviewResult(null);
+    setSelectedSource(null);
 
     try {
       const response = await fetch("/api/camera/analyze-article", {
@@ -728,6 +971,7 @@ export default function CameraAdminPage() {
     setEditableOccupationTags([]);
     setNewOccupationTagInput("");
     setEditableSourceTags([]);
+    setSelectedSource(null);
     setMessage(null);
   };
 
@@ -763,11 +1007,14 @@ export default function CameraAdminPage() {
     {} as Record<string, Product[]>
   );
 
+  // 編集モード判定（過去データから読み込んだ場合）
+  const isEditMode = !!(selectedSource && previewResult);
+
   return (
     <main className="max-w-[1080px] mx-auto px-4 py-8">
       <header className="mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">撮影機材DB 管理画面</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Creator Clip - 撮影機材 管理画面</h1>
           <p className="text-gray-600 mt-1">
             解析候補の動画を検索・管理
           </p>
@@ -839,10 +1086,10 @@ export default function CameraAdminPage() {
 
       {/* プレビュー結果（DB保存前） */}
       {previewResult && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6 border-2 border-blue-300">
+        <div className={`bg-white rounded-lg shadow-md p-6 mb-6 border-2 ${isEditMode ? "border-green-300" : "border-blue-300"}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">
-              {previewResult.source === "video" ? "📺" : "📄"} プレビュー: {previewResult.title}
+              {previewResult.source === "video" ? "📺" : "📄"} {isEditMode ? "編集:" : "プレビュー:"} {previewResult.title}
             </h2>
             <button
               onClick={handleCancelPreview}
@@ -919,8 +1166,10 @@ export default function CameraAdminPage() {
             </div>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-3 mb-4 text-sm text-blue-800">
-            登録する商品にチェックを入れて「登録する」ボタンをクリックしてください
+          <div className={`rounded-lg p-3 mb-4 text-sm ${isEditMode ? "bg-green-50 text-green-800" : "bg-blue-50 text-blue-800"}`}>
+            {isEditMode
+              ? "✏️ 保存済みデータを編集中です。変更後「変更を保存」ボタンをクリックしてください"
+              : "💡 登録する商品にチェックを入れて「登録する」ボタンをクリックしてください"}
           </div>
 
           {/* 要約 */}
@@ -1090,18 +1339,22 @@ export default function CameraAdminPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <h3 className="text-sm font-semibold text-gray-800">
-                  抽出された商品
+                  {isEditMode ? "登録済みの商品" : "抽出された商品"}
                 </h3>
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                  {selectedProducts.size} / {previewResult.products.length} 選択
-                </span>
+                {!isEditMode && (
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                    {selectedProducts.size} / {previewResult.products.length} 選択
+                  </span>
+                )}
               </div>
-              <button
-                onClick={toggleAllProducts}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
-              >
-                {selectedProducts.size === previewResult.products.length ? "全解除" : "全選択"}
-              </button>
+              {!isEditMode && (
+                <button
+                  onClick={toggleAllProducts}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                >
+                  {selectedProducts.size === previewResult.products.length ? "全解除" : "全選択"}
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -1111,22 +1364,26 @@ export default function CameraAdminPage() {
                 return (
                   <div
                     key={productIndex}
-                    onClick={() => toggleProductSelection(product)}
-                    className={`rounded-xl text-sm cursor-pointer transition-all border ${
-                      isSelected
-                        ? "bg-white border-blue-300 shadow-sm"
-                        : "bg-white border-gray-200 hover:border-gray-300"
+                    onClick={() => !isEditMode && toggleProductSelection(product)}
+                    className={`rounded-xl text-sm transition-all border ${
+                      isEditMode
+                        ? "bg-white border-gray-200"
+                        : isSelected
+                          ? "bg-white border-blue-300 shadow-sm cursor-pointer"
+                          : "bg-white border-gray-200 hover:border-gray-300 cursor-pointer"
                     }`}
                   >
                     {/* ヘッダー: チェック + 商品名 + 確信度 */}
-                    <div className={`flex items-center gap-3 px-4 py-3 border-b ${isSelected ? "border-blue-100 bg-blue-50/40" : "border-gray-100 bg-gray-50/60"} rounded-t-xl`}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleProductSelection(product)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 flex-shrink-0"
-                      />
+                    <div className={`flex items-center gap-3 px-4 py-3 border-b ${isEditMode ? "border-gray-100 bg-gray-50/60" : isSelected ? "border-blue-100 bg-blue-50/40" : "border-gray-100 bg-gray-50/60"} rounded-t-xl`}>
+                      {!isEditMode && (
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleProductSelection(product)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 flex-shrink-0"
+                        />
+                      )}
                       <span className="font-semibold text-gray-900 truncate">{product.name}</span>
                       {product.brand && <span className="text-xs text-gray-400 flex-shrink-0">{product.brand}</span>}
                       {product.isExisting && (
@@ -1139,6 +1396,14 @@ export default function CameraAdminPage() {
                       >
                         {confidenceLabels[product.confidence]}
                       </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveProduct(productIndex); }}
+                        className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
+                        type="button"
+                        title="この商品を削除"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
 
                     <div className="px-4 py-3 space-y-3" onClick={(e) => e.stopPropagation()}>
@@ -1260,12 +1525,14 @@ export default function CameraAdminPage() {
                         </div>
                       )}
 
-                      {/* 理由 */}
-                      {product.reason && (
-                        <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
-                          {product.reason}
-                        </p>
-                      )}
+                      {/* 理由（コメント文） */}
+                      <textarea
+                        value={product.reason || ""}
+                        onChange={(e) => handleProductReasonChange(productIndex, e.target.value)}
+                        placeholder="投稿者のコメント文"
+                        rows={2}
+                        className="w-full text-xs text-gray-600 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-y leading-relaxed"
+                      />
 
                       {/* タグ */}
                       {product.tags && product.tags.length > 0 && (
@@ -1349,12 +1616,23 @@ export default function CameraAdminPage() {
                 );
               })}
             </div>
+
+            {/* 商品を手動追加ボタン */}
+            <button
+              onClick={handleAddManualProduct}
+              className="mt-3 w-full py-2.5 text-sm text-gray-500 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/30 transition-all font-medium"
+              type="button"
+            >
+              ＋ 商品を手動追加
+            </button>
           </div>
 
-          {/* 登録ボタン */}
+          {/* 登録/更新ボタン */}
           <div className="mt-6 pt-5 border-t border-gray-200 flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              <span className="font-semibold text-gray-800">{selectedProducts.size}件</span>の商品を登録します
+              {isEditMode
+                ? "保存済みソースの内容を更新します"
+                : <><span className="font-semibold text-gray-800">{selectedProducts.size}件</span>の商品を登録します</>}
             </p>
             <div className="flex gap-3">
               <button
@@ -1363,13 +1641,23 @@ export default function CameraAdminPage() {
               >
                 キャンセル
               </button>
-              <button
-                onClick={handleSaveProducts}
-                disabled={saving || selectedProducts.size === 0}
-                className="px-6 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
-              >
-                {saving ? "登録中..." : `${selectedProducts.size}件を登録する`}
-              </button>
+              {isEditMode ? (
+                <button
+                  onClick={handleUpdateSource}
+                  disabled={saving}
+                  className="px-6 py-2.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+                >
+                  {saving ? "保存中..." : "変更を保存"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleSaveProducts}
+                  disabled={saving || selectedProducts.size === 0}
+                  className="px-6 py-2.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
+                >
+                  {saving ? "登録中..." : `${selectedProducts.size}件を登録する`}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1500,6 +1788,104 @@ export default function CameraAdminPage() {
           </div>
         </div>
       )}
+
+      {/* 過去の解析結果を再表示 */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-3">🗂 過去の解析結果を再表示</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <select
+            value={sourceType}
+            onChange={(e) => setSourceType(e.target.value as "video" | "article")}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="video">動画</option>
+            <option value="article">記事</option>
+          </select>
+          <button
+            onClick={() => fetchSourceList(1)}
+            disabled={loadingSourceList}
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm hover:bg-gray-800 disabled:bg-gray-400"
+          >
+            {loadingSourceList ? "取得中..." : "一覧を取得"}
+          </button>
+          <button
+            onClick={refreshSelectedSource}
+            disabled={!selectedSource || loadingSourceDetail}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:bg-gray-400"
+          >
+            {loadingSourceDetail ? "更新中..." : "表示中の結果を更新"}
+          </button>
+          {selectedSource && (
+            <span className="text-xs text-gray-500">
+              選択中: {selectedSource.type === "video" ? "動画" : "記事"}
+            </span>
+          )}
+        </div>
+
+        {sourceList.length > 0 && (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="grid grid-cols-[260px_1fr_180px_120px_120px] gap-3 px-4 py-2 bg-gray-50 text-xs text-gray-500">
+              <span>サムネイル</span>
+              <span>タイトル</span>
+              <span>{sourceType === "video" ? "チャンネル" : "著者"}</span>
+              <span>公開日</span>
+              <span>操作</span>
+            </div>
+            {sourceList.map((item, idx) => (
+              <div
+                key={`${item.sourceId}-${idx}`}
+                className="grid grid-cols-[260px_1fr_180px_120px_120px] gap-3 px-4 py-3 border-t text-sm items-center"
+              >
+                <div className="flex items-center gap-3">
+                  {item.thumbnailUrl ? (
+                    <img
+                      src={item.thumbnailUrl}
+                      alt={item.title}
+                      className="w-24 h-14 object-cover rounded border border-gray-200"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-24 h-14 rounded bg-gray-100 border border-gray-200 text-[10px] text-gray-400 flex items-center justify-center">
+                      no image
+                    </div>
+                  )}
+                  {typeof item.productCount === "number" && (
+                    <div className="text-xs text-gray-400">商品数: {item.productCount}</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-900 line-clamp-1">{item.title}</div>
+                </div>
+                <div className="text-gray-600 line-clamp-1">
+                  {sourceType === "video" ? item.channelTitle : item.author}
+                </div>
+                <div className="text-gray-500 text-xs">
+                  {item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("ja-JP") : "-"}
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => loadSourceDetail(item.type, item.sourceId)}
+                    className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    表示
+                  </button>
+                  <button
+                    onClick={() => handleDeleteSource(item.type, item.sourceId, item.title)}
+                    disabled={deletingSourceId === item.sourceId}
+                    className="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {deletingSourceId === item.sourceId ? "..." : "削除"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!loadingSourceList && sourceList.length === 0 && (
+          <p className="text-sm text-gray-500">「一覧を取得」を押すと過去データが表示されます。</p>
+        )}
+      </div>
 
       {/* サジェスト動画セクション */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">

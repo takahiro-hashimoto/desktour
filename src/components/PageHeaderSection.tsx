@@ -13,9 +13,10 @@ interface PageHeaderSectionProps {
   title: string;
   description: string | ReactNode;
   breadcrumbCurrent: string;
-  breadcrumbMiddle?: BreadcrumbItem; // 中間パンくずリスト用（オプション）
+  breadcrumbMiddle?: BreadcrumbItem | BreadcrumbItem[]; // 中間パンくずリスト用（オプション）
   icon?: string; // Font Awesome icon class (例: "fa-keyboard")
   domain?: "desktour" | "camera";
+  showPrNote?: boolean;
 }
 
 const DOMAIN_BREADCRUMB = {
@@ -31,6 +32,7 @@ export function PageHeaderSection({
   breadcrumbMiddle,
   icon = "fa-cube",
   domain = "desktour",
+  showPrNote = true,
 }: PageHeaderSectionProps) {
   const domainBreadcrumb = DOMAIN_BREADCRUMB[domain];
 
@@ -46,18 +48,18 @@ export function PageHeaderSection({
           <span className="sep">
             <i className="fa-solid fa-chevron-right"></i>
           </span>
-          {breadcrumbMiddle && (
-            <>
-              {breadcrumbMiddle.href ? (
-                <Link href={breadcrumbMiddle.href}>{breadcrumbMiddle.label}</Link>
+          {breadcrumbMiddle && (Array.isArray(breadcrumbMiddle) ? breadcrumbMiddle : [breadcrumbMiddle]).map((item, i) => (
+            <span key={i}>
+              {item.href ? (
+                <Link href={item.href}>{item.label}</Link>
               ) : (
-                <span>{breadcrumbMiddle.label}</span>
+                <span>{item.label}</span>
               )}
               <span className="sep">
                 <i className="fa-solid fa-chevron-right"></i>
               </span>
-            </>
-          )}
+            </span>
+          ))}
           <span className="current">{breadcrumbCurrent}</span>
         </div>
 
@@ -70,7 +72,7 @@ export function PageHeaderSection({
             <h1>{title}</h1>
             <div className="listing-page-desc">
               {typeof description === "string" ? <p>{description}</p> : description}
-              <span className="listing-pr-note">（本ページにはPRを含みます）</span>
+              {showPrNote && <span className="listing-pr-note">（本ページにはPRを含みます）</span>}
             </div>
           </div>
         </div>

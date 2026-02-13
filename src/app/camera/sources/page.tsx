@@ -1,20 +1,21 @@
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
-import { getCameraVideos, getCameraArticles, getCameraSourceTagCounts, getCameraSiteStats, getCameraInfluencers } from "@/lib/supabase/queries-camera";
-import { CAMERA_OCCUPATION_TAGS } from "@/lib/camera/constants";
+import { getCameraVideos, getCameraArticles, getCameraSourceTagCounts, getCameraSiteStats, getCameraInfluencers, getCameraSourceBrands } from "@/lib/supabase/queries-camera";
+import { CAMERA_OCCUPATION_TAGS, CAMERA_SOURCE_BRAND_FILTERS, CAMERA_SUBJECT_TAGS, CAMERA_PURPOSE_TAGS } from "@/lib/camera/constants";
 import { SourcesClient } from "./SourcesClient";
 import "../../listing-styles.css";
 
 // 【最適化】ソースページのデータをキャッシュ（5分間）
 const getCachedSourcesData = unstable_cache(
   async () => {
-    const [videosResult, articlesResult, tagCounts, siteStats, influencersData] = await Promise.all([
+    const [videosResult, articlesResult, tagCounts, siteStats, influencersData, sourceBrands] = await Promise.all([
       getCameraVideos({ page: 1, limit: 1000 }),
       getCameraArticles({ page: 1, limit: 1000 }),
       getCameraSourceTagCounts(),
       getCameraSiteStats(),
       getCameraInfluencers(),
+      getCameraSourceBrands(),
     ]);
 
     return {
@@ -23,9 +24,10 @@ const getCachedSourcesData = unstable_cache(
       tagCounts,
       siteStats,
       influencersData,
+      sourceBrands,
     };
   },
-  ["camera-sources-page-data"],
+  ["camera-sources-page-data-v2"],
   { revalidate: 300 } // 5分間キャッシュ
 );
 
@@ -33,6 +35,8 @@ interface PageProps {
   searchParams: {
     page?: string;
     occupation?: string;
+    brand?: string;
+    tag?: string;
     sort?: string; // "newest" | "oldest"
   };
 }
@@ -101,17 +105,21 @@ export type SourceItem = {
   author?: string | null;
   url?: string;
   site_name?: string | null;
+  // ブランドフィルター用
+  brands?: string[];
 };
 
 export default async function SourcesPage({ searchParams }: PageProps) {
-  // フィルターは職業のみ
+  // フィルター
   const selectedOccupation = searchParams.occupation || undefined;
+  const selectedBrand = searchParams.brand || undefined;
+  const selectedTag = searchParams.tag || undefined;
   const sortOrder = (searchParams.sort as "newest" | "oldest") || "newest";
   const page = parseInt(searchParams.page || "1", 10);
   const limit = 30;
 
   // 【最適化】キャッシュからデータ取得（5分間有効）
-  const { videosResult, articlesResult, tagCounts, siteStats, influencersData } = await getCachedSourcesData();
+  const { videosResult, articlesResult, tagCounts, siteStats, influencersData, sourceBrands } = await getCachedSourcesData();
 
   // channel_id → occupation_tags のマップ（動画用）
   const channelToOccupation = new Map<string, string[]>(
@@ -140,6 +148,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
     channel_id: v.channel_id,
     video_id: v.video_id,
     subscriber_count: v.subscriber_count,
+    brands: sourceBrands.videoBrands[v.video_id] || [],
   }));
 
   const articleItems: SourceItem[] = articlesResult.articles.map((a: any) => {
@@ -170,6 +179,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
       author: a.author,
       url: a.url,
       site_name: a.site_name,
+      brands: sourceBrands.articleBrands[a.url] || [],
     };
   });
 
@@ -180,10 +190,20 @@ export default async function SourcesPage({ searchParams }: PageProps) {
     return sortOrder === "oldest" ? dateA - dateB : dateB - dateA;
   });
 
-  // 職業フィルターのみ適用
+  // フィルター適用
   if (selectedOccupation) {
     allItems = allItems.filter((item) =>
       item.occupation_tags?.includes(selectedOccupation)
+    );
+  }
+  if (selectedBrand) {
+    allItems = allItems.filter((item) =>
+      item.brands?.includes(selectedBrand)
+    );
+  }
+  if (selectedTag) {
+    allItems = allItems.filter((item) =>
+      item.tags?.includes(selectedTag)
     );
   }
 
@@ -315,6 +335,11 @@ export default async function SourcesPage({ searchParams }: PageProps) {
         tagCounts={tagCounts}
         occupationTags={[...CAMERA_OCCUPATION_TAGS]}
         selectedOccupation={selectedOccupation}
+        allBrands={[...CAMERA_SOURCE_BRAND_FILTERS]}
+        selectedBrand={selectedBrand}
+        subjectTags={[...CAMERA_SUBJECT_TAGS]}
+        purposeTags={[...CAMERA_PURPOSE_TAGS]}
+        selectedTag={selectedTag}
         sortOrder={sortOrder}
         currentPage={page}
         limit={limit}

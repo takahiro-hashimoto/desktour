@@ -6,6 +6,7 @@ import {
   isArticleAnalyzed,
   saveInfluencer,
   saveVideo,
+  type FuzzyCategoryCache,
 } from "@/lib/supabase";
 import { searchAmazonProduct, getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, ExtractedProduct, findBestMatch } from "@/lib/description-links";
@@ -189,6 +190,9 @@ export async function POST(request: NextRequest) {
     }
     const productsWithAmazonInfo: ProductWithAmazonInfo[] = [];
 
+    // ファジーマッチ用カテゴリキャッシュ（ループ内で使い回してDBクエリ削減）
+    const fuzzyCategoryCache: FuzzyCategoryCache = new Map();
+
     for (const product of selectedProducts) {
       console.log(`Processing product: ${product.name} (brand: ${product.brand})`);
 
@@ -202,7 +206,7 @@ export async function POST(request: NextRequest) {
         article_id: sourceType === "article" ? sourceUrl : undefined,
         video_id: sourceType === "video" ? videoInfo?.videoId : undefined,
         source_type: sourceType,
-      });
+      }, fuzzyCategoryCache);
       const savedProduct = saveResult.product;
 
       if (savedProduct && !savedProduct.asin) {

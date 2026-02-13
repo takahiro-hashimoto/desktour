@@ -20,6 +20,12 @@ export {
   saveMention,
   updateProductWithAmazon,
   saveInfluencer,
+  updateSourceMetadata,
+  updateInfluencerOccupationTags,
+  updateProductMetadata,
+  updateMentionReason,
+  deleteSource,
+  type FuzzyCategoryCache,
 } from "./supabase/mutations";
 export { saveMatchedProducts } from "./supabase/save-matched-products";
 export type { ProductSourceRef } from "./supabase/save-matched-products";
@@ -32,6 +38,7 @@ export {
   getProductDetailBySlug,
   getProductDetail,
   getCoOccurrenceProducts,
+  getSimilarProducts,
   getSiteStats,
   getTopProductImages,
   getTopProductByCategory,

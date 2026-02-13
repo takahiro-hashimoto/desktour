@@ -10,10 +10,10 @@ export function AboutSection() {
           <div className="home-about__content">
             <div className="home-about__section">
               <h3 className="home-about__subtitle">
-                デスクツアーDBとは
+                Creator Clipとは
               </h3>
               <p className="home-about__text">
-                デスクツアーDBは、YouTubeのデスクツアー動画やブログ記事から、
+                Creator Clipは、YouTubeのデスクツアー動画やブログ記事から、
                 実際に使用されている商品情報を収集・整理したデータベースサイトです。
                 「この職業の人はどんなキーボードを使っているのか」
                 「ミニマルなデスクにはどんな商品があるのか」といった疑問に、

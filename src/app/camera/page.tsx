@@ -17,6 +17,7 @@ import {
   cameraBrandToSlug,
   cameraSubjectToSlug,
 } from "@/lib/camera/constants";
+import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
 import { Metadata } from "next";
 import { CameraHeroSection } from "@/components/camera-home/HeroSection";
 import { CameraCategoryGridSection } from "@/components/camera-home/CategoryGridSection";
@@ -56,20 +57,6 @@ const getCachedHomeData = unstable_cache(
   { revalidate: 300 }
 );
 
-// カテゴリアイコンマッピング（Font Awesome）
-const CATEGORY_ICONS: Record<string, string> = {
-  "カメラ本体": "fa-solid fa-camera",
-  "レンズ": "fa-solid fa-circle-dot",
-  "三脚": "fa-solid fa-maximize",
-  "ジンバル": "fa-solid fa-rotate",
-  "マイク・音声": "fa-solid fa-microphone",
-  "照明": "fa-solid fa-lightbulb",
-  "ストレージ": "fa-solid fa-sd-card",
-  "カメラ装着アクセサリー": "fa-solid fa-screwdriver-wrench",
-  "バッグ・収納": "fa-solid fa-bag-shopping",
-  "ドローンカメラ": "fa-solid fa-helicopter",
-};
-
 export default async function CameraPage() {
   const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos, sourceTagCounts } = await getCachedHomeData();
 
@@ -80,7 +67,7 @@ export default async function CameraPage() {
     .map(cat => ({
       name: cat,
       count: categoryCounts[cat] || 0,
-      icon: CATEGORY_ICONS[cat] || "fa-solid fa-box",
+      icon: `fa-solid ${getCameraCategoryIcon(cat)}`,
     }));
 
   // 職業別データ
@@ -130,7 +117,7 @@ export default async function CameraPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "撮影機材DB",
+    "name": "Creator Clip - 撮影機材",
     "description": "撮影機材紹介動画・記事から本当に選ばれている撮影機材をデータ分析。職業・ブランド別に人気商品を探せるデータベース。",
     "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/camera`,
     "mainEntity": {

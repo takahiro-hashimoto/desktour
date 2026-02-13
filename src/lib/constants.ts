@@ -1,3 +1,5 @@
+import { createSlugConverter, brandFallback, inferBrandFromSlug as _inferBrand, selectPrimaryTag, getTagPriority } from "./slug-utils";
+
 // ========================================
 // 商品カテゴリ一覧
 // ========================================
@@ -14,7 +16,7 @@ export const PRODUCT_CATEGORIES = [
   "ヘッドホン・イヤホン",
   "スピーカー",
   "照明・ライト",
-  "PCスタンド・ノートPCスタンド",
+  "ノートPCスタンド",
   "モニターアーム",
   "マイクアーム",
   "USBハブ",
@@ -61,7 +63,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "ヘッドホン・イヤホン": "headphones",
   "スピーカー": "speaker",
   "照明・ライト": "lighting",
-  "PCスタンド・ノートPCスタンド": "pc-stand",
+  "ノートPCスタンド": "pc-stand",
   "モニターアーム": "monitor-arm",
   "マイクアーム": "mic-arm",
   "USBハブ": "usb-hub",
@@ -198,14 +200,9 @@ const ENVIRONMENT_SLUG_MAP: Record<string, string> = {
 };
 
 // 環境スラッグ変換関数
-export function environmentTagToSlug(tag: string): string {
-  return ENVIRONMENT_SLUG_MAP[tag] || tag.toLowerCase().replace(/\s+/g, "-");
-}
-
-export function slugToEnvironmentTag(slug: string): string | undefined {
-  const entry = Object.entries(ENVIRONMENT_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] : undefined;
-}
+const _environmentConverter = createSlugConverter(ENVIRONMENT_SLUG_MAP, brandFallback);
+export const environmentTagToSlug = _environmentConverter.toSlug;
+export const slugToEnvironmentTag = _environmentConverter.fromSlug;
 
 // --- バリデーション関数 ---
 
@@ -246,23 +243,19 @@ export const OCCUPATION_TAGS = [
   "配信者",
   "ゲーマー",
   "経営者",
+  "フリーランス",
   "学生",
   "会社員",
 ] as const;
 
 // 職業タグの優先度を取得（小さいほど優先度が高い）
 export function getOccupationPriority(tag: string): number {
-  const index = OCCUPATION_TAGS.indexOf(tag as typeof OCCUPATION_TAGS[number]);
-  return index === -1 ? 999 : index;
+  return getTagPriority(tag, OCCUPATION_TAGS);
 }
 
 // 複数の職業タグから最も優先度の高い1つを選択
 export function selectPrimaryOccupation(tags: string[]): string | null {
-  if (!tags || tags.length === 0) return null;
-  const validTags = tags.filter(t => OCCUPATION_TAGS.includes(t as typeof OCCUPATION_TAGS[number]));
-  if (validTags.length === 0) return null;
-  validTags.sort((a, b) => getOccupationPriority(a) - getOccupationPriority(b));
-  return validTags[0];
+  return selectPrimaryTag(tags, OCCUPATION_TAGS);
 }
 
 // 職業タグ→英語スラッグのマッピング
@@ -275,19 +268,14 @@ const OCCUPATION_SLUG_MAP: Record<string, string> = {
   "学生": "student",
   "会社員": "office-worker",
   "経営者": "ceo",
+  "フリーランス": "freelance",
   "フォトグラファー": "photographer",
 };
 
 // URLスラッグとタグ名の対応（表示名ベース）
-export function categoryToSlug(category: string): string {
-  return CATEGORY_SLUG_MAP[category] || category.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
-}
-
-export function slugToCategory(slug: string): string | undefined {
-  // 英語スラッグから表示名を逆引き
-  const entry = Object.entries(CATEGORY_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] : undefined;
-}
+const _categoryConverter = createSlugConverter(CATEGORY_SLUG_MAP);
+export const categoryToSlug = _categoryConverter.toSlug;
+export const slugToCategory = _categoryConverter.fromSlug;
 
 /** 商品詳細ページのURLを生成 */
 export function productUrl(product: { slug?: string; id: string }): string {
@@ -395,41 +383,23 @@ const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "板タブ": "pen-tablet",
 };
 
-/** サブカテゴリ名がどのカテゴリに属するかのマッピング */
-const DESKTOUR_SUBCATEGORY_CATEGORY_MAP: Record<string, string> = {};
-// TYPE_TAG_DEFSから動的に生成するのが理想だが、循環参照を避けるため手動定義
-// → 実行時にinitializeで構築する
+const _subcategoryConverter = createSlugConverter(DESKTOUR_SUBCATEGORY_SLUG_MAP);
+export const desktourSubcategoryToSlug = _subcategoryConverter.toSlug;
+export const slugToDesktourSubcategory = _subcategoryConverter.fromSlug;
 
-export function desktourSubcategoryToSlug(subcategory: string): string {
-  return DESKTOUR_SUBCATEGORY_SLUG_MAP[subcategory] || subcategory.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
-}
+const _occupationConverter = createSlugConverter(OCCUPATION_SLUG_MAP, brandFallback);
+export const occupationToSlug = _occupationConverter.toSlug;
+export const slugToOccupation = _occupationConverter.fromSlug;
 
-export function slugToDesktourSubcategory(slug: string): string | undefined {
-  const entry = Object.entries(DESKTOUR_SUBCATEGORY_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] : undefined;
-}
+// スタイルタグ変換関数（スタイル + 環境の両マップを検索）
+const _styleConverter = createSlugConverter(STYLE_SLUG_MAP);
 
-export function occupationToSlug(occupation: string): string {
-  return OCCUPATION_SLUG_MAP[occupation] || occupation.replace(/\s+/g, "-").toLowerCase();
-}
-
-export function slugToOccupation(slug: string): string | undefined {
-  const entry = Object.entries(OCCUPATION_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof OCCUPATION_TAGS[number] : undefined;
-}
-
-// スタイルタグ変換関数
 export function styleTagToSlug(tag: string): string {
-  // スタイルとエンvironメント両方のマップから検索
-  return STYLE_SLUG_MAP[tag] || ENVIRONMENT_SLUG_MAP[tag] || tag.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
+  return STYLE_SLUG_MAP[tag] || _environmentConverter.toSlug(tag);
 }
 
 export function slugToStyleTag(slug: string): string | undefined {
-  // スタイルとエンvironメント両方のマップから検索
-  const styleEntry = Object.entries(STYLE_SLUG_MAP).find(([, s]) => s === slug);
-  if (styleEntry) return styleEntry[0];
-  const envEntry = Object.entries(ENVIRONMENT_SLUG_MAP).find(([, s]) => s === slug);
-  return envEntry ? envEntry[0] : undefined;
+  return _styleConverter.fromSlug(slug) || _environmentConverter.fromSlug(slug);
 }
 
 // ブランドタグ（TOPページに表示する人気ブランド）
@@ -481,36 +451,22 @@ const BRAND_SLUG_MAP: Record<string, string> = {
 };
 
 // ブランドスラッグ変換関数
-export function brandToSlug(brand: string): string {
-  return BRAND_SLUG_MAP[brand] || brand.toLowerCase().replace(/\s+/g, "-");
-}
-
-export function slugToBrand(slug: string): string | undefined {
-  const entry = Object.entries(BRAND_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof BRAND_TAGS[number] : undefined;
-}
+const _brandConverter = createSlugConverter(BRAND_SLUG_MAP, brandFallback);
+export const brandToSlug = _brandConverter.toSlug;
+export const slugToBrand = _brandConverter.fromSlug;
 
 // スラッグからブランド名を推測（登録外ブランドにも対応）
 export function inferBrandFromSlug(slug: string): string {
-  // 1. まずBRAND_SLUG_MAPで完全一致を試す
-  const exactMatch = Object.entries(BRAND_SLUG_MAP).find(([, s]) => s === slug);
-  if (exactMatch) return exactMatch[0];
-
-  // 2. スラッグをブランド名に変換（ハイフンをスペースに、先頭大文字化）
-  // 例: "apple" → "Apple", "herman-miller" → "Herman Miller"
-  return slug
-    .split("-")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return _inferBrand(_brandConverter, slug);
 }
 
 // カテゴリ間の相性マップ（表示名ベース）
 export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
-  "ディスプレイ・モニター": ["モニターアーム", "デスクシェルフ・モニター台", "デスク", "照明・ライト", "ウェブカメラ", "PCスタンド・ノートPCスタンド"],
-  "モバイルモニター": ["PCスタンド・ノートPCスタンド", "タブレット", "充電器・電源タップ", "USBハブ"],
+  "ディスプレイ・モニター": ["モニターアーム", "デスクシェルフ・モニター台", "デスク", "照明・ライト", "ウェブカメラ", "ノートPCスタンド"],
+  "モバイルモニター": ["ノートPCスタンド", "タブレット", "充電器・電源タップ", "USBハブ"],
   "モニターアーム": ["ディスプレイ・モニター", "デスク"],
   "マイクアーム": ["マイク", "デスク", "オーディオインターフェース"],
-  "キーボード": ["マウス", "デスクマット", "PCスタンド・ノートPCスタンド", "左手デバイス"],
+  "キーボード": ["マウス", "デスクマット", "ノートPCスタンド", "左手デバイス"],
   "マウス": ["キーボード", "デスクマット", "マウス"],
   "デスク": ["チェア", "モニターアーム", "デスクシェルフ・モニター台", "デスクマット", "収納・整理", "照明・ライト"],
   "チェア": ["デスク", "照明・ライト"],
@@ -519,13 +475,13 @@ export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
   "ヘッドホン・イヤホン": ["オーディオインターフェース", "マイク", "スピーカー"],
   "スピーカー": ["オーディオインターフェース", "ヘッドホン・イヤホン"],
   "照明・ライト": ["デスク", "ディスプレイ・モニター", "ウェブカメラ"],
-  "PCスタンド・ノートPCスタンド": ["キーボード", "マウス", "ディスプレイ・モニター", "ドッキングステーション", "USBハブ"],
+  "ノートPCスタンド": ["キーボード", "マウス", "ディスプレイ・モニター", "ドッキングステーション", "USBハブ"],
   "USBハブ": ["PC本体", "ドッキングステーション", "充電器・電源タップ"],
   "デスクマット": ["キーボード", "マウス", "デスク"],
   "収納・整理": ["デスク", "デスクシェルフ・モニター台", "配線整理グッズ"],
   "PC本体": ["ディスプレイ・モニター", "キーボード", "マウス", "ドッキングステーション", "USBハブ"],
-  "タブレット": ["PCスタンド・ノートPCスタンド", "キーボード", "充電器・電源タップ", "ペンタブ"],
-  "ペンタブ": ["タブレット", "ディスプレイ・モニター", "左手デバイス", "PCスタンド・ノートPCスタンド"],
+  "タブレット": ["ノートPCスタンド", "キーボード", "充電器・電源タップ", "ペンタブ"],
+  "ペンタブ": ["タブレット", "ディスプレイ・モニター", "左手デバイス", "ノートPCスタンド"],
   "充電器・電源タップ": ["ドッキングステーション", "USBハブ", "配線整理グッズ"],
   "オーディオインターフェース": ["マイク", "ヘッドホン・イヤホン", "スピーカー"],
   "ドッキングステーション": ["PC本体", "ディスプレイ・モニター", "充電器・電源タップ", "USBハブ"],

@@ -17,10 +17,10 @@ export default function AdminLayout({
         <div className="max-w-[1080px] mx-auto px-4 flex items-center gap-6 text-sm">
           <span className="font-semibold">管理画面</span>
           <Link href="/admin" className="hover:text-blue-300 transition-colors">
-            デスクツアーDB
+            デスクツアー
           </Link>
           <Link href="/admin/camera" className="hover:text-blue-300 transition-colors">
-            撮影機材DB
+            撮影機材
           </Link>
         </div>
       </nav>

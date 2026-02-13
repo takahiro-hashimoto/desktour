@@ -7,12 +7,14 @@ import type {
   ProductDetail,
   OccupationStat,
   CoUsedProduct,
+  SimilarProduct,
   DeskSetupStat,
   SiteStats,
   SourceDetail,
   SourceProduct,
 } from "@/types";
 import { getCompatibleCategories, selectPrimaryOccupation } from "@/lib/constants";
+import { calculateSimilarityScore, DESKTOUR_PRICE_RANGE_ORDER } from "@/lib/similarity-scoring";
 
 // ランキング取得（言及回数でソート）
 export async function getProductRanking(limit = 20, category?: string) {
@@ -187,8 +189,12 @@ export async function searchProducts(params: SearchParams): Promise<{
     query = query.order("amazon_price", { ascending: false, nullsFirst: false });
   }
 
-  // タグフィルタがない場合のみDBでページネーション
-  if (!needsJsFilter) {
+  // mention_countソートの場合、Supabaseでは集計カラムでのソートが不可能なため
+  // 全件取得してJS側でソート＆ページネーションする必要がある
+  const needsJsPagination = needsJsFilter || sortBy === "mention_count";
+
+  // JS側でページネーションしない場合のみDBでページネーション
+  if (!needsJsPagination) {
     query = query.range(offset, offset + limit - 1);
   }
 
@@ -260,9 +266,9 @@ export async function searchProducts(params: SearchParams): Promise<{
     products.sort((a, b) => b.mention_count - a.mention_count);
   }
 
-  // タグフィルタがある場合、JS側でページネーション
-  const total = needsJsFilter ? products.length : (count || 0);
-  if (needsJsFilter) {
+  // JS側でページネーションが必要な場合（タグフィルタ or mention_countソート）
+  const total = needsJsPagination ? products.length : (count || 0);
+  if (needsJsPagination) {
     products = products.slice(offset, offset + limit);
   }
 
@@ -794,6 +800,84 @@ export async function getCoOccurrenceProducts(
   return result;
 }
 
+// 代替品・類似商品を取得（同カテゴリ内のタグ一致スコアリング）
+export async function getSimilarProducts(
+  product: {
+    id: string;
+    category: string;
+    tags?: string[];
+    brand?: string;
+    price_range?: string;
+  },
+  limit = 4,
+): Promise<SimilarProduct[]> {
+  // 同カテゴリの全商品を取得（自分自身を除外）
+  const { data: candidates, error } = await supabase
+    .from("products")
+    .select("id, asin, slug, name, brand, category, tags, price_range, amazon_image_url, amazon_price")
+    .eq("category", product.category)
+    .neq("id", product.id)
+    .not("slug", "is", null);
+
+  if (error || !candidates || candidates.length === 0) return [];
+
+  // 各商品のmention_countを一括取得
+  const candidateIds = candidates.map(c => c.id);
+  const { data: mentions } = await supabase
+    .from("product_mentions")
+    .select("product_id")
+    .in("product_id", candidateIds)
+    .neq("confidence", "low");
+
+  const mentionCountMap: Record<string, number> = {};
+  for (const m of mentions || []) {
+    mentionCountMap[m.product_id] = (mentionCountMap[m.product_id] || 0) + 1;
+  }
+
+  // スコアリング
+  const scored: SimilarProduct[] = candidates.map((c) => {
+    const mentionCount = mentionCountMap[c.id] || 0;
+    const { score, matchedTagCount } = calculateSimilarityScore(
+      {
+        tags: product.tags,
+        brand: product.brand,
+        price_range: product.price_range,
+        mention_count: 0,
+      },
+      {
+        tags: c.tags || [],
+        brand: c.brand,
+        price_range: c.price_range,
+        mention_count: mentionCount,
+      },
+      DESKTOUR_PRICE_RANGE_ORDER,
+    );
+
+    return {
+      id: c.id,
+      asin: c.asin,
+      slug: c.slug,
+      name: c.name,
+      brand: c.brand,
+      category: c.category,
+      amazon_image_url: c.amazon_image_url,
+      amazon_price: c.amazon_price,
+      mention_count: mentionCount,
+      similarity_score: score,
+      matched_tag_count: matchedTagCount,
+    };
+  });
+
+  // スコア > 0 のみ、スコア降順 → mention_count降順でソート
+  return scored
+    .filter(s => s.similarity_score > 0)
+    .sort((a, b) =>
+      b.similarity_score - a.similarity_score ||
+      b.mention_count - a.mention_count
+    )
+    .slice(0, limit);
+}
+
 // サイト統計を取得（トップページ用）
 export async function getSiteStats(): Promise<SiteStats> {
   const [
@@ -1035,6 +1119,12 @@ export async function getSourceDetail(
           name,
           brand,
           category,
+          tags,
+          amazon_title,
+          amazon_features,
+          amazon_technical_info,
+          amazon_categories,
+          amazon_brand,
           amazon_image_url,
           amazon_url,
           amazon_model_number
@@ -1074,6 +1164,7 @@ export async function getSourceDetail(
         name: m.products.name,
         brand: m.products.brand,
         category: m.products.category,
+        tags: m.products.tags,
         amazon_image_url: m.products.amazon_image_url,
         amazon_url: m.products.amazon_url,
         amazon_model_number: m.products.amazon_model_number,
@@ -1135,6 +1226,12 @@ export async function getSourceDetail(
           name,
           brand,
           category,
+          tags,
+          amazon_title,
+          amazon_features,
+          amazon_technical_info,
+          amazon_categories,
+          amazon_brand,
           amazon_image_url,
           amazon_url,
           amazon_model_number
@@ -1174,6 +1271,7 @@ export async function getSourceDetail(
         name: m.products.name,
         brand: m.products.brand,
         category: m.products.category,
+        tags: m.products.tags,
         amazon_image_url: m.products.amazon_image_url,
         amazon_url: m.products.amazon_url,
         amazon_model_number: m.products.amazon_model_number,

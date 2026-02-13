@@ -63,6 +63,29 @@ export function formatPriceDate(dateString?: string): string | null {
   return `${year}/${month}/${day}時点`;
 }
 
+/** インチ → cm に変換 */
+export function convertSize(sizeStr: string): string {
+  return sizeStr.replace(/(\d+\.?\d*)インチ/g, (_, num) => {
+    const cm = parseFloat(num) * 2.54;
+    return `${cm.toFixed(1)}cm`;
+  });
+}
+
+/** ポンド → kg/g に変換 */
+export function convertWeight(weightStr: string): string {
+  return weightStr.replace(/(\d+\.?\d*)ポンド/g, (_, num) => {
+    const g = parseFloat(num) * 453.592;
+    return g >= 1000 ? `${(g / 1000).toFixed(1)}kg` : `${Math.round(g)}g`;
+  });
+}
+
+/** 日付文字列を「YYYY年M月D日」形式にフォーマット */
+export function formatReleaseDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
+
 /** 共通FAQアイテム（カテゴリー詳細ページ共通） */
 export const COMMON_FAQ_ITEMS = [
   {

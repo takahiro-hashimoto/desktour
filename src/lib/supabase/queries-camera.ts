@@ -7,12 +7,14 @@ import type {
   ProductDetail,
   OccupationStat,
   CoUsedProduct,
+  SimilarProduct,
   DeskSetupStat,
   SiteStats,
   SourceDetail,
   SourceProduct,
 } from "@/types";
-import { getCameraCompatibleCategories, selectCameraPrimaryOccupation } from "@/lib/camera/constants";
+import { getCameraCompatibleCategories, selectCameraPrimaryOccupation, CAMERA_SOURCE_BRAND_FILTERS } from "@/lib/camera/constants";
+import { calculateSimilarityScore, CAMERA_PRICE_RANGE_ORDER } from "@/lib/similarity-scoring";
 
 // ランキング取得（言及回数でソート）
 export async function getCameraProductRanking(limit = 20, category?: string) {
@@ -218,8 +220,12 @@ export async function searchCameraProducts(params: SearchParams): Promise<{
     query = query.order("amazon_price", { ascending: false, nullsFirst: false });
   }
 
-  // タグフィルタがない場合のみDBでページネーション
-  if (!needsJsFilter) {
+  // mention_countソートの場合、Supabaseでは集計カラムでのソートが不可能なため
+  // 全件取得してJS側でソート＆ページネーションする必要がある
+  const needsJsPagination = needsJsFilter || sortBy === "mention_count";
+
+  // JS側でページネーションしない場合のみDBでページネーション
+  if (!needsJsPagination) {
     query = query.range(offset, offset + limit - 1);
   }
 
@@ -291,9 +297,9 @@ export async function searchCameraProducts(params: SearchParams): Promise<{
     products.sort((a, b) => b.mention_count - a.mention_count);
   }
 
-  // タグフィルタがある場合、JS側でページネーション
-  const total = needsJsFilter ? products.length : (count || 0);
-  if (needsJsFilter) {
+  // JS側でページネーションが必要な場合（タグフィルタ or mention_countソート）
+  const total = needsJsPagination ? products.length : (count || 0);
+  if (needsJsPagination) {
     products = products.slice(offset, offset + limit);
   }
 
@@ -828,6 +834,93 @@ export async function getCameraCoOccurrenceProducts(
   return result;
 }
 
+// 代替品・類似商品を取得（同カテゴリ内のタグ一致スコアリング）
+export async function getCameraSimilarProducts(
+  product: {
+    id: string;
+    category: string;
+    subcategory?: string;
+    tags?: string[];
+    lens_tags?: string[];
+    body_tags?: string[];
+    brand?: string;
+    price_range?: string;
+  },
+  limit = 4,
+): Promise<SimilarProduct[]> {
+  // 同カテゴリの全商品を取得（自分自身を除外）
+  const { data: candidates, error } = await supabase
+    .from("products_camera")
+    .select("id, asin, slug, name, brand, category, subcategory, tags, lens_tags, body_tags, price_range, amazon_image_url, amazon_price")
+    .eq("category", product.category)
+    .neq("id", product.id)
+    .not("slug", "is", null);
+
+  if (error || !candidates || candidates.length === 0) return [];
+
+  // 各商品のmention_countを一括取得
+  const candidateIds = candidates.map(c => c.id);
+  const { data: mentions } = await supabase
+    .from("product_mentions_camera")
+    .select("product_id")
+    .in("product_id", candidateIds)
+    .neq("confidence", "low");
+
+  const mentionCountMap: Record<string, number> = {};
+  for (const m of mentions || []) {
+    mentionCountMap[m.product_id] = (mentionCountMap[m.product_id] || 0) + 1;
+  }
+
+  // スコアリング
+  const scored: SimilarProduct[] = candidates.map((c) => {
+    const mentionCount = mentionCountMap[c.id] || 0;
+    const { score, matchedTagCount } = calculateSimilarityScore(
+      {
+        tags: product.tags,
+        brand: product.brand,
+        price_range: product.price_range,
+        mention_count: 0,
+        subcategory: product.subcategory,
+        lens_tags: product.lens_tags,
+        body_tags: product.body_tags,
+      },
+      {
+        tags: c.tags || [],
+        brand: c.brand,
+        price_range: c.price_range,
+        mention_count: mentionCount,
+        subcategory: c.subcategory,
+        lens_tags: c.lens_tags || [],
+        body_tags: c.body_tags || [],
+      },
+      CAMERA_PRICE_RANGE_ORDER,
+    );
+
+    return {
+      id: c.id,
+      asin: c.asin,
+      slug: c.slug,
+      name: c.name,
+      brand: c.brand,
+      category: c.category,
+      amazon_image_url: c.amazon_image_url,
+      amazon_price: c.amazon_price,
+      mention_count: mentionCount,
+      similarity_score: score,
+      matched_tag_count: matchedTagCount,
+    };
+  });
+
+  // スコア > 0 のみ、スコア降順 → mention_count降順でソート
+  return scored
+    .filter(s => s.similarity_score > 0)
+    .sort((a, b) =>
+      b.similarity_score - a.similarity_score ||
+      b.mention_count - a.mention_count
+    )
+    .slice(0, limit);
+}
+
 // サイト統計を取得（トップページ用）
 export async function getCameraSiteStats(): Promise<SiteStats> {
   const [
@@ -1108,6 +1201,7 @@ export async function getCameraSourceDetail(
         name: m.products_camera.name,
         brand: m.products_camera.brand,
         category: m.products_camera.category,
+        tags: m.products_camera.tags,
         amazon_image_url: m.products_camera.amazon_image_url,
         amazon_url: m.products_camera.amazon_url,
         amazon_model_number: m.products_camera.amazon_model_number,
@@ -1208,6 +1302,7 @@ export async function getCameraSourceDetail(
         name: m.products_camera.name,
         brand: m.products_camera.brand,
         category: m.products_camera.category,
+        tags: m.products_camera.tags,
         amazon_image_url: m.products_camera.amazon_image_url,
         amazon_url: m.products_camera.amazon_url,
         amazon_model_number: m.products_camera.amazon_model_number,
@@ -1430,6 +1525,110 @@ export async function getCameraSourceTagCounts(): Promise<Record<string, number>
   }
 
   return tagCounts;
+}
+
+// DBブランド名のエイリアス → フィルター正規名
+const BRAND_ALIAS_MAP: Record<string, string> = {
+  "lumix": "Panasonic",
+  "ソニー": "Sony",
+  "キヤノン": "Canon",
+  "ニコン": "Nikon",
+  "富士フイルム": "Fujifilm",
+  "オリンパス": "Olympus",
+  "パナソニック": "Panasonic",
+  "ペンタックス": "Pentax",
+  "リコー": "Ricoh",
+  "ハッセルブラッド": "Hasselblad",
+  "ライカ": "Leica",
+};
+
+// DBブランド名 → フィルター用正規ブランド名に変換
+// 大文字小文字無視の部分一致 + エイリアスで判定
+function normalizeBrandToFilter(dbBrand: string): string | null {
+  const lower = dbBrand.toLowerCase();
+  // 1. フィルターリストとの直接マッチ（部分一致）
+  for (const filterBrand of CAMERA_SOURCE_BRAND_FILTERS) {
+    if (lower.includes(filterBrand.toLowerCase())) {
+      return filterBrand;
+    }
+  }
+  // 2. エイリアスマッチ
+  for (const [alias, normalized] of Object.entries(BRAND_ALIAS_MAP)) {
+    if (lower.includes(alias.toLowerCase())) {
+      return normalized;
+    }
+  }
+  return null;
+}
+
+// ソース（動画/記事）ごとの登場ブランド一覧を取得
+// DBのブランド名をフィルターリストの正規名に変換して返す
+export async function getCameraSourceBrands(): Promise<{
+  videoBrands: Record<string, string[]>;
+  articleBrands: Record<string, string[]>;
+  allBrands: string[];
+}> {
+  const { data, error } = await supabase
+    .from("product_mentions_camera")
+    .select("video_id, article_id, product_id")
+    .neq("confidence", "low");
+
+  if (error || !data) {
+    console.error("Error fetching source brands:", error);
+    return { videoBrands: {}, articleBrands: {}, allBrands: [] };
+  }
+
+  // product_idからブランドを取得
+  const productIds = [...new Set(data.map(d => d.product_id).filter(Boolean))];
+  const { data: products } = await supabase
+    .from("products_camera")
+    .select("id, brand")
+    .in("id", productIds)
+    .not("brand", "is", null);
+
+  // DBブランド → フィルター正規名のマップを構築
+  const productNormalizedBrandMap = new Map<string, string>();
+  for (const p of products || []) {
+    const normalized = normalizeBrandToFilter(p.brand);
+    if (normalized) {
+      productNormalizedBrandMap.set(p.id, normalized);
+    }
+  }
+
+  const videoBrandsMap = new Map<string, Set<string>>();
+  const articleBrandsMap = new Map<string, Set<string>>();
+  const allBrandsSet = new Set<string>();
+
+  for (const mention of data) {
+    const brand = productNormalizedBrandMap.get(mention.product_id);
+    if (!brand) continue;
+    allBrandsSet.add(brand);
+
+    if (mention.video_id) {
+      if (!videoBrandsMap.has(mention.video_id)) videoBrandsMap.set(mention.video_id, new Set());
+      videoBrandsMap.get(mention.video_id)!.add(brand);
+    }
+    if (mention.article_id) {
+      if (!articleBrandsMap.has(mention.article_id)) articleBrandsMap.set(mention.article_id, new Set());
+      articleBrandsMap.get(mention.article_id)!.add(brand);
+    }
+  }
+
+  // JSON-serializable なオブジェクトに変換（unstable_cache対応）
+  const videoBrands: Record<string, string[]> = {};
+  for (const [k, v] of videoBrandsMap) {
+    videoBrands[k] = [...v];
+  }
+  const articleBrands: Record<string, string[]> = {};
+  for (const [k, v] of articleBrandsMap) {
+    articleBrands[k] = [...v];
+  }
+
+  return {
+    videoBrands,
+    articleBrands,
+    allBrands: [...allBrandsSet].sort(),
+  };
 }
 
 // ブランド別の商品数を取得

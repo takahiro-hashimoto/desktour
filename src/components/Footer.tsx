@@ -18,14 +18,20 @@ export async function Footer() {
       <div className="max-w-[1080px] mx-auto px-4">
         {/* 1段目: 主要リンク（横並び） */}
         <nav aria-label="主要ページ" className="flex flex-wrap gap-6 justify-center mb-8 pb-8 border-b border-gray-700">
-          <Link href="/desktour/sources" className="text-white font-bold hover:text-gray-300">
-            デスクツアー
+          <Link href="/desktour" className="text-white font-bold hover:text-gray-300">
+            デスク環境
+          </Link>
+          <Link href="/camera" className="text-white font-bold hover:text-gray-300">
+            カメラ機材
           </Link>
           <Link href="/about" className="text-white font-bold hover:text-gray-300">
             運営者情報
           </Link>
           <Link href="/policy" className="text-white font-bold hover:text-gray-300">
             コンテンツ制作ポリシー
+          </Link>
+          <Link href="/privacy" className="text-white font-bold hover:text-gray-300">
+            プライバシーポリシー
           </Link>
           <Link href="/contact" className="text-white font-bold hover:text-gray-300">
             お問い合わせ
@@ -120,7 +126,7 @@ export async function Footer() {
         </nav>
 
         <div className="border-t border-gray-700 pt-6 text-center text-sm">
-          <small>© 2024 デスクツアーDB</small>
+          <small>© 2024 Creator Clip</small>
           <p className="mt-2 text-xs">
             本サイトはAmazonアソシエイトプログラムに参加しています。
           </p>

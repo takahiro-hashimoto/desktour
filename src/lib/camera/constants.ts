@@ -176,19 +176,16 @@ export const CAMERA_OCCUPATION_TAGS = [
   "映像・写真学生／学習者",
 ] as const;
 
+import { createSlugConverter, brandFallback, inferBrandFromSlug as _inferBrand, selectPrimaryTag, getTagPriority } from "../slug-utils";
+
 // 職業タグの優先度を取得（小さいほど優先度が高い）
 export function getCameraOccupationPriority(tag: string): number {
-  const index = CAMERA_OCCUPATION_TAGS.indexOf(tag as typeof CAMERA_OCCUPATION_TAGS[number]);
-  return index === -1 ? 999 : index;
+  return getTagPriority(tag, CAMERA_OCCUPATION_TAGS);
 }
 
 // 複数の職業タグから最も優先度の高い1つを選択
 export function selectCameraPrimaryOccupation(tags: string[]): string | null {
-  if (!tags || tags.length === 0) return null;
-  const validTags = tags.filter(t => CAMERA_OCCUPATION_TAGS.includes(t as typeof CAMERA_OCCUPATION_TAGS[number]));
-  if (validTags.length === 0) return null;
-  validTags.sort((a, b) => getCameraOccupationPriority(a) - getCameraOccupationPriority(b));
-  return validTags[0];
+  return selectPrimaryTag(tags, CAMERA_OCCUPATION_TAGS);
 }
 
 // 職業タグ→英語スラッグのマッピング
@@ -255,68 +252,37 @@ const CAMERA_BRAND_SLUG_MAP: Record<string, string> = {
 };
 
 // ========================================
-// スラッグ変換関数
+// スラッグ変換関数（createSlugConverter で統一）
 // ========================================
 
-export function cameraCategoryToSlug(category: string): string {
-  return CAMERA_CATEGORY_SLUG_MAP[category] || category.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
-}
-
-export function slugToCameraCategory(slug: string): string | undefined {
-  const entry = Object.entries(CAMERA_CATEGORY_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] : undefined;
-}
+const _categoryConverter = createSlugConverter(CAMERA_CATEGORY_SLUG_MAP);
+export const cameraCategoryToSlug = _categoryConverter.toSlug;
+export const slugToCameraCategory = _categoryConverter.fromSlug;
 
 /** カメラ商品詳細ページのURLを生成 */
 export function cameraProductUrl(product: { slug?: string; id: string }): string {
   return `/camera/${product.slug || product.id}`;
 }
 
-export function cameraOccupationToSlug(occupation: string): string {
-  return CAMERA_OCCUPATION_SLUG_MAP[occupation] || occupation.replace(/\s+/g, "-").toLowerCase();
-}
+const _occupationConverter = createSlugConverter(CAMERA_OCCUPATION_SLUG_MAP, brandFallback);
+export const cameraOccupationToSlug = _occupationConverter.toSlug;
+export const slugToCameraOccupation = _occupationConverter.fromSlug;
 
-export function slugToCameraOccupation(slug: string): string | undefined {
-  const entry = Object.entries(CAMERA_OCCUPATION_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof CAMERA_OCCUPATION_TAGS[number] : undefined;
-}
+const _subcategoryConverter = createSlugConverter(CAMERA_SUBCATEGORY_SLUG_MAP);
+export const cameraSubcategoryToSlug = _subcategoryConverter.toSlug;
+export const slugToCameraSubcategory = _subcategoryConverter.fromSlug;
 
-export function cameraSubcategoryToSlug(subcategory: string): string {
-  return CAMERA_SUBCATEGORY_SLUG_MAP[subcategory] || subcategory.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
-}
+const _brandConverter = createSlugConverter(CAMERA_BRAND_SLUG_MAP, brandFallback);
+export const cameraBrandToSlug = _brandConverter.toSlug;
+export const slugToCameraBrand = _brandConverter.fromSlug;
 
-export function slugToCameraSubcategory(slug: string): string | undefined {
-  const entry = Object.entries(CAMERA_SUBCATEGORY_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] : undefined;
-}
-
-export function cameraBrandToSlug(brand: string): string {
-  return CAMERA_BRAND_SLUG_MAP[brand] || brand.toLowerCase().replace(/\s+/g, "-");
-}
-
-export function slugToCameraBrand(slug: string): string | undefined {
-  const entry = Object.entries(CAMERA_BRAND_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof CAMERA_BRAND_TAGS[number] : undefined;
-}
-
-export function cameraSubjectToSlug(subject: string): string {
-  return CAMERA_SUBJECT_SLUG_MAP[subject] || subject.toLowerCase().replace(/\s+/g, "-");
-}
-
-export function slugToCameraSubject(slug: string): string | undefined {
-  const entry = Object.entries(CAMERA_SUBJECT_SLUG_MAP).find(([, s]) => s === slug);
-  return entry ? entry[0] as typeof CAMERA_SUBJECT_TAGS[number] : undefined;
-}
+const _subjectConverter = createSlugConverter(CAMERA_SUBJECT_SLUG_MAP, brandFallback);
+export const cameraSubjectToSlug = _subjectConverter.toSlug;
+export const slugToCameraSubject = _subjectConverter.fromSlug;
 
 // スラッグからブランド名を推測（登録外ブランドにも対応）
 export function inferCameraBrandFromSlug(slug: string): string {
-  const exactMatch = Object.entries(CAMERA_BRAND_SLUG_MAP).find(([, s]) => s === slug);
-  if (exactMatch) return exactMatch[0];
-
-  return slug
-    .split("-")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  return _inferBrand(_brandConverter, slug);
 }
 
 // ========================================

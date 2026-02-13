@@ -57,6 +57,12 @@ export interface SourceProduct {
   name: string;
   brand?: string;
   category: string;
+  tags?: string[];
+  amazon_title?: string;
+  amazon_features?: string[];
+  amazon_technical_info?: Record<string, string>;
+  amazon_categories?: string[];
+  amazon_brand?: string;
   amazon_image_url?: string;
   amazon_url?: string;
   amazon_model_number?: string;
@@ -124,6 +130,20 @@ export interface CoUsedProduct {
   category: string;
   amazon_image_url?: string;
   co_occurrence_count: number;
+}
+
+export interface SimilarProduct {
+  id: string;
+  asin?: string;
+  slug?: string;
+  name: string;
+  brand?: string;
+  category: string;
+  amazon_image_url?: string;
+  amazon_price?: number;
+  mention_count: number;
+  similarity_score: number;
+  matched_tag_count: number;
 }
 
 export interface DeskSetupStat {

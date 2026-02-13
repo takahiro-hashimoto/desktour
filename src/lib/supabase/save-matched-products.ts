@@ -11,7 +11,7 @@
  *      call updateProductWithAmazon() with detailed product data
  */
 
-import { saveProduct, updateProductWithAmazon } from "./mutations";
+import { saveProduct, updateProductWithAmazon, type FuzzyCategoryCache } from "./mutations";
 import { getPriceRange } from "../gemini";
 import { isLowQualityFeatures } from "../featureQuality";
 import type { MatchedProduct, MatchCandidate } from "../product-matching";
@@ -40,6 +40,9 @@ export async function saveMatchedProducts(
   sourceRef: ProductSourceRef,
   candidates: MatchCandidate[]
 ): Promise<void> {
+  // ファジーマッチ用カテゴリキャッシュ（ループ内で使い回してDBクエリ削減）
+  const fuzzyCategoryCache: FuzzyCategoryCache = new Map();
+
   for (const product of matchedProducts) {
     console.log(
       `[SaveProduct] ${product.name} | tags: ${product.tags?.join(", ") || "none"}`
@@ -54,7 +57,7 @@ export async function saveMatchedProducts(
       video_id: sourceRef.video_id,
       article_id: sourceRef.article_id,
       source_type: sourceRef.source_type,
-    });
+    }, fuzzyCategoryCache);
     const savedProduct = result.product;
 
     if (savedProduct && !savedProduct.asin && product.amazon) {

@@ -6,6 +6,8 @@ import { X, ExternalLink, Play, FileText } from "lucide-react";
 import type { SourceDetail } from "@/types";
 import { resolveImageUrl } from "@/lib/imageUtils";
 import { getProductLinks } from "@/lib/affiliateLinks";
+import { productUrl } from "@/lib/constants";
+import { cameraProductUrl } from "@/lib/camera/constants";
 
 interface SourceModalProps {
   isOpen: boolean;
@@ -28,6 +30,16 @@ export function SourceModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const productRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // モーダル表示中は背景スクロールを無効化
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && sourceId) {
@@ -271,7 +283,7 @@ export function SourceModal({
                             return (
                               <div className="flex items-center gap-4 mt-3">
                                 <Link
-                                  href={`/${domain}/product/${product.slug || product.id}`}
+                                  href={domain === "camera" ? cameraProductUrl(product) : productUrl(product)}
                                   className="text-sm text-blue-600 hover:underline"
                                   onClick={onClose}
                                 >

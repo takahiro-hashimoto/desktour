@@ -27,21 +27,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// カテゴリーごとのアイコン（Font Awesome）
-const CATEGORY_ICONS: Record<string, string> = {
-  "カメラ本体": "fa-solid fa-camera",
-  "レンズ": "fa-solid fa-circle-dot",
-  "三脚": "fa-solid fa-maximize",
-  "ジンバル": "fa-solid fa-rotate",
-  "マイク・音声": "fa-solid fa-microphone",
-  "照明": "fa-solid fa-lightbulb",
-  "ストレージ": "fa-solid fa-sd-card",
-  "カメラ装着アクセサリー": "fa-solid fa-screwdriver-wrench",
-  "収録・制御機器": "fa-solid fa-tv",
-  "バッグ・収納": "fa-solid fa-bag-shopping",
-  "ドローンカメラ": "fa-solid fa-helicopter",
-};
-
 export default async function CategoryIndexPage() {
   const stats = await getCameraSiteStats();
   const totalSources = stats.total_videos + stats.total_articles;
@@ -105,7 +90,7 @@ export default async function CategoryIndexPage() {
         ) : (
           filteredCategories.map(({ category, products, total }) => (
             <div key={category} style={{ marginBottom: "60px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                 <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
                 <Link
                   href={`/camera/${cameraCategoryToSlug(category)}`}
@@ -114,6 +99,9 @@ export default async function CategoryIndexPage() {
                   全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
                 </Link>
               </div>
+              <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
+                登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）`}
+              </p>
               <ProductGrid products={products} domain="camera" />
             </div>
           ))

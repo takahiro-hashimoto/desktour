@@ -125,6 +125,7 @@ export interface ExtractedProduct {
   subcategory?: string;
   lensTags?: string[];
   bodyTags?: string[];
+  amazonUrl?: string; // Geminiが記事内から抽出したAmazon/楽天URL
   reason: string;
   confidence: "high" | "medium" | "low";
 }
@@ -180,7 +181,7 @@ async function supplementReasons(
   const prompt = `以下の${sourceLabel}で紹介されている商品について、それぞれの商品コメント（reason）を記述してください。
 
 ${sourceLabel}:
-${contentText.slice(0, 30000)}
+${contentText.slice(0, 40000)}
 
 【対象商品】
 ${productList}
@@ -280,11 +281,8 @@ function buildProductFieldsSchema(categories: readonly string[], options?: {
       "name": "商品名（ブランド名は含めない。Amazonで検索して特定できる名前にすること。スペック文字列や一般名詞だけはNG。例：ERGO M575S, LX デスクマウント モニターアーム, ScreenBar Halo 2）",
       "brand": "ブランド/メーカー名（例：Apple, Logicool, HHKB, Keychron, FLEXISPOT, エルゴトロン等。必ず記載すること。不明な場合のみ空文字）",
       "category": "カテゴリ名（以下から選択: ${categories.join(", ")}）"${subcategoryField}${lensTagsField}${bodyTagsField},
-      "reason": "【重要】以下の観点を含めて詳しく記述（100-200文字程度）：
-        1. なぜこの商品を選んだのか（導入理由・きっかけ）
-        2. 実際に使ってみて気に入っている点
-        3. 他の商品と比較した優位性があれば
-        4. どんな人におすすめか",
+      "amazonUrl": "本文中にこの商品のAmazon/楽天リンクがある場合、そのURLをそのまま記載（なければ空文字）",
+      "reason": "商品についてのコメント。詳しく紹介されている場合は以下の観点を含めて100-200文字程度で記述：1.導入理由 2.気に入っている点 3.他商品との比較 4.おすすめポイント。ただし短い言及のみの商品は20-40文字程度の簡潔な記述でもOK（「デスクのモニターとして使用している」等）。reasonが書けないことを理由に商品を省略しないこと。",
       "confidence": "high/medium/low（商品名の特定に対する確信度）"
     }`;
 }
@@ -442,11 +440,13 @@ function buildReasonRules(sourceLabel: string, extraLines: string[]): string {
     `【商品コメント（reason）の記述ルール】`,
     `- ★重要★ 発信者本人の視点・言葉として書くこと（一人称視点）。第三者が紹介する文体にしない`,
     `- 「〜とのこと」「〜だそうだ」「〜されている」のような第三者目線の表現は禁止`,
+    `- 伝聞表現（〜とのこと／〜だそうだ／〜らしい／〜ようだ）は禁止。断定できない場合は「〜と感じている」「〜と思っている」と本人の感想にする`,
     `- 「〜が気に入っている」「〜で使っている」「〜が魅力」「〜で購入した」のように、本人が語っている口調で書く`,
     `- ${sourceLabel}で実際に述べられている内容を元に、具体的に記述してください`,
     `- 「良い」「おすすめ」などの抽象的な表現ではなく、具体的な特徴やメリットを書いてください`,
     ...extraLines,
     `- ${sourceLabel}で言及されていない情報は推測で補わないでください`,
+    `- ★重要★ 詳しいレビューがなく短い言及のみの商品（「〇〇を使っている」「〇〇に替えた」等）でも、reasonは短くてOK（20-40文字程度）。reasonが十分に書けないことを理由に商品自体を省略するのは禁止`,
   ];
   return lines.join("\n");
 }
@@ -459,12 +459,30 @@ function buildReasonRules(sourceLabel: string, extraLines: string[]): string {
 function buildGeneralNotes(sourceLabel: string, contentLabel: string): string {
   return `【注意事項】
 - 実際に${sourceLabel}で紹介・言及されている商品のみを抽出
-- 商品名が明確でない場合はconfidenceをlowに
+- 商品名が明確でない場合はconfidenceをlowに設定した上で、必ず抽出すること（スキップしない）
 - 同じ商品の重複記載は避ける
 - デスクツアーや撮影機材に関係ない商品（飲料、服など）は除外
 - タグは${contentLabel}の内容に合致するものだけを選択（無理に全部選ばない）
-- ★重要★ ${sourceLabel}にAmazon・楽天などの購入リンクが貼られている商品は、小物やアクセサリー類であっても漏れなくすべて抽出すること。メイン機材だけでなく、ストラップ、フィルター、バッグ、充電器、LEDライト、リモコン等の周辺機材・アクセサリーも含める`;
+- ★重要★ ${sourceLabel}にAmazon・楽天などの購入リンクが貼られている商品は、小物やアクセサリー類であっても漏れなくすべて抽出すること。メイン機材だけでなく、ストラップ、フィルター、バッグ、充電器、LEDライト、リモコン等の周辺機材・アクセサリーも含める
+- ★重要★ 本文中に [商品名](URL) 形式のマークダウンリンクがある場合、そのリンクテキストは商品名の有力な手がかりです。見出しや太字(**商品名**)も同様
+- ★重要★ 商品数が20件を超える${contentLabel}でも、紹介されている商品を1つも漏らさず全て抽出してください。途中で打ち切らないこと
+- ★最重要★ 一言だけの言及や短い紹介であっても、具体的な商品名が分かる場合は必ず抽出すること。詳しいレビューがなくても「〇〇を使っている」「〇〇に替えた」程度の言及で十分。reasonが書きにくい場合は短くても構わない（20文字程度でもOK）
+- ★最重要★ summaryに言及した商品は必ずproducts配列にも含めること。summaryには書いたがproductsに入れ忘れるケースが多発しているため、最終チェックとしてsummaryに登場する商品名がすべてproductsに含まれているか確認すること`;
 }
+
+/** YouTubeの自動字幕に関する注意喚起（動画解析時のみ使用） */
+const AUTO_CAPTION_WARNING = `【YouTubeの自動字幕に関する注意】★重要★
+この文字起こしはYouTubeの自動字幕から取得しており、以下のような誤認識が頻繁に発生します：
+- ブランド名の誤変換: BenQ→「勉」「ベンキュー」、HHKB→「えいちえいちけーびー」、FLEXISPOT→「フレキシスポット」等
+- 商品名の音声誤認: AirPods Pro Max→「エアポッズプロマックス」「フロマックス」等
+- カタカナ語の誤認識: Studio Display→「スタジオディスプレイ」、Thunderbolt→「サンダーボルト」等
+- 英語混じり商品名の分断: 「ロジクール の リフト」（=Logicool LIFT）のように分かれる場合がある
+
+対処方法：
+- 文脈から正しいブランド名・商品名を推測して、正式な英語表記（または日本正規表記）で記載すること
+- 「〇〇のモニター」「〇〇のキーボード」のような一般的な言い回しでも、前後の文脈からメーカー・型番が推測できる場合は具体的に抽出すること
+- 概要欄の情報や商品ヒントリストと照合して、正しい商品名を特定すること
+- 音声誤認が疑われる場合でも、文脈から商品が特定できるなら積極的に抽出すること（confidenceをmedium/lowにすればOK）`;
 
 /** 解析失敗時のデフォルト返却値 */
 const DEFAULT_ANALYSIS_ERROR: AnalysisResult = {
@@ -485,26 +503,40 @@ export async function analyzeTranscript(
   videoDescription?: string,
   channelDescription?: string,
   thumbnailUrl?: string,
-  domain: AnalysisDomain = "desktour"
+  domain: AnalysisDomain = "desktour",
+  channelTitle?: string,
+  productHints?: string[]
 ): Promise<AnalysisResult> {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
-    generationConfig: { maxOutputTokens: 16384 },
+    generationConfig: { maxOutputTokens: 24576 },
   });
   const isCamera = domain === "camera";
 
   // チャンネル・動画概要欄から職業を推測するための情報を追加
   const contextInfo = [];
   if (videoDescription) {
-    contextInfo.push(`【動画概要欄】\n${videoDescription.slice(0, 2000)}`);
+    contextInfo.push(`【動画概要欄】\n${videoDescription.slice(0, 5000)}`);
   }
   if (channelDescription) {
-    contextInfo.push(`【チャンネル概要欄】\n${channelDescription.slice(0, 1000)}`);
+    contextInfo.push(`【チャンネル概要欄】\n${channelDescription.slice(0, 2000)}`);
+  }
+  if (channelTitle) {
+    contextInfo.push(`【チャンネル名】\n${channelTitle}`);
   }
   const additionalContext = contextInfo.length > 0 ? `\n\n${contextInfo.join("\n\n")}` : "";
 
   const thumbnailNote = !isCamera && thumbnailUrl
     ? "\n※ サムネイル画像が添付されています。スタイルタグの判定（色味・雰囲気）の参考にしてください。"
+    : "";
+
+  // 概要欄のEC商品リンクから取得した商品名ヒント
+  const productHintSection = productHints && productHints.length > 0
+    ? `\n【概要欄の購入リンクから検出された商品一覧】★最重要★
+以下は概要欄のAmazon/楽天リンクから取得した商品タイトルです。
+これらの商品が動画内で紹介・言及されている場合は、必ずすべてproductsに含めてください（小物・アクセサリー・ケーブル等も漏れなく）。
+商品数が多い動画でも、紹介されている商品を1つも漏らさずすべて抽出してください。
+${productHints.map((h, i) => `${i + 1}. ${h}`).join("\n")}\n`
     : "";
 
   // ドメインに応じたカテゴリ・職業タグ・タグの切り替え
@@ -519,9 +551,11 @@ export async function analyzeTranscript(
 
 動画タイトル: ${videoTitle}
 ${additionalContext}
+${productHintSection}
+${AUTO_CAPTION_WARNING}
 
 【文字起こし】
-${transcript.slice(0, 18000)}
+${transcript.slice(0, 40000)}
 
 ${PROMPT_JSON_INSTRUCTION}
 
@@ -537,9 +571,11 @@ ${PROMPT_JSON_INSTRUCTION}
     3. 主な撮影環境（スタジオ/ロケ/自宅等）
     4. 機材セットアップの総評や特筆すべき点
     【書き出しルール】★最重要★
-    - 必ず「〇〇系の情報発信をしている〇〇さんの撮影機材紹介動画です。」で始めること
-    - 〇〇系の部分は発信ジャンルを簡潔に表現（例：夜景写真系、映像制作系、ポートレート系、風景写真系、Vlog系など）
-    - 〇〇さんの部分は投稿者名やチャンネル名を使用
+    - 必ず「〇〇として活動している〇〇さんの撮影機材紹介動画です。」で始めること
+    - 〇〇としての部分は、職種・活動内容・発信内容を端的に表現（例：フリーランスの映像クリエイター、フォトグラファー、Vlog系の情報発信、企業VP撮影など）
+    - 〇〇さんの部分は投稿者名やチャンネル名を使用（上記のチャンネル名をそのまま使用）
+    - 本名の推測や翻訳は禁止。英字名は英字のまま使用し、漢字化しない
+    - 職種や活動内容が特定できない場合は「〇〇さんの撮影機材紹介動画です。」で始めること
     【文体ルール】
     - 丁寧なです・ます調を基本とする
     - ただし同じ語尾が2文連続しないよう、体言止め等で変化をつける
@@ -598,9 +634,11 @@ ${buildGeneralNotes("動画内", "動画")}`
 
 動画タイトル: ${videoTitle}
 ${additionalContext}
+${productHintSection}
+${AUTO_CAPTION_WARNING}
 
 【文字起こし】
-${transcript.slice(0, 18000)}
+${transcript.slice(0, 40000)}
 
 ${PROMPT_JSON_INSTRUCTION}
 
@@ -616,9 +654,11 @@ ${PROMPT_JSON_INSTRUCTION}
     3. 使用しているPC/OS環境（Mac/Windows/両方）
     4. デスク環境の総評や特筆すべき点
     【書き出しルール】★最重要★
-    - 必ず「〇〇系の情報発信をしている〇〇さんのデスクツアー動画です。」で始めること
-    - 〇〇系の部分は発信ジャンルを簡潔に表現（例：ガジェット系、テック系、プログラミング系、デザイン系、ライフスタイル系など）
-    - 〇〇さんの部分は投稿者名やチャンネル名を使用
+    - 必ず「〇〇として活動している〇〇さんのデスクツアー動画です。」で始めること
+    - 〇〇としての部分は、職種・活動内容・発信内容を端的に表現（例：エンジニアとして仕事をしている、デザイナーとして活動している、ガジェット系の情報発信をしている など）
+    - 〇〇さんの部分は投稿者名やチャンネル名を使用（上記のチャンネル名をそのまま使用）
+    - 本名の推測や翻訳は禁止。英字名は英字のまま使用し、漢字化しない
+    - 職種や活動内容が特定できない場合は「〇〇さんのデスクツアー動画です。」で始めること
     【文体ルール】
     - 丁寧なです・ます調を基本とする
     - ただし同じ語尾が2文連続しないよう、体言止め等で変化をつける
@@ -709,7 +749,7 @@ export async function analyzeArticle(
 ): Promise<AnalysisResult> {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
-    generationConfig: { maxOutputTokens: 16384 },
+    generationConfig: { maxOutputTokens: 32768 },
   });
   const isCamera = domain === "camera";
 
@@ -721,9 +761,11 @@ export async function analyzeArticle(
 
   // 記事内のAmazon/楽天リンクから取得した商品名ヒント
   const productHintSection = productHints && productHints.length > 0
-    ? `\n【記事内の購入リンクから検出された商品一覧】★重要★
-以下は記事内のAmazon/楽天リンクから取得した商品タイトルです。記事本文にはリンク情報が含まれていないため、この一覧を参照してください。
-これらの商品が記事内で紹介・言及されている場合は、すべてproductsに含めてください（小物・アクセサリー含む）。
+    ? `\n【記事内の購入リンクから検出された商品一覧】★最重要★
+以下は記事内のAmazon/楽天リンクから取得した商品タイトルです。
+これらの商品が記事内で紹介・言及されている場合は、必ずすべてproductsに含めてください（小物・アクセサリー・ケーブル等も漏れなく）。
+記事本文中にマークダウン形式のリンク [商品名](URL) が含まれている場合は、そのリンクテキストも商品名の特定に活用してください。
+商品数が多い記事でも、紹介されている商品を1つも漏らさずすべて抽出してください。
 ${productHints.map((h, i) => `${i + 1}. ${h}`).join("\n")}\n`
     : "";
 
@@ -733,7 +775,7 @@ ${productHints.map((h, i) => `${i + 1}. ${h}`).join("\n")}\n`
 記事タイトル: ${articleTitle}
 ${productHintSection}
 記事本文:
-${content.slice(0, 30000)}
+${content.slice(0, 60000)}
 
 ${PROMPT_JSON_INSTRUCTION}
 
@@ -743,7 +785,7 @@ ${PROMPT_JSON_INSTRUCTION}
   "products": [
     ${productSchema}
   ],
-  "summary": "この記事の撮影機材セットアップの特徴を2-3文で要約。必ず「〇〇系の情報発信をしている〇〇さんの撮影機材紹介記事です。」で書き出すこと（〇〇系＝発信ジャンル、〇〇さん＝執筆者名）。丁寧なです・ます調を基本とし、同じ語尾が2文連続しないよう体言止め等で変化をつけること",
+  "summary": "この記事の撮影機材セットアップの特徴を2-3文で要約。必ず「〇〇として活動している〇〇さんの撮影機材紹介記事です。」で書き出すこと（〇〇として＝職種・活動内容・発信内容、〇〇さん＝執筆者名）。職種や活動内容が特定できない場合は「〇〇さんの撮影機材紹介記事です。」で始めること。丁寧なです・ます調を基本とし、同じ語尾が2文連続しないよう体言止め等で変化をつけること",
   "tags": []
 }
 
@@ -796,7 +838,7 @@ ${buildGeneralNotes("記事内", "記事")}`
 記事タイトル: ${articleTitle}
 ${productHintSection}
 記事本文:
-${content.slice(0, 30000)}
+${content.slice(0, 60000)}
 
 ${PROMPT_JSON_INSTRUCTION}
 
@@ -806,7 +848,7 @@ ${PROMPT_JSON_INSTRUCTION}
   "products": [
     ${PRODUCT_FIELDS_SCHEMA}
   ],
-  "summary": "この記事のデスク環境の特徴を2-3文で要約。必ず「〇〇系の情報発信をしている〇〇さんのデスクツアー記事です。」で書き出すこと（〇〇系＝発信ジャンル、〇〇さん＝執筆者名）。丁寧なです・ます調を基本とし、同じ語尾が2文連続しないよう体言止め等で変化をつけること",
+  "summary": "この記事のデスク環境の特徴を2-3文で要約。必ず「〇〇として活動している〇〇さんのデスクツアー記事です。」で書き出すこと（〇〇として＝職種・活動内容・発信内容、〇〇さん＝執筆者名）。職種や活動内容が特定できない場合は「〇〇さんのデスクツアー記事です。」で始めること。丁寧なです・ます調を基本とし、同じ語尾が2文連続しないよう体言止め等で変化をつけること",
   "tags": ["該当するタグを選択（複数可）: ${DESK_SETUP_TAGS.join(", ")}"]
 }
 

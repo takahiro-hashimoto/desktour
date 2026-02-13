@@ -40,7 +40,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "ヘッドホン・イヤホン": "fa-solid fa-headphones",
   "スピーカー": "fa-solid fa-volume-high",
   "照明・ライト": "fa-solid fa-lightbulb",
-  "PCスタンド・ノートPCスタンド": "fa-solid fa-laptop",
+  "ノートPCスタンド": "fa-solid fa-laptop",
   "モニターアーム": "fa-solid fa-up-down-left-right",
   "マイクアーム": "fa-solid fa-grip-lines-vertical",
   "USBハブ": "fa-solid fa-plug",
@@ -125,7 +125,7 @@ export default async function CategoryIndexPage() {
         ) : (
           filteredCategories.map(({ category, products, total }) => (
             <div key={category} style={{ marginBottom: "60px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                 <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
                 <Link
                   href={`/desktour/${categoryToSlug(category)}`}
@@ -134,6 +134,9 @@ export default async function CategoryIndexPage() {
                   全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
                 </Link>
               </div>
+              <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
+                登録{total}件。{products[0] && `最も人気は${products[0].name}（${products[0].mention_count}件のデスクツアーに登場）`}
+              </p>
               <ProductGrid products={products} />
             </div>
           ))

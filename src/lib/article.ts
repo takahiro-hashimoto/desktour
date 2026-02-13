@@ -1,4 +1,6 @@
 import * as cheerio from "cheerio";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyNode = any;
 
 export interface ArticleInfo {
   url: string;
@@ -35,6 +37,79 @@ function detectSourceType(url: string): "note" | "blog" | "other" {
   return "other";
 }
 
+// HTML要素をマークダウン風テキストに変換（リンク情報を保持）
+function htmlToMarkdown($: cheerio.CheerioAPI, element: cheerio.Cheerio<AnyNode>): string {
+  const lines: string[] = [];
+
+  function processNode(node: AnyNode): string {
+    if (node.type === "text") {
+      return node.data || "";
+    }
+
+    if (node.type !== "tag") return "";
+
+    const el = $(node);
+    const tag = node.tagName?.toLowerCase();
+
+    // 見出し
+    if (tag && /^h[1-6]$/.test(tag)) {
+      const level = parseInt(tag[1]);
+      const text = el.text().trim();
+      if (text) return `\n${"#".repeat(level)} ${text}\n`;
+      return "";
+    }
+
+    // リンク — 商品名特定に重要
+    if (tag === "a") {
+      const href = el.attr("href") || "";
+      const text = el.text().trim();
+      if (text && href) {
+        // EC系リンクの場合はURLも残す
+        const isEcLink =
+          href.includes("amazon") || href.includes("amzn") ||
+          href.includes("rakuten") || href.includes("a.r10.to");
+        return isEcLink ? `[${text}](${href})` : text;
+      }
+      return text;
+    }
+
+    // 画像 — alt属性に商品名が入っていることがある
+    if (tag === "img") {
+      const alt = el.attr("alt")?.trim();
+      return alt ? `[画像: ${alt}]` : "";
+    }
+
+    // リスト
+    if (tag === "li") {
+      const inner = el.contents().toArray().map(processNode).join("").trim();
+      return inner ? `- ${inner}\n` : "";
+    }
+
+    // 段落・div
+    if (tag === "p" || tag === "div") {
+      const inner = el.contents().toArray().map(processNode).join("").trim();
+      return inner ? `${inner}\n` : "";
+    }
+
+    // strong/b — 商品名の強調に使われることが多い
+    if (tag === "strong" || tag === "b") {
+      const text = el.text().trim();
+      return text ? `**${text}**` : "";
+    }
+
+    // br
+    if (tag === "br") return "\n";
+
+    // その他: 子要素を再帰処理
+    return el.contents().toArray().map(processNode).join("");
+  }
+
+  const result = element.contents().toArray().map(processNode).join("");
+
+  // 連続する空行を整理
+  return result.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // note記事から本文を抽出
 function extractNoteContent($: cheerio.CheerioAPI): string {
   // note.comの記事本文セレクター
@@ -51,7 +126,7 @@ function extractNoteContent($: cheerio.CheerioAPI): string {
     if (element.length > 0) {
       // 不要な要素を削除
       element.find("script, style, nav, header, footer").remove();
-      const text = element.text().trim();
+      const text = htmlToMarkdown($, element);
       if (text.length > 100) {
         return text;
       }
@@ -90,7 +165,7 @@ function extractBlogContent($: cheerio.CheerioAPI): string {
           "script, style, nav, header, footer, .sidebar, .comments, .related"
         )
         .remove();
-      const text = element.text().trim();
+      const text = htmlToMarkdown($, element);
       if (text.length > 100) {
         return text;
       }
@@ -104,7 +179,7 @@ function extractBlogContent($: cheerio.CheerioAPI): string {
       "script, style, nav, header, footer, .sidebar, .comments, .related"
     )
     .remove();
-  return body.text().trim();
+  return htmlToMarkdown($, body);
 }
 
 // 記事情報を取得

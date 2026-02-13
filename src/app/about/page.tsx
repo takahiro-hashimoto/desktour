@@ -5,7 +5,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "運営者情報",
-  description: "デスクツアーDBの運営者情報をご紹介します。",
+  description: "Creator Clipの運営者情報をご紹介します。",
   alternates: { canonical: "/about" },
 };
 
@@ -15,7 +15,7 @@ export default function AboutPage() {
       <PageHeaderSection
         label="About"
         title="運営者情報"
-        description="デスクツアーDBの運営者情報をご紹介します。"
+        description="Creator Clipの運営者情報をご紹介します。"
         breadcrumbCurrent="運営者情報"
         icon="fa-info-circle"
       />
@@ -26,7 +26,7 @@ export default function AboutPage() {
               サイト概要
             </h2>
             <p style={{ color: "#4a5568", lineHeight: "1.8", marginBottom: "16px" }}>
-              デスクツアーDBは、YouTubeやブログで公開されているデスクツアー動画・記事を収集し、
+              Creator Clipは、YouTubeやブログで公開されているデスクツアー動画・記事を収集し、
               そこで紹介されているデスク周りのガジェットや家具を検索・比較できるデータベースサイトです。
             </p>
             <p style={{ color: "#4a5568", lineHeight: "1.8" }}>
@@ -40,7 +40,7 @@ export default function AboutPage() {
               運営者
             </h2>
             <p style={{ color: "#4a5568", lineHeight: "1.8" }}>
-              デスクツアーDB運営チーム
+              Creator Clip運営チーム
             </p>
           </section>
 

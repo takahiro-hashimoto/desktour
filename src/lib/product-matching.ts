@@ -90,15 +90,30 @@ export async function matchProductWithAmazon(opts: {
     }
   }
 
-  // 候補でマッチしなかった場合のみAPI検索
+  // 候補でマッチしなかった場合のみAPI検索（結果もスコア検証する）
   if (!amazonInfo && !skipApiSearch) {
-    amazonInfo = await searchAmazonProduct(
+    const searchResult = await searchAmazonProduct(
       productName,
       productBrand || undefined,
       productCategory
     );
-    if (amazonInfo) {
-      matchReason = "API Search";
+    if (searchResult) {
+      // API検索結果もスコアで検証（誤マッチ防止）
+      const { calculateMatchScore } = await import("@/lib/description-links");
+      const { score: apiScore, reason: apiReason } = calculateMatchScore(
+        productName,
+        productBrand,
+        searchResult.title
+      );
+      // API検索は閾値を緩めに（30点）— 候補リストと違いキーワード検索済みのため
+      if (apiScore >= 30) {
+        amazonInfo = searchResult;
+        matchScore = apiScore;
+        matchReason = `API Search (${apiReason})`;
+      } else {
+        console.log(`  ✗ API Search rejected: "${searchResult.title.substring(0, 50)}" score=${apiScore} (${apiReason})`);
+        matchReason = `API Search rejected: score ${apiScore}`;
+      }
     }
     if (apiSearchDelay > 0) {
       await new Promise((resolve) => setTimeout(resolve, apiSearchDelay));

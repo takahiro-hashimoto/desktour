@@ -35,6 +35,15 @@ function resolveCategory(slug: string): string | null {
   return category && PRODUCT_CATEGORIES.includes(category) ? category : null;
 }
 
+/** サブカテゴリ名にカテゴリ名が含まれている場合、重複を除去して結合する
+ *  例: subcategory="メカニカルキーボード", category="キーボード" → "メカニカルキーボード"
+ *      subcategory="60%・65%", category="キーボード" → "60%・65%キーボード"
+ */
+function formatSubcategoryTitle(subcategory: string, category: string): string {
+  if (subcategory.includes(category)) return subcategory;
+  return `${subcategory}${category}`;
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const category = resolveCategory(params.slug);
   if (!category) return { title: "ページが見つかりません" };
@@ -44,7 +53,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ category, typeTag: subcategory, limit: 1 });
 
-  const title = `人気の${subcategory}一覧【${total}件】| デスクツアー`;
+  const title = `デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}一覧【${total}件】`;
   const description = `デスクツアーで実際に使用されている${subcategory}を登場回数順にまとめました。使用者コメント付き。【${total}件】`;
   const canonical = `/desktour/${params.slug}/${params.sub}`;
 
@@ -100,7 +109,7 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
       />
       <PageHeaderSection
         label="Database Report"
-        title={`人気の${subcategory}一覧`}
+        title={`デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}一覧`}
         description={
           <>
             {totalSources}件の
