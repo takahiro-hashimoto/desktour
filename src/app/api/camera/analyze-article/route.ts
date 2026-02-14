@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getArticleInfo, isDeskTourArticle } from "@/lib/article";
-import { analyzeArticle } from "@/lib/gemini";
+import { analyzeArticle, analyzeOfficialPage } from "@/lib/gemini";
+import { getBrandFromDomain } from "@/lib/ogp";
 import {
   saveCameraArticle,
   isCameraArticleAnalyzed,
@@ -74,8 +75,9 @@ export async function POST(request: NextRequest) {
     console.log(`Article title: ${articleInfo.title}`);
     console.log(`Article content length: ${articleInfo.content.length}`);
 
-    // 3. 撮影機材関連の記事かチェック（警告のみ）
-    const isRelevant = isDeskTourArticle(articleInfo.title, articleInfo.content);
+    // 3. 関連性チェック（公式サイトはスキップ、ブログ記事のみ警告）
+    const isOfficial = articleInfo.sourceType === "official";
+    const isRelevant = isOfficial || isDeskTourArticle(articleInfo.title, articleInfo.content);
     if (!isRelevant) {
       console.log("Warning: Article may not be camera equipment related");
     }
@@ -108,17 +110,24 @@ export async function POST(request: NextRequest) {
       console.log(`Providing ${productHints.length} product hints to Gemini`);
     }
 
-    // 7. Gemini APIで解析（撮影機材用のカテゴリで解析、商品ヒント付き）
-    console.log("Analyzing article with Gemini (camera domain)...");
-    const analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title, "camera", productHints);
+    // 7. Gemini APIで解析（公式サイトは専用関数、それ以外は通常解析）
+    console.log(`Analyzing ${isOfficial ? "official page" : "article"} with Gemini (camera domain)...`);
+    let analysisResult;
+    if (isOfficial) {
+      const brandName = getBrandFromDomain(new URL(url).hostname.replace(/^www\./, "")) || articleInfo.siteName || "";
+      analysisResult = await analyzeOfficialPage(articleInfo.content, articleInfo.title, brandName, "camera");
+    } else {
+      analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title, "camera", productHints);
+    }
     console.log(`Found ${analysisResult.products.length} products`);
     console.log(`Author occupation: ${analysisResult.influencerOccupation}`);
 
     // 7. DB既存商品ルックアップ（過去の登録データを「学習データ」として再利用）
-    const productNamesForLookup = analysisResult.products
-      .filter(p => p.confidence === "high" || p.confidence === "medium")
-      .map(p => p.name);
-    const existingProductMap = await findExistingProducts(productNamesForLookup, "products_camera");
+    const productsForLookup = analysisResult.products
+      .filter(p => p.confidence === "high" || p.confidence === "medium");
+    const productNamesForLookup = productsForLookup.map(p => p.name);
+    const productMetaForLookup = productsForLookup.map(p => ({ name: p.name, category: p.category, brand: p.brand }));
+    const existingProductMap = await findExistingProducts(productNamesForLookup, "products_camera", productMetaForLookup);
     console.log(`DB existing product matches: ${existingProductMap.size} / ${productNamesForLookup.length}`);
 
     // 7.5. ブランド名の正規化（DB既存ブランドを正とし、表記揺れを解消）

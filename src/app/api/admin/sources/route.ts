@@ -66,7 +66,10 @@ export async function PUT(request: NextRequest) {
       summary: string;
       tags: string[];
       occupationTags: string[];
-      products?: Array<{ id: string; name: string; brand?: string; category: string; tags?: string[]; reason?: string }>;
+      products?: Array<{
+        id: string; name: string; brand?: string; category: string; tags?: string[]; reason?: string;
+        asin?: string; amazon_url?: string; amazon_image_url?: string; amazon_price?: number; product_source?: string;
+      }>;
     } = body;
 
     if (!sourceType || !sourceId) {
@@ -95,8 +98,16 @@ export async function PUT(request: NextRequest) {
       for (const p of products) {
         if (!p.id) continue;
         const productOk = isCamera
-          ? await updateCameraProductMetadata(p.id, { name: p.name, brand: p.brand, category: p.category, tags: p.tags })
-          : await updateProductMetadata(p.id, { name: p.name, brand: p.brand, category: p.category, tags: p.tags });
+          ? await updateCameraProductMetadata(p.id, {
+              name: p.name, brand: p.brand, category: p.category, tags: p.tags,
+              asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
+              amazon_price: p.amazon_price, product_source: p.product_source,
+            })
+          : await updateProductMetadata(p.id, {
+              name: p.name, brand: p.brand, category: p.category, tags: p.tags,
+              asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
+              amazon_price: p.amazon_price, product_source: p.product_source,
+            });
         if (!productOk) errors.push(`商品 ${p.name} の更新に失敗`);
 
         // コメント文（reason）更新

@@ -22,17 +22,23 @@ export async function checkExistingProducts(
   }));
 
   const allNormalized = [...new Set(normalizedNames.map(n => n.normalized))];
+  // case-insensitive対応: 元の値 + lowercase の両方でクエリ
+  const allLower = allNormalized.map(n => n.toLowerCase());
+  const queryValues = [...new Set([...allNormalized, ...allLower])];
 
   const { data } = await supabase
     .from(table)
     .select("normalized_name")
-    .in("normalized_name", allNormalized);
+    .in("normalized_name", queryValues);
 
-  const existingNormalized = new Set(data?.map(d => d.normalized_name) || []);
+  // lowercase keyで格納してcase-insensitive照合
+  const existingNormalized = new Set(
+    (data || []).map(d => d.normalized_name.toLowerCase())
+  );
 
   const result: Record<string, boolean> = {};
   for (const { original, normalized } of normalizedNames) {
-    result[original] = existingNormalized.has(normalized);
+    result[original] = existingNormalized.has(normalized.toLowerCase());
   }
   return result;
 }
@@ -73,27 +79,32 @@ export async function findExistingProducts(
 
   const allNormalized = [...new Set(normalizedMap.map(n => n.normalized))];
 
+  // case-insensitive対応: 元の値 + lowercase の両方でクエリ（旧データも新データもヒットさせる）
+  const allLower = allNormalized.map(n => n.toLowerCase());
+  const queryValues = [...new Set([...allNormalized, ...allLower])];
+
   const { data } = await supabase
     .from(table)
     .select("id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags")
-    .in("normalized_name", allNormalized);
+    .in("normalized_name", queryValues);
 
-  // normalized_name → 商品データのマップ
+  // normalized_name → 商品データのマップ（lowercase keyで格納してcase-insensitive照合）
   const normalizedToProduct = new Map<string, ExistingProductMatch>();
   for (const row of data || []) {
+    const key = row.normalized_name.toLowerCase();
     // ASIN付きの商品を優先（複数ある場合）
-    const existing = normalizedToProduct.get(row.normalized_name);
+    const existing = normalizedToProduct.get(key);
     if (!existing || (!existing.asin && row.asin)) {
-      normalizedToProduct.set(row.normalized_name, row as ExistingProductMatch);
+      normalizedToProduct.set(key, row as ExistingProductMatch);
     }
   }
 
-  // 元の商品名 → 商品データのマップに変換
+  // 元の商品名 → 商品データのマップに変換（lowercase keyで照合）
   const result = new Map<string, ExistingProductMatch>();
   const unmatchedNames: Array<{ original: string; normalized: string; category?: string; brand?: string }> = [];
 
   for (const { original, normalized } of normalizedMap) {
-    const match = normalizedToProduct.get(normalized);
+    const match = normalizedToProduct.get(normalized.toLowerCase());
     if (match) {
       result.set(original, match);
     } else if (productMeta) {
@@ -118,15 +129,15 @@ export async function findExistingProducts(
       byCategory.get(cat)!.push(item);
     }
 
-    for (const [category, items] of byCategory) {
-      if (category === "__unknown__") continue;
+    const selectFields = "id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags";
 
-      // 同カテゴリのDB商品を取得
-      const { data: candidates } = await supabase
-        .from(table)
-        .select("id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags")
-        .eq("category", category)
-        .limit(200);
+    for (const [category, items] of byCategory) {
+      // カテゴリ不明でもfuzzy matchを試行（全カテゴリから候補取得）
+      const query = category === "__unknown__"
+        ? supabase.from(table).select(selectFields).limit(200)
+        : supabase.from(table).select(selectFields).eq("category", category).limit(200);
+
+      const { data: candidates } = await query;
 
       if (!candidates || candidates.length === 0) continue;
 

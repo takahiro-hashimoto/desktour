@@ -18,7 +18,7 @@ import { ProductGrid } from "@/components/detail/ProductGrid";
 import { FAQSection } from "@/components/detail/FAQSection";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { assignRanks } from "@/lib/rankUtils";
-import { generateBreadcrumbStructuredData, generateProductStructuredData, generateFAQStructuredData } from "@/lib/structuredData";
+import { generateBreadcrumbStructuredData, generateProductStructuredData, generateFAQStructuredData, generateItemListStructuredData } from "@/lib/structuredData";
 import { getCategoryIcon } from "@/lib/category-icons";
 import { formatProductForDisplay, convertSize, convertWeight, formatReleaseDate, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import { getProductLinks } from "@/lib/affiliateLinks";
@@ -157,6 +157,16 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
   ];
   const faqData = generateFAQStructuredData(allFaqItems);
 
+  // ItemList構造化データ
+  const itemListData = generateItemListStructuredData(
+    formattedProducts.slice(0, 20).map((p, i) => ({
+      name: p.name,
+      url: productUrl(p),
+      image_url: p.image_url,
+      position: i + 1,
+    }))
+  );
+
   return (
     <>
       <script
@@ -166,6 +176,10 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
       />
       <PageHeaderSection
         label="Database Report"

@@ -904,6 +904,109 @@ ${buildGeneralNotes("記事内", "記事")}`;
 }
 
 /**
+ * メーカー公式サイトの商品ページを解析する
+ * ブログ記事とは異なり、ページに掲載されている製品情報を直接抽出する
+ */
+export async function analyzeOfficialPage(
+  content: string,
+  pageTitle: string,
+  brandName: string,
+  domain: AnalysisDomain = "desktour",
+): Promise<AnalysisResult> {
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    generationConfig: { maxOutputTokens: 32768 },
+  });
+  const isCamera = domain === "camera";
+
+  const categories = isCamera ? CAMERA_PRODUCT_CATEGORIES : PRODUCT_CATEGORIES;
+  const productSchema = isCamera
+    ? buildProductFieldsSchema(categories, { typeTags: CAMERA_TYPE_TAGS, lensTags: CAMERA_LENS_TAGS, bodyTags: CAMERA_BODY_TAGS })
+    : buildProductFieldsSchema(categories);
+
+  const cameraRules = isCamera ? `
+【カテゴリ判定ルール】★最重要★
+- 以下のカテゴリ定義に従って正確に分類すること：
+  - カメラ: ミラーレス一眼、一眼レフ、シネマカメラ、コンデジ、アクションカメラ等（カメラボディ本体のみ）
+  - レンズ: 交換レンズ（単焦点・ズーム・シネマレンズ等）
+  - 三脚: 三脚、一脚、ミニ三脚、トラベル三脚、ビデオ三脚、雲台等
+  - ジンバル: カメラ用ジンバル、スマホ用ジンバル、メカニカルスタビライザー等
+  - マイク・音声: マイク全般、レコーダー、オーディオインターフェース等
+  - 照明: 定常光ライト（LEDパネル、チューブライト等）、ストロボ、照明アクセサリー等
+  - ストレージ: SDカード、CFexpressカード、ポータブルSSD、外付けHDD、カードリーダー等
+  - カメラ装着アクセサリー: 外部モニター、ケージ・リグ、フォローフォーカス、レンズフィルター、バッテリー、充電器等
+  - 収録・制御機器: キャプチャーデバイス、外部レコーダー、制御アクセサリー、キャリブレーションツール等
+  - バッグ・収納: カメラバッグ、バックパック、スリングバッグ、ハードケース等
+  - ドローンカメラ: ドローン本体（カメラ内蔵のドローン製品）
+
+${buildSubcategoryRules(CAMERA_TYPE_TAGS)}
+
+${buildLensTagRules(CAMERA_LENS_TAGS)}
+
+${buildBodyTagRules(CAMERA_BODY_TAGS)}
+` : "";
+
+  const prompt = `あなたはメーカー公式サイトの商品ページから製品情報を抽出する専門家です。
+
+このページは${brandName ? `${brandName}の` : "メーカーの"}公式商品ページです。
+※ これは個人のレビュー記事やブログではなく、メーカーが公開している公式ページです。
+
+ページタイトル: ${pageTitle}
+
+ページ内容:
+${content.slice(0, 60000)}
+
+${PROMPT_JSON_INSTRUCTION}
+
+{
+  "influencerOccupation": null,
+  "influencerOccupationTags": [],
+  "products": [
+    ${productSchema}
+  ],
+  "summary": "${brandName || "メーカー"}の公式商品ページです。掲載されている製品の特徴を2-3文で要約。丁寧なです・ます調で。",
+  "tags": []
+}
+${cameraRules}
+${buildProductNameRules(
+  "公式ページに記載されている正式な商品名を使用",
+  "メーカー公式の表記に従うこと"
+)}
+
+${BRAND_NAME_RULES}
+
+【公式ページ解析の特別ルール】
+- influencerOccupation: 必ずnull（公式ページには著者/クリエイターは不在）
+- influencerOccupationTags: 必ず空配列 []
+- tags: 必ず空配列 []（デスクスタイル等のタグは公式ページには不適）
+- ブランド名: "${brandName}" を使用（公式サイトから判定済み）
+- confidence: 公式ページに掲載されている製品は基本的に "high" とする
+- reason: 「クリエイターの選定理由」ではなく「この製品の特徴・利点」を記述すること。製品のスペックや特徴を簡潔に説明する。例:「4K120p動画撮影に対応したフルサイズミラーレスカメラ。高速AFと手ブレ補正を搭載し、静止画から動画まで幅広く対応。」
+- summary: 「${brandName || "メーカー"}の公式ページです。」で書き出し、掲載製品の概要を続ける
+
+${buildGeneralNotes("ページ内", "公式ページ")}`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    const analysisResult = parseGeminiJsonResponse(text, domain);
+
+    // 公式ページの場合、influencer系フィールドを強制クリア
+    analysisResult.influencerOccupation = null;
+    analysisResult.influencerOccupationTags = [];
+    analysisResult.tags = [];
+
+    // 2ndパス: reasonが不十分な商品があれば補完
+    return await supplementReasons(analysisResult, content, "公式ページ内");
+  } catch (error) {
+    console.error("Error analyzing official page:", error);
+    return { ...DEFAULT_ANALYSIS_ERROR };
+  }
+}
+
+/**
  * 商品の特徴リストを初心者にもわかりやすく要約する（単品用）
  * @param features Amazon APIから取得した特徴リスト
  * @param productName 商品名（コンテキスト用）

@@ -1,11 +1,12 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { getSiteStats, searchProducts } from "@/lib/supabase";
-import { PRODUCT_CATEGORIES, categoryToSlug } from "@/lib/constants";
+import { PRODUCT_CATEGORIES, categoryToSlug, productUrl } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { generateBreadcrumbStructuredData, generateFAQStructuredData, generateItemListStructuredData } from "@/lib/structuredData";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -93,12 +94,49 @@ export default async function CategoryIndexPage() {
     { name: "デスク周りのガジェット" },
   ]);
 
+  // 動的FAQ：カテゴリ横断の人気商品ランキング（上位3カテゴリの1位を集約）
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].brand ? c.products[0].brand + " " : ""}${c.products[0].name}（${c.category}、${c.products[0].mention_count}件のデスクツアーに登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + "。各カテゴリごとに実際のクリエイターが使用しているガジェットをランキングしています。"
+    : "まだデータがありません。";
+
+  const categoryListAnswer = filteredCategories.map(c => `${c.category}（${c.total}件）`).join("、") + "など、幅広いデスクガジェットカテゴリを掲載しています。";
+
+  const allFaqItems = [
+    { question: "デスクツアーで最も人気のガジェットは何ですか？", answer: rankingAnswer },
+    { question: "どのようなデスクガジェットカテゴリがありますか？", answer: categoryListAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
+  // ItemList構造化データ
+  const allProducts = filteredCategories.flatMap(c => c.products);
+  const itemListData = generateItemListStructuredData(
+    allProducts.slice(0, 20).map((p, i) => ({
+      name: p.name,
+      url: productUrl(p),
+      image_url: p.image_url,
+      position: i + 1,
+    }))
+  );
+
   return (
     <>
       {/* 構造化データ */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
       />
       <PageHeaderSection
         label="Database Report"
@@ -141,6 +179,8 @@ export default async function CategoryIndexPage() {
             </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );

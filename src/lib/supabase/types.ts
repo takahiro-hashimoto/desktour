@@ -19,7 +19,7 @@ export interface Article {
   author: string | null;
   author_url: string | null;
   site_name: string | null;
-  source_type: "note" | "blog" | "other";
+  source_type: "note" | "blog" | "official" | "other";
   thumbnail_url: string | null;
   published_at: string | null;
   analyzed_at?: string;

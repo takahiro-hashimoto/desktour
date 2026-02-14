@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS } from "@/lib/camera/constants";
+import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -10,6 +10,7 @@ import { ProductGrid } from "@/components/detail/ProductGrid";
 import { FAQSection } from "@/components/detail/FAQSection";
 import { assignRanks } from "@/lib/rankUtils";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { generateItemListStructuredData } from "@/lib/structuredData";
 import "../../../../detail-styles.css";
 import "../../../../listing-styles.css";
 
@@ -78,8 +79,22 @@ export default async function SubjectCategoryPage({ params, searchParams }: Page
 
   const typeTags = CAMERA_TYPE_TAGS[category] || [];
 
+  // ItemList構造化データ
+  const itemListData = generateItemListStructuredData(
+    formattedProducts.slice(0, 20).map((p, i) => ({
+      name: p.name,
+      url: cameraProductUrl(p),
+      image_url: p.image_url,
+      position: i + 1,
+    }))
+  );
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
+      />
       <PageHeaderSection
         domain="camera"
         label="Database Report"

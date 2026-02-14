@@ -1,6 +1,9 @@
 import * as cheerio from "cheerio";
+import { getBrandFromDomain } from "./ogp";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNode = any;
+
+export type ArticleSourceType = "note" | "blog" | "official" | "other";
 
 export interface ArticleInfo {
   url: string;
@@ -10,13 +13,13 @@ export interface ArticleInfo {
   publishedAt: string | null;
   thumbnailUrl: string | null;
   content: string;
-  sourceType: "note" | "blog" | "other";
+  sourceType: ArticleSourceType;
   siteName: string | null;
   productLinks: string[];  // 記事内のEC系リンク（Amazon、楽天など）
 }
 
 // URLからソースタイプを判定
-function detectSourceType(url: string): "note" | "blog" | "other" {
+function detectSourceType(url: string): ArticleSourceType {
   const urlLower = url.toLowerCase();
   if (urlLower.includes("note.com") || urlLower.includes("note.mu")) {
     return "note";
@@ -33,6 +36,15 @@ function detectSourceType(url: string): "note" | "blog" | "other" {
     urlLower.includes("substack.com")
   ) {
     return "blog";
+  }
+  // メーカー公式サイト（BRAND_DOMAIN_MAPに登録されているドメイン）
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "");
+    if (getBrandFromDomain(hostname)) {
+      return "official";
+    }
+  } catch {
+    // URL解析失敗時はスキップ
   }
   return "other";
 }
@@ -182,6 +194,117 @@ function extractBlogContent($: cheerio.CheerioAPI): string {
   return htmlToMarkdown($, body);
 }
 
+// メーカー公式サイトの商品ページからコンテンツを抽出
+function extractOfficialContent($: cheerio.CheerioAPI): string {
+  const parts: string[] = [];
+
+  // 1. JSON-LD構造化データからProduct情報を抽出
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const raw = $(el).html();
+      if (!raw) return;
+      const jsonData = JSON.parse(raw);
+      const items = Array.isArray(jsonData) ? jsonData : [jsonData];
+      for (const item of items) {
+        if (item["@type"] === "Product" || item["@type"] === "ProductGroup") {
+          if (item.name) parts.push(`# 商品名: ${item.name}`);
+          if (item.brand?.name) parts.push(`ブランド: ${item.brand.name}`);
+          if (item.description) parts.push(`説明: ${item.description}`);
+          if (item.category) parts.push(`カテゴリ: ${item.category}`);
+          if (item.sku) parts.push(`SKU: ${item.sku}`);
+          if (item.offers) {
+            const offers = Array.isArray(item.offers) ? item.offers : [item.offers];
+            for (const offer of offers) {
+              if (offer.price) parts.push(`価格: ${offer.priceCurrency || ""}${offer.price}`);
+            }
+          }
+        }
+      }
+    } catch {
+      // JSON解析失敗はスキップ
+    }
+  });
+
+  // 2. OGメタデータ
+  const ogTitle = $('meta[property="og:title"]').attr("content");
+  const ogDesc = $('meta[property="og:description"]').attr("content");
+  if (ogTitle && parts.length === 0) parts.push(`# ${ogTitle}`);
+  if (ogDesc) parts.push(ogDesc);
+
+  // product:* メタタグ
+  $('meta[property^="product:"]').each((_, el) => {
+    const prop = $(el).attr("property")?.replace("product:", "");
+    const content = $(el).attr("content");
+    if (prop && content) parts.push(`${prop}: ${content}`);
+  });
+
+  // 3. 製品ページ用CSSセレクターでコンテンツ抽出
+  const productSelectors = [
+    ".product-detail",
+    ".product-info",
+    "#product",
+    "[data-product]",
+    ".pdp-main",
+    ".product-page",
+    ".product-description",
+    ".product-spec",
+    ".spec-table",
+    ".product-features",
+    // 一般的なセレクター（フォールバック）
+    "article",
+    "main",
+    "#main",
+    ".main-content",
+  ];
+
+  // ノイズ除去用（公式サイトではより強力に除去）
+  const noiseSelectors = [
+    "script", "style", "nav", "header", "footer",
+    ".sidebar", ".comments", ".related",
+    ".breadcrumb", ".related-products", ".recommendations",
+    ".cart", ".add-to-cart", "[class*='cart']",
+    ".reviews", ".social-share", ".cookie",
+    "#cookie-banner", ".newsletter",
+  ].join(", ");
+
+  for (const selector of productSelectors) {
+    const element = $(selector);
+    if (element.length > 0) {
+      element.find(noiseSelectors).remove();
+      const text = htmlToMarkdown($, element);
+      if (text.length > 50) {
+        parts.push(text);
+        break;
+      }
+    }
+  }
+
+  // 4. スペック表を key-value 形式で抽出
+  $("table").each((_, table) => {
+    const rows: string[] = [];
+    $(table).find("tr").each((_, tr) => {
+      const cells = $(tr).find("th, td");
+      if (cells.length >= 2) {
+        const key = $(cells[0]).text().trim();
+        const val = $(cells[1]).text().trim();
+        if (key && val) rows.push(`${key}: ${val}`);
+      }
+    });
+    if (rows.length > 0) {
+      parts.push("【スペック】\n" + rows.join("\n"));
+    }
+  });
+
+  if (parts.length > 0) {
+    return parts.join("\n\n");
+  }
+
+  // フォールバック: body全体（強力なノイズ除去付き）
+  const body = $("body");
+  body.find(noiseSelectors).remove();
+  return htmlToMarkdown($, body);
+}
+
 // 記事情報を取得
 export async function getArticleInfo(url: string): Promise<ArticleInfo | null> {
   try {
@@ -229,6 +352,11 @@ export async function getArticleInfo(url: string): Promise<ArticleInfo | null> {
       if (authorUrl && !authorUrl.startsWith("http")) {
         authorUrl = `https://note.com${authorUrl}`;
       }
+    } else if (sourceType === "official") {
+      // 公式サイト: ブランド名を著者として設定
+      const hostname = new URL(url).hostname.replace(/^www\./, "");
+      author = getBrandFromDomain(hostname) || null;
+      authorUrl = `${new URL(url).origin}/`;
     } else {
       // 一般的なブログの著者情報
       author =
@@ -261,11 +389,15 @@ export async function getArticleInfo(url: string): Promise<ArticleInfo | null> {
     let content = "";
     if (sourceType === "note") {
       content = extractNoteContent($);
+    } else if (sourceType === "official") {
+      content = extractOfficialContent($);
     } else {
       content = extractBlogContent($);
     }
 
-    if (!content || content.length < 100) {
+    // 公式サイトはJSON-LD等から短いが高品質なコンテンツが得られることがある
+    const minContentLength = sourceType === "official" ? 30 : 100;
+    if (!content || content.length < minContentLength) {
       console.error("Failed to extract article content");
       return null;
     }

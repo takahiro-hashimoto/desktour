@@ -22,6 +22,15 @@ interface ProductToSave {
   reason: string;
   confidence: "high" | "medium" | "low";
   tags?: string[]; // 自動抽出されたタグ
+  amazon?: {
+    asin: string;
+    title: string;
+    url: string;
+    imageUrl: string;
+    price?: number;
+  };
+  source?: string;
+  matchReason?: string;
 }
 
 interface ArticleInfo {
@@ -30,7 +39,7 @@ interface ArticleInfo {
   author?: string | null;
   authorUrl?: string | null;
   siteName?: string | null;
-  sourceType: "note" | "blog" | "other";
+  sourceType: "note" | "blog" | "official" | "other";
   thumbnailUrl?: string | null;
   publishedAt?: string | null;
   productLinks?: string[];
@@ -206,10 +215,30 @@ export async function POST(request: NextRequest) {
         article_id: sourceType === "article" ? sourceUrl : undefined,
         video_id: sourceType === "video" ? videoInfo?.videoId : undefined,
         source_type: sourceType,
+        ...(product.amazon ? {
+          asin: product.amazon.asin,
+          amazon_url: product.amazon.url,
+          amazon_image_url: product.amazon.imageUrl,
+          amazon_price: product.amazon.price,
+          product_source: (product.source || "amazon") as "amazon" | "rakuten",
+        } : {}),
       }, fuzzyCategoryCache);
       const savedProduct = saveResult.product;
 
-      if (savedProduct && !savedProduct.asin) {
+      // 公式サイト疑似ASIN（official-*）の場合はAmazon検索不要
+      if (savedProduct?.asin?.startsWith("official-")) {
+        savedProducts.push({
+          name: product.name,
+          brand: product.brand,
+          amazon: {
+            asin: savedProduct.asin,
+            title: product.amazon?.title || product.name,
+            url: product.amazon?.url || "",
+            imageUrl: product.amazon?.imageUrl || "",
+            price: product.amazon?.price,
+          },
+        });
+      } else if (savedProduct && !savedProduct.asin) {
         if (product.confidence === "high" || product.confidence === "medium") {
           let amazonInfo: ProductInfo | null = null;
 

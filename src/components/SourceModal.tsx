@@ -8,6 +8,8 @@ import { resolveImageUrl } from "@/lib/imageUtils";
 import { getProductLinks } from "@/lib/affiliateLinks";
 import { productUrl } from "@/lib/constants";
 import { cameraProductUrl } from "@/lib/camera/constants";
+import { CATEGORY_PRIORITY, getCategoryEnglish } from "@/lib/category-utils";
+import { CAMERA_CATEGORY_PRIORITY, getCameraCategoryEnglish } from "@/lib/camera/category-utils";
 
 interface SourceModalProps {
   isOpen: boolean;
@@ -221,97 +223,125 @@ export function SourceModal({
                   <h4 className="font-medium text-gray-900 mb-4">
                     紹介されている商品（{source.products.length}件）
                   </h4>
-                  <div className="space-y-4">
-                    {source.products.map((product) => (
-                      <div
-                        key={product.id}
-                        ref={(el) => {
-                          if (el && product.id) {
-                            productRefs.current.set(product.id, el);
-                          }
-                        }}
-                        className="flex items-center gap-5 p-4 bg-gray-50 rounded-lg transition-all"
-                      >
-                        {/* 商品画像 */}
-                        {resolveImageUrl(product.amazon_image_url) ? (
-                          <img
-                            src={resolveImageUrl(product.amazon_image_url)!}
-                            alt={product.name}
-                            className="w-24 h-24 object-contain bg-white rounded flex-shrink-0"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-24 h-24 bg-gray-200 rounded flex items-center justify-center text-gray-400 flex-shrink-0">
-                            📦
-                          </div>
-                        )}
+                  {(() => {
+                    // カテゴリ別にグループ化
+                    const grouped: Record<string, typeof source.products> = {};
+                    for (const product of source.products) {
+                      const cat = product.category;
+                      if (!grouped[cat]) grouped[cat] = [];
+                      grouped[cat].push(product);
+                    }
+                    // 優先順でソート
+                    const priority = domain === "camera" ? CAMERA_CATEGORY_PRIORITY : CATEGORY_PRIORITY;
+                    const sortedCategories = [
+                      ...priority.filter((cat) => grouped[cat]),
+                      ...Object.keys(grouped).filter(
+                        (cat) => !(priority as readonly string[]).includes(cat)
+                      ),
+                    ];
+                    const getEnglish = domain === "camera" ? getCameraCategoryEnglish : getCategoryEnglish;
 
-                        {/* 商品情報 */}
-                        <div className="flex-1 min-w-0">
-                          {/* 商品名 + 登場ラベル */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h5 className="font-bold text-gray-900 text-base">
-                              {product.name}
-                            </h5>
-                            {product.mention_count && product.mention_count > 1 && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 whitespace-nowrap">
-                                サイト内で{product.mention_count}件登場
-                              </span>
-                            )}
-                          </div>
+                    return sortedCategories.map((category) => (
+                      <div key={category} className="mb-6 last:mb-0">
+                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                          {getEnglish(category)}
+                          <span className="ml-2 text-gray-300 normal-case">— {category}（{grouped[category].length}）</span>
+                        </h5>
+                        <div className="space-y-4">
+                          {grouped[category].map((product) => (
+                            <div
+                              key={product.id}
+                              ref={(el) => {
+                                if (el && product.id) {
+                                  productRefs.current.set(product.id, el);
+                                }
+                              }}
+                              className="flex items-center gap-5 p-4 bg-gray-50 rounded-lg transition-all"
+                            >
+                              {/* 商品画像 */}
+                              {resolveImageUrl(product.amazon_image_url) ? (
+                                <img
+                                  src={resolveImageUrl(product.amazon_image_url)!}
+                                  alt={product.name}
+                                  className="w-24 h-24 object-contain bg-white rounded flex-shrink-0"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-24 h-24 bg-gray-200 rounded flex items-center justify-center text-gray-400 flex-shrink-0">
+                                  📦
+                                </div>
+                              )}
 
-                          {/* ブランド / カテゴリ */}
-                          <p className="text-sm text-gray-500 mt-1">
-                            {product.brand && `${product.brand} / `}
-                            {product.category}
-                          </p>
+                              {/* 商品情報 */}
+                              <div className="flex-1 min-w-0">
+                                {/* 商品名 + 登場ラベル */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h5 className="font-bold text-gray-900 text-base">
+                                    {product.name}
+                                  </h5>
+                                  {product.mention_count && product.mention_count > 1 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200 whitespace-nowrap">
+                                      サイト内で{product.mention_count}件登場
+                                    </span>
+                                  )}
+                                </div>
 
-                          {/* コメント（省略なし） */}
-                          {product.reason && (
-                            <p className="text-sm text-gray-700 mt-3 leading-relaxed">
-                              {product.reason}
-                            </p>
-                          )}
+                                {/* ブランド */}
+                                {product.brand && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {product.brand}
+                                  </p>
+                                )}
 
-                          {/* ボタン */}
-                          {(() => {
-                            const { amazonUrl, rakutenUrl } = getProductLinks({
-                              amazon_url: product.amazon_url,
-                              amazon_model_number: product.amazon_model_number,
-                              name: product.name,
-                            });
-                            return (
-                              <div className="flex items-center gap-4 mt-3">
-                                <Link
-                                  href={domain === "camera" ? cameraProductUrl(product) : productUrl(product)}
-                                  className="text-sm text-blue-600 hover:underline"
-                                  onClick={onClose}
-                                >
-                                  詳細を見る
-                                </Link>
-                                <a
-                                  href={amazonUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer sponsored"
-                                  className="text-sm text-orange-600 hover:underline"
-                                >
-                                  Amazon
-                                </a>
-                                <a
-                                  href={rakutenUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer sponsored"
-                                  className="text-sm text-red-600 hover:underline"
-                                >
-                                  楽天
-                                </a>
+                                {/* コメント（省略なし） */}
+                                {product.reason && (
+                                  <p className="text-sm text-gray-700 mt-3 leading-relaxed">
+                                    {product.reason}
+                                  </p>
+                                )}
+
+                                {/* ボタン */}
+                                {(() => {
+                                  const { amazonUrl, rakutenUrl } = getProductLinks({
+                                    amazon_url: product.amazon_url,
+                                    amazon_model_number: product.amazon_model_number,
+                                    name: product.name,
+                                  });
+                                  return (
+                                    <div className="flex items-center gap-4 mt-3">
+                                      <Link
+                                        href={domain === "camera" ? cameraProductUrl(product) : productUrl(product)}
+                                        className="text-sm text-blue-600 hover:underline"
+                                        onClick={onClose}
+                                      >
+                                        詳細を見る
+                                      </Link>
+                                      <a
+                                        href={amazonUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer sponsored"
+                                        className="text-sm text-orange-600 hover:underline"
+                                      >
+                                        Amazon
+                                      </a>
+                                      <a
+                                        href={rakutenUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer sponsored"
+                                        className="text-sm text-red-600 hover:underline"
+                                      >
+                                        楽天
+                                      </a>
+                                    </div>
+                                  );
+                                })()}
                               </div>
-                            );
-                          })()}
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    ));
+                  })()}
                 </div>
               )}
             </div>

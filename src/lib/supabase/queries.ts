@@ -1392,7 +1392,7 @@ export async function getVideos(params: {
 export async function getArticles(params: {
   tags?: string[];
   year?: number;
-  sourceType?: "note" | "blog" | "other";
+  sourceType?: "note" | "blog" | "official" | "other";
   sortBy?: "published_at";
   page?: number;
   limit?: number;

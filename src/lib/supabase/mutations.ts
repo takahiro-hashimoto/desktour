@@ -174,6 +174,15 @@ export async function saveProduct(
       updateData.tags = product.tags;
     }
 
+    // Amazon/楽天情報の更新（手動選択・公式サイト登録時に渡される）
+    if (product.asin && !existing.asin) {
+      updateData.asin = product.asin;
+      if (product.amazon_url) updateData.amazon_url = product.amazon_url;
+      if (product.amazon_image_url) updateData.amazon_image_url = product.amazon_image_url;
+      if (product.amazon_price) updateData.amazon_price = product.amazon_price;
+      if (product.product_source) updateData.product_source = product.product_source;
+    }
+
     if (Object.keys(updateData).length > 0) {
       console.log(`[saveProduct] Updating existing "${existing.name}":`, Object.keys(updateData));
       const { data: updated, error } = await supabase
@@ -716,13 +725,22 @@ export async function deleteSource(
 // 商品メタデータ更新（name, brand, category, tags）
 export async function updateProductMetadata(
   productId: string,
-  data: { name?: string; brand?: string; category?: string; tags?: string[] }
+  data: {
+    name?: string; brand?: string; category?: string; tags?: string[];
+    asin?: string; amazon_url?: string; amazon_image_url?: string;
+    amazon_price?: number; product_source?: string;
+  }
 ): Promise<boolean> {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.brand !== undefined) updateData.brand = data.brand;
   if (data.category !== undefined) updateData.category = data.category;
   if (data.tags !== undefined) updateData.tags = data.tags;
+  if (data.asin !== undefined) updateData.asin = data.asin;
+  if (data.amazon_url !== undefined) updateData.amazon_url = data.amazon_url;
+  if (data.amazon_image_url !== undefined) updateData.amazon_image_url = data.amazon_image_url;
+  if (data.amazon_price !== undefined) updateData.amazon_price = data.amazon_price;
+  if (data.product_source !== undefined) updateData.product_source = data.product_source;
 
   if (Object.keys(updateData).length === 0) return true;
 

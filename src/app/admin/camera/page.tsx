@@ -161,6 +161,18 @@ export default function CameraAdminPage() {
     selecting: boolean;
   } | null>(null);
 
+  // 公式サイトモーダル
+  const [officialSiteModal, setOfficialSiteModal] = useState<{
+    productIndex: number;
+    url: string;
+    loading: boolean;
+    fetched: boolean;
+    title: string;
+    imageUrl: string;
+    price: string;
+    brand: string;
+  } | null>(null);
+
   // 解析結果表示用（保存後）
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
@@ -181,6 +193,9 @@ export default function CameraAdminPage() {
 
   // ソース削除
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
+
+  // ソース再解析
+  const [reanalyzingSourceId, setReanalyzingSourceId] = useState<string | null>(null);
 
   // 選ばれている理由の一括生成
   const [generatingReasons, setGeneratingReasons] = useState(false);
@@ -369,6 +384,104 @@ export default function CameraAdminPage() {
     }
   };
 
+  // ソースを再解析（削除→再追加方式）
+  const handleReanalyzeSource = async (type: "video" | "article", sourceId: string, title: string) => {
+    if (!confirm(`「${title}」を再解析しますか？\n既存データは削除され、新しく解析し直します。`)) return;
+
+    setReanalyzingSourceId(sourceId);
+    setMessage(null);
+    setAnalysisResult(null);
+    setPreviewResult(null);
+    setSelectedSource(null);
+
+    try {
+      // 1. 既存データ削除
+      const delRes = await fetch("/api/admin/sources", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType: type, sourceId, domain: "camera" }),
+      });
+      const delData = await delRes.json();
+      if (!delData.success) {
+        setMessage({ type: "error", text: delData.error || "削除に失敗しました" });
+        return;
+      }
+
+      // リストから除去
+      setSourceList(prev => prev.filter(item => item.sourceId !== sourceId));
+      setSourceTotal(prev => prev - 1);
+
+      // 2. 再解析
+      const url = type === "video"
+        ? `https://www.youtube.com/watch?v=${sourceId}`
+        : sourceId;
+      const analyzeEndpoint = type === "video" ? "/api/camera/analyze" : "/api/camera/analyze-article";
+
+      const res = await fetch(analyzeEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, saveToDb: false }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        const products: Product[] = data.analysis?.products || [];
+        if (type === "video") {
+          setPreviewResult({
+            title: data.videoInfo?.title || "動画",
+            source: "video",
+            summary: data.analysis?.summary || "",
+            tags: data.analysis?.tags || [],
+            occupation: data.analysis?.influencerOccupation || null,
+            occupationTags: data.analysis?.influencerOccupationTags || [],
+            products,
+            videoInfo: {
+              videoId: sourceId,
+              title: data.videoInfo?.title || "動画",
+              channelId: data.videoInfo?.channelId || "",
+              channelTitle: data.videoInfo?.channelTitle || "",
+              thumbnailUrl: data.videoInfo?.thumbnailUrl,
+              publishedAt: data.videoInfo?.publishedAt,
+              description: data.videoInfo?.description,
+            },
+          });
+        } else {
+          setPreviewResult({
+            title: data.articleInfo?.title || "記事",
+            source: "article",
+            summary: data.analysis?.summary || "",
+            tags: data.analysis?.tags || [],
+            occupation: data.analysis?.influencerOccupation || null,
+            occupationTags: data.analysis?.influencerOccupationTags || [],
+            products,
+            articleInfo: {
+              url: data.articleInfo?.url || sourceId,
+              title: data.articleInfo?.title || "記事",
+              author: data.articleInfo?.author,
+              authorUrl: data.articleInfo?.authorUrl,
+              siteName: data.articleInfo?.siteName,
+              sourceType: data.articleInfo?.sourceType || "article",
+              thumbnailUrl: data.articleInfo?.thumbnailUrl,
+              publishedAt: data.articleInfo?.publishedAt,
+              productLinks: data.articleInfo?.productLinks,
+            },
+          });
+        }
+        setSelectedProducts(new Set(products.map((p) => `${p.name}|${p.category}`)));
+        setMessage({
+          type: "success",
+          text: `「${title}」の再解析が完了しました（${products.length}件の商品を抽出）。登録する商品を選択してください。`,
+        });
+      } else {
+        setMessage({ type: "error", text: data.error || "再解析に失敗しました" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "通信エラーが発生しました" });
+    } finally {
+      setReanalyzingSourceId(null);
+    }
+  };
+
   // 保存済みソースの変更を保存
   const handleUpdateSource = async () => {
     if (!previewResult || !selectedSource) return;
@@ -386,6 +499,13 @@ export default function CameraAdminPage() {
           category: p.category,
           tags: p.tags || [],
           reason: p.reason || "",
+          ...(p.amazon ? {
+            asin: p.amazon.asin,
+            amazon_url: p.amazon.url,
+            amazon_image_url: p.amazon.imageUrl,
+            amazon_price: p.amazon.price,
+            product_source: p.source || "amazon",
+          } : {}),
         }));
 
       const response = await fetch("/api/admin/sources", {
@@ -656,6 +776,92 @@ export default function CameraAdminPage() {
       setMessage({ type: "error", text: "商品情報の取得に失敗しました" });
     }
     setAmazonSearchModal(null);
+  };
+
+  // 公式サイトモーダルを開く
+  const openOfficialSiteModal = (productIndex: number) => {
+    setOfficialSiteModal({
+      productIndex,
+      url: "",
+      loading: false,
+      fetched: false,
+      title: "",
+      imageUrl: "",
+      price: "",
+      brand: "",
+    });
+  };
+
+  // 公式サイトOGP取得
+  const fetchOfficialSiteOGP = async () => {
+    if (!officialSiteModal || !officialSiteModal.url.trim()) return;
+    setOfficialSiteModal({ ...officialSiteModal, loading: true });
+    try {
+      const res = await fetch("/api/fetch-ogp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: officialSiteModal.url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error || "OGP取得に失敗しました" });
+        setOfficialSiteModal((prev) => prev ? { ...prev, loading: false } : null);
+        return;
+      }
+      setOfficialSiteModal((prev) =>
+        prev
+          ? {
+              ...prev,
+              loading: false,
+              fetched: true,
+              title: data.title || "",
+              imageUrl: data.imageUrl || "",
+              brand: data.brand || "",
+            }
+          : null
+      );
+    } catch {
+      setMessage({ type: "error", text: "OGP情報の取得に失敗しました" });
+      setOfficialSiteModal((prev) => prev ? { ...prev, loading: false } : null);
+    }
+  };
+
+  // 公式サイト情報を確定 → 商品データに反映
+  const confirmOfficialSite = () => {
+    if (!officialSiteModal || !previewResult) return;
+    const { productIndex, title, imageUrl, price, brand, url } = officialSiteModal;
+
+    let domain = "";
+    try {
+      domain = new URL(url).hostname.replace(/^www\./, "");
+    } catch { /* ignore */ }
+
+    const updatedProducts = [...previewResult.products];
+    const oldKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
+    const parsedPrice = price ? parseInt(price.replace(/[^0-9]/g, ""), 10) : undefined;
+
+    updatedProducts[productIndex] = {
+      ...updatedProducts[productIndex],
+      brand: brand || updatedProducts[productIndex].brand,
+      amazon: {
+        asin: `official-${domain}`,
+        title: title || updatedProducts[productIndex].name,
+        url,
+        imageUrl,
+        price: parsedPrice || undefined,
+      },
+      source: "amazon",
+      matchReason: "公式サイト（手動）",
+    };
+
+    const newKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
+    setSelectedProducts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(oldKey)) { newSet.delete(oldKey); newSet.add(newKey); }
+      return newSet;
+    });
+    setPreviewResult({ ...previewResult, products: updatedProducts });
+    setOfficialSiteModal(null);
   };
 
   // 商品タグを追加
@@ -1054,7 +1260,7 @@ export default function CameraAdminPage() {
             type="text"
             value={articleUrl}
             onChange={(e) => setArticleUrl(e.target.value)}
-            placeholder="note記事やブログのURLを入力（例：https://note.com/...）"
+            placeholder="記事や公式サイトのURLを入力（例：https://note.com/... や https://sony.jp/...）"
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={analyzingArticle}
           />
@@ -1067,7 +1273,7 @@ export default function CameraAdminPage() {
           </button>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          note.com、Zenn、Qiita、はてなブログなどの撮影機材記事を解析できます
+          note.com、Zenn、はてなブログ等の記事や、メーカー公式サイトの商品ページを解析できます
         </p>
       </div>
 
@@ -1609,6 +1815,13 @@ export default function CameraAdminPage() {
                           >
                             楽天
                           </button>
+                          <button
+                            onClick={() => openOfficialSiteModal(productIndex)}
+                            className="text-[11px] px-2 py-1 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium transition-colors border border-blue-200"
+                            type="button"
+                          >
+                            公式サイト
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1824,7 +2037,7 @@ export default function CameraAdminPage() {
 
         {sourceList.length > 0 && (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="grid grid-cols-[260px_1fr_180px_120px_120px] gap-3 px-4 py-2 bg-gray-50 text-xs text-gray-500">
+            <div className="grid grid-cols-[260px_1fr_180px_90px_200px] gap-3 px-4 py-2 bg-gray-50 text-xs text-gray-500">
               <span>サムネイル</span>
               <span>タイトル</span>
               <span>{sourceType === "video" ? "チャンネル" : "著者"}</span>
@@ -1834,7 +2047,7 @@ export default function CameraAdminPage() {
             {sourceList.map((item, idx) => (
               <div
                 key={`${item.sourceId}-${idx}`}
-                className="grid grid-cols-[260px_1fr_180px_120px_120px] gap-3 px-4 py-3 border-t text-sm items-center"
+                className="grid grid-cols-[260px_1fr_180px_90px_200px] gap-3 px-4 py-3 border-t text-sm items-center"
               >
                 <div className="flex items-center gap-3">
                   {item.thumbnailUrl ? (
@@ -1862,7 +2075,7 @@ export default function CameraAdminPage() {
                 <div className="text-gray-500 text-xs">
                   {item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("ja-JP") : "-"}
                 </div>
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 whitespace-nowrap">
                   <button
                     onClick={() => loadSourceDetail(item.type, item.sourceId)}
                     className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
@@ -1870,8 +2083,15 @@ export default function CameraAdminPage() {
                     表示
                   </button>
                   <button
+                    onClick={() => handleReanalyzeSource(item.type, item.sourceId, item.title)}
+                    disabled={reanalyzingSourceId === item.sourceId || deletingSourceId === item.sourceId}
+                    className="px-3 py-1.5 text-xs bg-amber-500 text-white rounded hover:bg-amber-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    {reanalyzingSourceId === item.sourceId ? "解析中..." : "再解析"}
+                  </button>
+                  <button
                     onClick={() => handleDeleteSource(item.type, item.sourceId, item.title)}
-                    disabled={deletingSourceId === item.sourceId}
+                    disabled={deletingSourceId === item.sourceId || reanalyzingSourceId === item.sourceId}
                     className="px-3 py-1.5 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
                   >
                     {deletingSourceId === item.sourceId ? "..." : "削除"}
@@ -2103,6 +2323,113 @@ export default function CameraAdminPage() {
                 <p className="text-center text-gray-400 py-12 text-sm">
                   キーワードを入力して検索してください
                 </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 公式サイトモーダル */}
+      {officialSiteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOfficialSiteModal(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col">
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900">
+                <span className="text-blue-600">公式サイト</span> 商品情報取得
+              </h3>
+              <button onClick={() => setOfficialSiteModal(null)} className="text-gray-400 hover:text-gray-600" type="button">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* URL入力 */}
+            <div className="px-5 py-3 border-b border-gray-100">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={officialSiteModal.url}
+                  onChange={(e) => setOfficialSiteModal({ ...officialSiteModal, url: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && fetchOfficialSiteOGP()}
+                  placeholder="https://www.sony.jp/... などの公式サイトURL"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  autoFocus
+                />
+                <button
+                  onClick={fetchOfficialSiteOGP}
+                  disabled={officialSiteModal.loading || !officialSiteModal.url.trim()}
+                  className="px-4 py-2 text-sm text-white rounded-lg bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 transition-colors whitespace-nowrap"
+                  type="button"
+                >
+                  {officialSiteModal.loading ? "取得中..." : "取得"}
+                </button>
+              </div>
+            </div>
+
+            {/* OGPプレビュー & 価格入力 */}
+            <div className="px-5 py-4 space-y-4">
+              {officialSiteModal.fetched ? (
+                <>
+                  <div className="flex gap-3 p-3 rounded-lg border border-blue-200 bg-blue-50">
+                    {officialSiteModal.imageUrl ? (
+                      <img
+                        src={officialSiteModal.imageUrl}
+                        alt={officialSiteModal.title}
+                        className="w-20 h-20 object-contain bg-white rounded border border-gray-100 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">
+                        No img
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 line-clamp-2">
+                        {officialSiteModal.title || "タイトル未取得"}
+                      </p>
+                      {officialSiteModal.brand && (
+                        <p className="text-xs text-blue-600 mt-1">{officialSiteModal.brand}</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1 truncate">{officialSiteModal.url}</p>
+                    </div>
+                  </div>
+
+                  {/* 価格入力 */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      価格（税込・任意）
+                    </label>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm text-gray-500">¥</span>
+                      <input
+                        type="text"
+                        value={officialSiteModal.price}
+                        onChange={(e) =>
+                          setOfficialSiteModal({ ...officialSiteModal, price: e.target.value.replace(/[^0-9]/g, "") })
+                        }
+                        placeholder="例: 49800"
+                        className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 確定ボタン */}
+                  <button
+                    onClick={confirmOfficialSite}
+                    className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    type="button"
+                  >
+                    この商品情報を使用
+                  </button>
+                </>
+              ) : !officialSiteModal.loading ? (
+                <p className="text-center text-gray-400 py-8 text-sm">
+                  公式サイトのURLを入力して「取得」を押してください
+                </p>
+              ) : (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
+                </div>
               )}
             </div>
           </div>

@@ -70,6 +70,30 @@ export function generateProductStructuredData(product: {
 /**
  * FAQページの構造化データ（FAQPage schema）を生成
  */
+/**
+ * 商品リストの構造化データ（ItemList schema）を生成
+ * リッチリザルトのカルーセル表示を狙う
+ */
+export function generateItemListStructuredData(products: {
+  name: string;
+  url: string;
+  image_url?: string | null;
+  position?: number;
+}[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "numberOfItems": products.length,
+    "itemListElement": products.map((product, index) => ({
+      "@type": "ListItem",
+      "position": product.position ?? index + 1,
+      "name": product.name,
+      "url": `${BASE_URL}${product.url}`,
+      ...(product.image_url && { "image": product.image_url }),
+    })),
+  };
+}
+
 export function generateFAQStructuredData(items: { question: string; answer: string }[]) {
   return {
     "@context": "https://schema.org",

@@ -1423,7 +1423,7 @@ export async function getCameraVideos(params: {
 export async function getCameraArticles(params: {
   tags?: string[];
   year?: number;
-  sourceType?: "note" | "blog" | "other";
+  sourceType?: "note" | "blog" | "official" | "other";
   sortBy?: "published_at";
   page?: number;
   limit?: number;

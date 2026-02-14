@@ -143,10 +143,11 @@ export async function POST(request: NextRequest) {
     console.log(`Found ${officialLinks.length} official site links with OGP info`);
 
     // 8.7. DB既存商品ルックアップ（過去の登録データを「学習データ」として再利用）
-    const productNamesForLookup = analysisResult.products
-      .filter(p => p.confidence === "high" || p.confidence === "medium")
-      .map(p => p.name);
-    const existingProductMap = await findExistingProducts(productNamesForLookup, "products_camera");
+    const productsForLookup = analysisResult.products
+      .filter(p => p.confidence === "high" || p.confidence === "medium");
+    const productNamesForLookup = productsForLookup.map(p => p.name);
+    const productMetaForLookup = productsForLookup.map(p => ({ name: p.name, category: p.category, brand: p.brand }));
+    const existingProductMap = await findExistingProducts(productNamesForLookup, "products_camera", productMetaForLookup);
     console.log(`DB existing product matches: ${existingProductMap.size} / ${productNamesForLookup.length}`);
 
     // 8.8. ブランド名の正規化（DB既存ブランドを正とし、表記揺れを解消）

@@ -23,9 +23,10 @@ import { ProductGrid } from "@/components/detail/ProductGrid";
 import { FAQSection } from "@/components/detail/FAQSection";
 import { ProductReviews } from "@/components/product/ProductReviews";
 import { assignRanks } from "@/lib/rankUtils";
-import { generateBreadcrumbStructuredData, generateProductStructuredData, generateFAQStructuredData } from "@/lib/structuredData";
+import { generateBreadcrumbStructuredData, generateProductStructuredData, generateFAQStructuredData, generateItemListStructuredData } from "@/lib/structuredData";
 import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
 import { formatProductForDisplay, convertSize, convertWeight, formatReleaseDate, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
+import { generateSubcategoryAnalysis } from "@/lib/subcategory-analysis";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 import "../../product-detail-styles.css";
@@ -146,12 +147,13 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
           category,
           typeTag: sub,
           sortBy: "mention_count",
-          limit: 3,
+          limit: 5,
         });
 
         return {
           subcategory: sub,
           products: products.map(formatProductForDisplay),
+          rawProducts: products, // 分析用に生データも保持
           total,
         };
       })
@@ -175,6 +177,17 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
     ];
     const faqData = generateFAQStructuredData(allFaqItems);
 
+    // ItemList構造化データ：サブカテゴリの人気商品
+    const allSubProducts = filteredSubs.flatMap(s => s.products);
+    const itemListData = generateItemListStructuredData(
+      allSubProducts.slice(0, 20).map((p, i) => ({
+        name: p.name,
+        url: cameraProductUrl(p),
+        image_url: p.image_url,
+        position: i + 1,
+      }))
+    );
+
     return (
       <>
         <script
@@ -184,6 +197,10 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
         />
         <PageHeaderSection
           domain="camera"
@@ -210,7 +227,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
               <p style={{ fontSize: "15px" }}>このカテゴリーにはまだ商品が登録されていません。</p>
             </div>
           ) : (
-            filteredSubs.map(({ subcategory, products, total }) => (
+            filteredSubs.map(({ subcategory, products, rawProducts, total }) => (
               <div key={subcategory} style={{ marginBottom: "60px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                   <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{subcategory}</h2>
@@ -224,9 +241,9 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
                   )}
                 </div>
                 <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
-                  {subcategory}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
+                  {subcategory}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）。`}{generateSubcategoryAnalysis({ subcategory, products: rawProducts, total })}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
                 </p>
-                <ProductGrid products={products} domain="camera" />
+                <ProductGrid products={products.slice(0, 3)} domain="camera" />
               </div>
             ))
           )}
@@ -272,6 +289,16 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
   ];
   const faqData = generateFAQStructuredData(allFaqItems);
 
+  // ItemList構造化データ
+  const itemListData = generateItemListStructuredData(
+    formattedProducts.slice(0, 20).map((p, i) => ({
+      name: p.name,
+      url: cameraProductUrl(p),
+      image_url: p.image_url,
+      position: i + 1,
+    }))
+  );
+
   return (
     <>
       <script
@@ -281,6 +308,10 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
       />
       <PageHeaderSection
         domain="camera"

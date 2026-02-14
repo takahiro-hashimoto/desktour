@@ -1,11 +1,12 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { getCameraSiteStats, searchCameraProducts } from "@/lib/supabase/queries-camera";
-import { CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug } from "@/lib/camera/constants";
+import { CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug, cameraProductUrl } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
-import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
-import { formatProductForDisplay } from "@/lib/format-utils";
+import { generateBreadcrumbStructuredData, generateFAQStructuredData, generateItemListStructuredData } from "@/lib/structuredData";
+import { FAQSection } from "@/components/detail/FAQSection";
+import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import "../../detail-styles.css";
 import "../../listing-styles.css";
 
@@ -57,12 +58,49 @@ export default async function CategoryIndexPage() {
     { name: "カテゴリ" },
   ]);
 
+  // 動的FAQ：カテゴリ横断の人気商品ランキング（上位3カテゴリの1位を集約）
+  const topByCategory = filteredCategories
+    .filter(c => c.products[0])
+    .slice(0, 3)
+    .map((c, i) => `${i + 1}位: ${c.products[0].brand ? c.products[0].brand + " " : ""}${c.products[0].name}（${c.category}、${c.products[0].mention_count}件の撮影機材紹介に登場）`);
+  const rankingAnswer = topByCategory.length > 0
+    ? topByCategory.join("、") + "。各カテゴリごとに実際のクリエイターが愛用している機材をランキングしています。"
+    : "まだデータがありません。";
+
+  const categoryListAnswer = filteredCategories.map(c => `${c.category}（${c.total}件）`).join("、") + "など、幅広い撮影機材カテゴリを掲載しています。";
+
+  const allFaqItems = [
+    { question: "撮影機材紹介で最も人気の機材は何ですか？", answer: rankingAnswer },
+    { question: "どのような撮影機材カテゴリがありますか？", answer: categoryListAnswer },
+    ...COMMON_FAQ_ITEMS,
+  ];
+  const faqData = generateFAQStructuredData(allFaqItems);
+
+  // ItemList構造化データ：全カテゴリの人気商品
+  const allProducts = filteredCategories.flatMap(c => c.products);
+  const itemListData = generateItemListStructuredData(
+    allProducts.slice(0, 20).map((p, i) => ({
+      name: p.name,
+      url: cameraProductUrl(p),
+      image_url: p.image_url,
+      position: i + 1,
+    }))
+  );
+
   return (
     <>
       {/* 構造化データ */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqData) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
       />
       <PageHeaderSection
         domain="camera"
@@ -106,6 +144,8 @@ export default async function CategoryIndexPage() {
             </div>
           ))
         )}
+
+        <FAQSection items={allFaqItems} />
       </div>
     </>
   );
