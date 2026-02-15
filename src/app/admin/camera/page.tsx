@@ -157,6 +157,7 @@ export default function CameraAdminPage() {
     query: string;
     source: "amazon" | "rakuten";
     candidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }>;
+    dbCandidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; isExisting: true; mentionCount: number }>;
     loading: boolean;
     selecting: boolean;
   } | null>(null);
@@ -298,11 +299,13 @@ export default function CameraAdminPage() {
         reason: p.reason || "",
         confidence: "medium",
         tags: p.tags || undefined,
-        amazon: p.amazon_url || p.amazon_image_url ? {
-          asin: "",
+        source: p.product_source || undefined,
+        amazon: p.asin || p.amazon_url || p.amazon_image_url ? {
+          asin: p.asin || "",
           title: p.name,
           url: p.amazon_url || "",
           imageUrl: p.amazon_image_url || "",
+          price: p.amazon_price || undefined,
         } : null,
       }));
 
@@ -490,10 +493,8 @@ export default function CameraAdminPage() {
     setMessage(null);
 
     try {
-      const productsPayload = previewResult.products
-        .filter(p => p.id)
-        .map(p => ({
-          id: p.id,
+      const productsPayload = previewResult.products.map(p => ({
+          ...(p.id ? { id: p.id } : {}),
           name: p.name,
           brand: p.brand || null,
           category: p.category,
@@ -683,19 +684,19 @@ export default function CameraAdminPage() {
     const query = product.brand
       ? `${product.brand} ${product.name}`
       : product.name;
-    setAmazonSearchModal({ productIndex, query, source, candidates: [], loading: false, selecting: false });
+    setAmazonSearchModal({ productIndex, query, source, candidates: [], dbCandidates: [], loading: false, selecting: false });
   };
 
   // 商品検索を実行（Amazon / 楽天）
   const executeAmazonSearch = async () => {
     if (!amazonSearchModal || !amazonSearchModal.query.trim()) return;
-    setAmazonSearchModal({ ...amazonSearchModal, loading: true, candidates: [] });
+    setAmazonSearchModal({ ...amazonSearchModal, loading: true, candidates: [], dbCandidates: [] });
     try {
-      const params = new URLSearchParams({ name: amazonSearchModal.query, source: amazonSearchModal.source });
+      const params = new URLSearchParams({ name: amazonSearchModal.query, source: amazonSearchModal.source, domain: "camera" });
       const res = await fetch(`/api/camera/search-amazon?${params.toString()}`);
       const data = await res.json();
       setAmazonSearchModal((prev) =>
-        prev ? { ...prev, loading: false, candidates: data.candidates || [] } : null
+        prev ? { ...prev, loading: false, candidates: data.candidates || [], dbCandidates: data.dbCandidates || [] } : null
       );
     } catch {
       setMessage({ type: "error", text: `${amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}検索に失敗しました` });
@@ -2290,34 +2291,84 @@ export default function CameraAdminPage() {
                 <div className="flex items-center justify-center py-12">
                   <div className="w-6 h-6 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
                 </div>
-              ) : amazonSearchModal.candidates.length > 0 ? (
-                <div className="space-y-2">
-                  {amazonSearchModal.candidates.map((candidate) => (
-                    <button
-                      key={candidate.id}
-                      onClick={() => selectAmazonCandidate(candidate)}
-                      disabled={amazonSearchModal.selecting}
-                      className="w-full flex gap-3 items-center p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 disabled:pointer-events-none transition-colors text-left"
-                      type="button"
-                    >
-                      {candidate.imageUrl ? (
-                        <img src={candidate.imageUrl} alt={candidate.title} className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
-                      ) : (
-                        <div className="w-14 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">No img</div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900 line-clamp-2">{candidate.title}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          {candidate.price && (
-                            <span className={`text-sm font-medium ${amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}`}>¥{candidate.price.toLocaleString()}</span>
-                          )}
-                          {candidate.brand && (
-                            <span className="text-xs text-gray-500">{candidate.brand}</span>
-                          )}
-                        </div>
+              ) : (amazonSearchModal.dbCandidates.length > 0 || amazonSearchModal.candidates.length > 0) ? (
+                <div className="space-y-3">
+                  {/* DB登録済み商品（優先表示） */}
+                  {amazonSearchModal.dbCandidates.length > 0 && (
+                    <div>
+                      <p className="text-xs font-medium text-green-700 mb-1.5 flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-500 rounded-full" />
+                        DB登録済み（{amazonSearchModal.dbCandidates.length}件）
+                      </p>
+                      <div className="space-y-2">
+                        {amazonSearchModal.dbCandidates.map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            onClick={() => selectAmazonCandidate(candidate)}
+                            disabled={amazonSearchModal.selecting}
+                            className="w-full flex gap-3 items-center p-3 rounded-lg border-2 border-green-300 bg-green-50 hover:border-green-500 hover:bg-green-100 disabled:opacity-50 disabled:pointer-events-none transition-colors text-left"
+                            type="button"
+                          >
+                            {candidate.imageUrl ? (
+                              <img src={candidate.imageUrl} alt={candidate.title} className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
+                            ) : (
+                              <div className="w-14 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">No img</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 line-clamp-2">{candidate.title}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {candidate.price && (
+                                  <span className="text-sm font-medium text-green-700">¥{candidate.price.toLocaleString()}</span>
+                                )}
+                                {candidate.brand && (
+                                  <span className="text-xs text-gray-500">{candidate.brand}</span>
+                                )}
+                                <span className="text-xs text-green-600 font-medium">{candidate.mentionCount}件の紹介</span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
                       </div>
-                    </button>
-                  ))}
+                    </div>
+                  )}
+                  {/* API検索結果 */}
+                  {amazonSearchModal.candidates.length > 0 && (
+                    <div>
+                      {amazonSearchModal.dbCandidates.length > 0 && (
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">
+                          {amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}検索結果（{amazonSearchModal.candidates.length}件）
+                        </p>
+                      )}
+                      <div className="space-y-2">
+                        {amazonSearchModal.candidates.map((candidate) => (
+                          <button
+                            key={candidate.id}
+                            onClick={() => selectAmazonCandidate(candidate)}
+                            disabled={amazonSearchModal.selecting}
+                            className="w-full flex gap-3 items-center p-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50 disabled:pointer-events-none transition-colors text-left"
+                            type="button"
+                          >
+                            {candidate.imageUrl ? (
+                              <img src={candidate.imageUrl} alt={candidate.title} className="w-14 h-14 object-contain bg-white rounded border border-gray-100 flex-shrink-0" />
+                            ) : (
+                              <div className="w-14 h-14 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 text-xs">No img</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-gray-900 line-clamp-2">{candidate.title}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                {candidate.price && (
+                                  <span className={`text-sm font-medium ${amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}`}>¥{candidate.price.toLocaleString()}</span>
+                                )}
+                                {candidate.brand && (
+                                  <span className="text-xs text-gray-500">{candidate.brand}</span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-center text-gray-400 py-12 text-sm">

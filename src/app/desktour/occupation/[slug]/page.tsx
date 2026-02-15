@@ -51,14 +51,14 @@ export default async function OccupationDetailPage({ params }: PageProps) {
   const occupationCounts = await getOccupationTagCounts();
   const occupationSourceCount = occupationCounts[occupation] || 0;
 
-  // 各カテゴリーごとにトップ3商品を取得
+  // 各カテゴリーごとにトップ4商品を取得
   const categoryProducts = await Promise.all(
     PRODUCT_CATEGORIES.map(async (category) => {
       const { products, total } = await searchProducts({
         category,
         occupationTag: occupation,
         sortBy: "mention_count",
-        limit: 3,
+        limit: 4,
       });
 
       return {

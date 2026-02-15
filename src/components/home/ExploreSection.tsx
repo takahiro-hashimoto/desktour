@@ -17,7 +17,7 @@ interface ExploreCardProps {
 }
 
 function ExploreCard({ icon, title, description, items, viewAllHref }: ExploreCardProps) {
-  const maxCount = Math.max(...items.map(item => item.count));
+  const maxCount = Math.max(...items.map(item => item.count), 1);
 
   return (
     <article className="home-explore__card">
@@ -54,13 +54,22 @@ function ExploreCard({ icon, title, description, items, viewAllHref }: ExploreCa
   );
 }
 
-interface ExploreSectionProps {
-  occupations: ExploreItem[];
-  styles: ExploreItem[];
-  brands: ExploreItem[];
+interface ExploreCardConfig {
+  icon: string;
+  title: string;
+  description: string;
+  items: ExploreItem[];
+  viewAllHref: string;
 }
 
-export function ExploreSection({ occupations, styles, brands }: ExploreSectionProps) {
+interface ExploreSectionProps {
+  subtitle: string;
+  cards: ExploreCardConfig[];
+}
+
+export type { ExploreItem, ExploreCardConfig };
+
+export function ExploreSection({ subtitle, cards }: ExploreSectionProps) {
   return (
     <section className="home-explore">
       <div className="home-explore__inner">
@@ -70,34 +79,21 @@ export function ExploreSection({ occupations, styles, brands }: ExploreSectionPr
               <i className="fas fa-search home-explore__title-icon"></i>
               切り口から探す
             </h2>
-            <p className="home-explore__subtitle">職業・スタイル・ブランドの切り口で人気のデスク周りガジェットを確認できます</p>
+            <p className="home-explore__subtitle">{subtitle}</p>
           </div>
         </div>
 
         <div className="home-explore__grid">
-          <ExploreCard
-            icon={<i className="fas fa-briefcase"></i>}
-            title="職業別"
-            description="同じ職業の人がどんなデスク環境を構築しているか参考にできます"
-            items={occupations}
-            viewAllHref="/desktour/occupation"
-          />
-
-          <ExploreCard
-            icon={<i className="fas fa-palette"></i>}
-            title="スタイル別"
-            description="ミニマル、ゲーミングなど、雰囲気やテイストから探せます"
-            items={styles}
-            viewAllHref="/desktour/style"
-          />
-
-          <ExploreCard
-            icon={<i className="fas fa-tags"></i>}
-            title="ブランド別"
-            description="紹介された商品数が多い人気ブランドから探せます"
-            items={brands}
-            viewAllHref="/desktour/brand"
-          />
+          {cards.map((card) => (
+            <ExploreCard
+              key={card.title}
+              icon={<i className={card.icon}></i>}
+              title={card.title}
+              description={card.description}
+              items={card.items}
+              viewAllHref={card.viewAllHref}
+            />
+          ))}
         </div>
       </div>
     </section>

@@ -14,7 +14,6 @@ import {
   categoryToSlug,
   occupationToSlug,
   styleTagToSlug,
-  brandToSlug,
 } from "@/lib/constants";
 import { Metadata } from "next";
 import { HeroSection } from "@/components/home/HeroSection";
@@ -109,22 +108,22 @@ export default async function DesktourPage() {
   const { stats, categoryCounts, occupationCounts, setupCounts, topBrands, latestVideos } = await getCachedHomeData();
 
   // メインカテゴリ（上位5件）
-  // DB上のcategoryカラムは表示名（「・」区切り）で保存されているため、そのままキーとして使う
-  const mainCategories = ["デスク", "ディスプレイ・モニター", "チェア", "キーボード", "マウス"].map(cat => ({
+  const mainCategoryNames = ["デスク", "ディスプレイ・モニター", "チェア", "キーボード", "マウス"];
+  const mainCategories = mainCategoryNames.map(cat => ({
     name: cat,
     count: categoryCounts[cat] || 0,
     icon: CATEGORY_ICONS[cat] || "📦",
+    href: `/desktour/${categoryToSlug(cat)}`,
   }));
 
   // サブカテゴリ（掲載数が多い順にソート、その他デスクアクセサリーは除外）
-  const mainCategoryNames = ["デスク", "ディスプレイ・モニター", "チェア", "キーボード", "マウス"];
   const subCategories = PRODUCT_CATEGORIES
     .filter(cat => !mainCategoryNames.includes(cat) && cat !== "その他デスクアクセサリー")
     .map(cat => ({
       name: cat,
       count: categoryCounts[cat] || 0,
       icon: SUB_CATEGORY_ICONS[cat] || "📦",
-      slug: categoryToSlug(cat),
+      href: `/desktour/${categoryToSlug(cat)}`,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 16);
@@ -201,10 +200,63 @@ export default async function DesktourPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <HeroSection stats={stats} />
-      <CategoryGridSection mainCategories={mainCategories} subCategories={subCategories} />
-      <ExploreSection occupations={occupations} styles={styles} brands={brands} />
-      <FeaturedSection items={featured} />
+      <HeroSection
+        stats={stats}
+        config={{
+          icon: "fa-solid fa-chart-line",
+          titleLine1: "理想のデスク周りガジェットを",
+          subtitle: `${stats.total_videos + stats.total_articles}件のデスクツアーを独自に収集・整理。\n職業・スタイル・ブランドから、本当に選ばれているデスク周りのガジェットがわかります。`,
+          primaryBtn: { label: "デスクツアーデータベース", href: "/desktour/sources" },
+          outlineBtn: { label: "デスク周りのガジェット", href: "/desktour/category" },
+          statLabels: { products: "掲載商品", sources: "デスクツアー" },
+        }}
+      />
+      <CategoryGridSection
+        mainCategories={mainCategories}
+        subCategories={subCategories}
+        config={{
+          titleIcon: "fa-home",
+          title: "商品カテゴリから探す",
+          subtitle: "デスクツアー動画の中で登場したデスク周りガジェットを登場回数が多い順に確認できます！",
+          viewAllHref: "/desktour/category",
+        }}
+      />
+      <ExploreSection
+        subtitle="職業・スタイル・ブランドの切り口で人気のデスク周りガジェットを確認できます"
+        cards={[
+          {
+            icon: "fas fa-briefcase",
+            title: "職業別",
+            description: "同じ職業の人がどんなデスク環境を構築しているか参考にできます",
+            items: occupations,
+            viewAllHref: "/desktour/occupation",
+          },
+          {
+            icon: "fas fa-palette",
+            title: "スタイル別",
+            description: "ミニマル、ゲーミングなど、雰囲気やテイストから探せます",
+            items: styles,
+            viewAllHref: "/desktour/style",
+          },
+          {
+            icon: "fas fa-tags",
+            title: "ブランド別",
+            description: "紹介された商品数が多い人気ブランドから探せます",
+            items: brands,
+            viewAllHref: "/desktour/brand",
+          },
+        ]}
+      />
+      <FeaturedSection
+        items={featured}
+        config={{
+          title: "注目のデスクツアー",
+          subtitle: "最近追加されたデスクツアー動画、記事の中からおすすめを紹介",
+          viewAllHref: "/desktour/sources",
+          placeholder: "DESK TOUR",
+          productLabel: "紹介商品",
+        }}
+      />
       <AboutSection />
     </div>
   );

@@ -49,14 +49,14 @@ export default async function StyleDetailPage({ params }: PageProps) {
   const setupCounts = await getSetupTagCounts();
   const styleSourceCount = setupCounts[style] || 0;
 
-  // 各カテゴリーごとにトップ3商品を取得
+  // 各カテゴリーごとにトップ4商品を取得
   const categoryProducts = await Promise.all(
     PRODUCT_CATEGORIES.map(async (category) => {
       const { products, total } = await searchProducts({
         category,
         setupTag: style,
         sortBy: "mention_count",
-        limit: 3,
+        limit: 4,
       });
 
       return {

@@ -13,11 +13,22 @@ interface FeaturedItem {
   product_count?: number;
 }
 
-interface FeaturedSectionProps {
-  items: FeaturedItem[];
+interface FeaturedConfig {
+  title: string;
+  subtitle: string;
+  viewAllHref: string;
+  placeholder: string;
+  productLabel: string;
 }
 
-export function FeaturedSection({ items }: FeaturedSectionProps) {
+interface FeaturedSectionProps {
+  items: FeaturedItem[];
+  config: FeaturedConfig;
+}
+
+export type { FeaturedConfig, FeaturedItem };
+
+export function FeaturedSection({ items, config }: FeaturedSectionProps) {
   return (
     <section className="home-featured">
       <div className="home-featured__inner">
@@ -25,11 +36,11 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
           <div>
             <h2 className="home-featured__title">
               <i className="fas fa-fire home-featured__title-icon"></i>
-              注目のデスクツアー
+              {config.title}
             </h2>
-            <p className="home-featured__subtitle">最近追加されたデスクツアー動画、記事の中からおすすめを紹介</p>
+            <p className="home-featured__subtitle">{config.subtitle}</p>
           </div>
-          <Link href="/desktour/sources" className="home-featured__more">
+          <Link href={config.viewAllHref} className="home-featured__more">
             全て見る
             <i className="fas fa-arrow-right home-featured__more-icon"></i>
           </Link>
@@ -47,7 +58,7 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
                     className="home-featured__thumb-img"
                   />
                 ) : (
-                  <div className="home-featured__thumb-placeholder">DESK TOUR</div>
+                  <div className="home-featured__thumb-placeholder">{config.placeholder}</div>
                 )}
                 {item.badge && (
                   <span className="home-featured__badge">{item.badge}</span>
@@ -60,7 +71,7 @@ export function FeaturedSection({ items }: FeaturedSectionProps) {
                 </p>
                 {item.product_count !== undefined && item.product_count > 0 && (
                   <div className="home-featured__products">
-                    <i className="fa-solid fa-link"></i> 紹介商品: {item.product_count}件
+                    <i className="fa-solid fa-link"></i> {config.productLabel}: {item.product_count}件
                   </div>
                 )}
                 {item.tags.length > 0 && (

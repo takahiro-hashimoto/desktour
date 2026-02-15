@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCameraSourceDetail } from "@/lib/supabase/queries-camera";
+import { getSourceDetail } from "@/lib/supabase/queries-unified";
 
+/**
+ * GET /api/camera/source
+ * 後方互換: /api/source?domain=camera と同等
+ */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get("type");
@@ -14,7 +18,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid source type" }, { status: 400 });
   }
 
-  const detail = await getCameraSourceDetail(type, id);
+  const detail = await getSourceDetail("camera", type, id);
 
   if (!detail) {
     return NextResponse.json({ error: "Source not found" }, { status: 404 });

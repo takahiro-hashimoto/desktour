@@ -199,6 +199,21 @@ export async function extractProductsFromDescription(
 }
 
 // ========================================
+// 日本語キーワード抽出（漢字・カタカナの連続を分割）
+// ========================================
+function extractJapaneseKeywords(text: string): string[] {
+  const keywords: string[] = [];
+  // カタカナの連続（2文字以上）
+  const katakana = text.match(/[\u30A0-\u30FF]{2,}/g) || [];
+  // 漢字の連続（2文字以上）
+  const kanji = text.match(/[\u4E00-\u9FFF]{2,}/g) || [];
+  for (const kw of [...katakana, ...kanji]) {
+    keywords.push(kw.toLowerCase());
+  }
+  return keywords;
+}
+
+// ========================================
 // 商品名の正規化
 // ========================================
 function normalizeProductName(name: string): string {
@@ -357,6 +372,20 @@ export function calculateMatchScore(
   score += matchedWords * 10;
   if (matchedWords > 0) {
     reasons.push(`Words: ${matchedWords}`);
+  }
+
+  // 4.5. 日本語キーワード部分一致（漢字・カタカナ2文字以上を抽出してマッチ）
+  const jpKeywords = extractJapaneseKeywords(productName);
+  const asinLower = asinTitle.toLowerCase();
+  let jpMatched = 0;
+  for (const kw of jpKeywords) {
+    if (asinLower.includes(kw)) {
+      jpMatched++;
+    }
+  }
+  if (jpMatched > 0) {
+    score += jpMatched * 10;
+    reasons.push(`JpWords: ${jpMatched}`);
   }
 
   // 5. カテゴリ一致ボーナス（同じカテゴリなら+10）

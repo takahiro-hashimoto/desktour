@@ -6,6 +6,7 @@
  */
 
 import { extractModelNumber, normalizeProductName } from "./product-normalize";
+import { getBrandAliases } from "./brand-category-utils";
 
 // マッチ閾値（0.85 = 高めに設定して偽陽性を防ぐ）
 const MATCH_THRESHOLD = 0.85;
@@ -64,12 +65,16 @@ export function fuzzyMatchProduct(
     // 完全一致は既にチェック済みなのでスキップ
     if (inputLower === candidateLower) continue;
 
-    // --- ブランドガード ---
-    // 両方にブランドがあり、異なる場合は即除外
+    // --- ブランドガード（エイリアス対応） ---
+    // 両方にブランドがあり、エイリアス考慮しても異なる場合は即除外
     if (inputBrandLower && candidate.brand) {
       const candidateBrandLower = candidate.brand.toLowerCase().trim();
       if (inputBrandLower !== candidateBrandLower) {
-        continue;
+        // エイリアスで一致するかチェック（Logicool ↔ Logitech 等）
+        const inputAliases = getBrandAliases(inputBrandLower);
+        if (!inputAliases.includes(candidateBrandLower)) {
+          continue;
+        }
       }
     }
 

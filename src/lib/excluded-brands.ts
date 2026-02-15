@@ -23,15 +23,20 @@ export const EXCLUDED_BRANDS: ExcludedBrand[] = [
     name: "Grovemade",
     domains: ["grovemade.com"],
     keywords: ["grovemade", "grove made"],
-    reason: "公式サイトがボット対策でOGP取得不可。手動でリンク・画像を設定。",
+    reason: "公式サイト専売。ボット対策でOGP取得不可。手動でリンク・画像を設定。",
   },
-  // 必要に応じて追加
-  // {
-  //   name: "Example Brand",
-  //   domains: ["example.com"],
-  //   keywords: ["example"],
-  //   reason: "理由をここに記載",
-  // },
+  {
+    name: "PREDUCTS",
+    domains: ["preducts.jp"],
+    keywords: ["preducts"],
+    reason: "公式サイト専売。Amazon/楽天取り扱いなし。",
+  },
+  {
+    name: "WAAK",
+    domains: ["waak.space"],
+    keywords: ["waak", "ワアク"],
+    reason: "公式サイト専売。Amazon/楽天取り扱いなし。",
+  },
 ];
 
 /**

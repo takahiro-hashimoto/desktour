@@ -49,14 +49,14 @@ export default async function BrandDetailPage({ params }: PageProps) {
   const stats = await getSiteStats();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  // 各カテゴリーごとにトップ3商品を取得
+  // 各カテゴリーごとにトップ4商品を取得
   const categoryProducts = await Promise.all(
     PRODUCT_CATEGORIES.map(async (category) => {
       const { products, total } = await searchProducts({
         category,
         brand,
         sortBy: "mention_count",
-        limit: 3,
+        limit: 4,
       });
 
       return {

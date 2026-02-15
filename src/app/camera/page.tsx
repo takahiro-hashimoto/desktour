@@ -14,15 +14,14 @@ import {
   CAMERA_SUBJECT_TAGS,
   cameraCategoryToSlug,
   cameraOccupationToSlug,
-  cameraBrandToSlug,
   cameraSubjectToSlug,
 } from "@/lib/camera/constants";
 import { getCameraCategoryIcon } from "@/lib/camera/category-icons";
 import { Metadata } from "next";
-import { CameraHeroSection } from "@/components/camera-home/HeroSection";
-import { CameraCategoryGridSection } from "@/components/camera-home/CategoryGridSection";
-import { CameraExploreSection } from "@/components/camera-home/ExploreSection";
-import { CameraFeaturedSection } from "@/components/camera-home/FeaturedSection";
+import { HeroSection } from "@/components/home/HeroSection";
+import { CategoryGridSection } from "@/components/home/CategoryGridSection";
+import { ExploreSection } from "@/components/home/ExploreSection";
+import { FeaturedSection } from "@/components/home/FeaturedSection";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { stats } = await getCachedHomeData();
@@ -68,6 +67,7 @@ export default async function CameraPage() {
       name: cat,
       count: categoryCounts[cat] || 0,
       icon: `fa-solid ${getCameraCategoryIcon(cat)}`,
+      href: `/camera/${cameraCategoryToSlug(cat)}`,
     }));
 
   // 職業別データ
@@ -142,10 +142,62 @@ export default async function CameraPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <CameraHeroSection stats={stats} />
-      <CameraCategoryGridSection mainCategories={mainCategories} />
-      <CameraExploreSection occupations={occupations} brands={brands} subjects={subjects} />
-      <CameraFeaturedSection items={featured} />
+      <HeroSection
+        stats={stats}
+        config={{
+          icon: "fa-solid fa-camera",
+          titleLine1: "本当に使われている撮影機材を",
+          subtitle: `${stats.total_videos + stats.total_articles}件の撮影機材紹介を独自に収集・整理。\n職業・ブランドから、本当に選ばれている撮影機材がわかります。`,
+          primaryBtn: { label: "撮影機材データベース", href: "/camera/sources" },
+          outlineBtn: { label: "機材カテゴリ", href: "/camera/category" },
+          statLabels: { products: "掲載機材", sources: "機材紹介" },
+        }}
+      />
+      <CategoryGridSection
+        mainCategories={mainCategories}
+        config={{
+          titleIcon: "fa-camera",
+          title: "機材カテゴリから探す",
+          subtitle: "撮影機材紹介の動画・記事の中で登場した機材を登場回数が多い順に確認できます！",
+          viewAllHref: "/camera/category",
+        }}
+      />
+      <ExploreSection
+        subtitle="職業・ブランド・被写体の切り口で人気の撮影機材を確認できます"
+        cards={[
+          {
+            icon: "fas fa-briefcase",
+            title: "職業別",
+            description: "同じ職業の人がどんな撮影機材を使っているか参考にできます",
+            items: occupations,
+            viewAllHref: "/camera/occupation",
+          },
+          {
+            icon: "fas fa-tags",
+            title: "ブランド別",
+            description: "紹介された機材数が多い人気ブランドから探せます",
+            items: brands,
+            viewAllHref: "/camera/brand",
+          },
+          {
+            icon: "fas fa-crosshairs",
+            title: "被写体別",
+            description: "撮影対象ごとに、どんな機材が使われているか探せます",
+            items: subjects,
+            viewAllHref: "/camera/subject",
+          },
+        ]}
+      />
+      <FeaturedSection
+        items={featured}
+        config={{
+          title: "注目の撮影機材紹介",
+          subtitle: "最近追加された撮影機材紹介の動画、記事の中からおすすめを紹介",
+          viewAllHref: "/camera/sources",
+          placeholder: "CAMERA GEAR",
+          productLabel: "紹介機材",
+        }}
+      />
     </div>
   );
 }

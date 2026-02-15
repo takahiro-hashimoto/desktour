@@ -58,7 +58,9 @@ export interface SourceProduct {
   brand?: string;
   category: string;
   tags?: string[];
+  asin?: string;
   amazon_title?: string;
+  amazon_price?: number;
   amazon_features?: string[];
   amazon_technical_info?: Record<string, string>;
   amazon_categories?: string[];
@@ -66,6 +68,7 @@ export interface SourceProduct {
   amazon_image_url?: string;
   amazon_url?: string;
   amazon_model_number?: string;
+  product_source?: string;
   reason: string;
   mention_count?: number;
 }

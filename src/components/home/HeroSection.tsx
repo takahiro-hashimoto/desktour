@@ -3,35 +3,50 @@
 import Link from "next/link";
 import { SiteStats } from "@/types";
 
-interface HeroSectionProps {
-  stats: SiteStats;
+interface HeroConfig {
+  icon: string;
+  titleLine1: string;
+  subtitle: string;
+  primaryBtn: { label: string; href: string };
+  outlineBtn: { label: string; href: string };
+  statLabels: { products: string; sources: string };
 }
 
-export function HeroSection({ stats }: HeroSectionProps) {
+interface HeroSectionProps {
+  stats: SiteStats;
+  config: HeroConfig;
+}
+
+export type { HeroConfig };
+
+export function HeroSection({ stats, config }: HeroSectionProps) {
+  const totalSources = stats.total_videos + stats.total_articles;
+
   return (
     <section className="home-hero">
       <div className="home-hero__content">
         <div className="home-hero__flex">
           <div className="home-hero__icon-block">
-            <i className="fa-solid fa-chart-line"></i>
+            <i className={config.icon}></i>
           </div>
           <h1 className="home-hero__title">
-            理想のデスク周りガジェットを<br />
+            {config.titleLine1}<br />
             <span className="home-hero__title-blue">データから見つける。</span>
           </h1>
         </div>
 
         <p className="home-hero__subtitle">
-          {stats.total_videos + stats.total_articles}件のデスクツアーを独自に収集・整理。<br />
-          職業・スタイル・ブランドから、本当に選ばれているデスク周りのガジェットがわかります。
+          {config.subtitle.split("\n").map((line, i, arr) => (
+            <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+          ))}
         </p>
 
         <div className="home-hero__actions">
-          <Link href="/desktour/sources" className="home-hero__btn home-hero__btn--primary">
-            デスクツアーデータベース <i className="fa-solid fa-arrow-right"></i>
+          <Link href={config.primaryBtn.href} className="home-hero__btn home-hero__btn--primary">
+            {config.primaryBtn.label} <i className="fa-solid fa-arrow-right"></i>
           </Link>
-          <Link href="/desktour/category" className="home-hero__btn home-hero__btn--outline">
-            <i className="fa-regular fa-compass"></i> デスク周りのガジェット
+          <Link href={config.outlineBtn.href} className="home-hero__btn home-hero__btn--outline">
+            <i className="fa-regular fa-compass"></i> {config.outlineBtn.label}
           </Link>
         </div>
 
@@ -41,7 +56,7 @@ export function HeroSection({ stats }: HeroSectionProps) {
               {stats.total_products.toLocaleString()}
               <span className="home-hero__stat-unit">+</span>
             </dd>
-            <dt className="home-hero__stat-label">掲載商品</dt>
+            <dt className="home-hero__stat-label">{config.statLabels.products}</dt>
           </div>
           <div className="home-hero__stat">
             <dd className="home-hero__stat-num">
@@ -51,9 +66,9 @@ export function HeroSection({ stats }: HeroSectionProps) {
           </div>
           <div className="home-hero__stat">
             <dd className="home-hero__stat-num">
-              {stats.total_videos + stats.total_articles}
+              {totalSources}
             </dd>
-            <dt className="home-hero__stat-label">デスクツアー</dt>
+            <dt className="home-hero__stat-label">{config.statLabels.sources}</dt>
           </div>
           <div className="home-hero__stat">
             <dd className="home-hero__stat-num">

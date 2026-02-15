@@ -1,18 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase/client";
 import { generateChosenReasons } from "@/lib/gemini";
+import { getDomainConfig } from "@/lib/domain";
+import type { DomainId } from "@/lib/domain";
 
 const MIN_COMMENTS = 10;
 
 /**
- * POST /api/generate-chosen-reasons
+ * POST /api/generate-chosen-reasons?domain=desktour|camera
  * コメント10件以上の商品に対して「選ばれている理由TOP3」を一括生成
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    // 1. 全商品のコメントを集計（product_mentions から reason を取得）
+    const domain = (request.nextUrl.searchParams.get("domain") || "desktour") as DomainId;
+    const config = getDomainConfig(domain);
+    const logPrefix = `[ChosenReasons][${domain}]`;
+
+    // 1. 全商品のコメントを集計
     const { data: products, error: productError } = await supabase
-      .from("products")
+      .from(config.tables.products)
       .select("id, name, brand");
 
     if (productError || !products) {
@@ -21,7 +27,7 @@ export async function POST() {
 
     // 2. 全mentionsを取得（confidence low を除外）
     const { data: mentions, error: mentionError } = await supabase
-      .from("product_mentions")
+      .from(config.tables.product_mentions)
       .select("product_id, reason")
       .neq("confidence", "low");
 
@@ -66,12 +72,12 @@ export async function POST() {
 
         if (reasons.length > 0) {
           const { error: updateError } = await supabase
-            .from("products")
+            .from(config.tables.products)
             .update({ chosen_reasons: reasons })
             .eq("id", product.id);
 
           if (updateError) {
-            console.error(`[ChosenReasons] DB update failed for ${productName}:`, updateError);
+            console.error(`${logPrefix} DB update failed for ${productName}:`, updateError);
             errors++;
           } else {
             processed++;
@@ -84,7 +90,7 @@ export async function POST() {
         // Gemini APIのレート制限対策
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (err) {
-        console.error(`[ChosenReasons] Error for ${productName}:`, err);
+        console.error(`${logPrefix} Error for ${productName}:`, err);
         errors++;
       }
     }

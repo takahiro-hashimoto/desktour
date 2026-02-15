@@ -2,6 +2,7 @@ import { supabase } from "./client";
 import { normalizeProductName } from "../product-normalize";
 import { normalizeBrandByList, getBrandAliases } from "../brand-category-utils";
 import { fuzzyMatchProduct } from "../fuzzy-product-match";
+import { isExcludedBrand } from "../excluded-brands";
 
 /**
  * 商品名リストからDB上に既に存在する商品をバッチチェックする
@@ -142,6 +143,8 @@ export async function findExistingProducts(
       if (!candidates || candidates.length === 0) continue;
 
       for (const item of items) {
+        if (result.has(item.original)) continue; // 既にマッチ済みならスキップ
+
         const fuzzyResult = fuzzyMatchProduct(
           item.normalized,
           candidates,
@@ -152,6 +155,75 @@ export async function findExistingProducts(
           const matched = candidates[fuzzyResult.index];
           console.log(`[findExistingProducts] Fuzzy match: "${item.original}" → "${matched.name}" (score: ${fuzzyResult.score.toFixed(3)}, ${fuzzyResult.matchReason})`);
           result.set(item.original, matched as ExistingProductMatch);
+        }
+      }
+    }
+  }
+
+  // --- 除外ブランド（PREDUCTS, Grovemade, WAAK等）専用の検索 ---
+  // まだマッチしていない除外ブランド商品を、ブランド名でDB検索してファジーマッチ
+  if (productMeta) {
+    const selectFields = "id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags";
+    // ブランド名ごとにグループ化して1回のクエリにまとめる
+    const excludedBrandGroups = new Map<string, typeof unmatchedNames>();
+
+    for (const { original, normalized } of normalizedMap) {
+      if (result.has(original)) continue; // 既にマッチ済み
+      const meta = productMeta?.find(m => m.name === original);
+      const excluded = isExcludedBrand(original) ||
+        (meta?.brand ? isExcludedBrand(meta.brand) : null);
+      if (!excluded) continue;
+
+      if (!excludedBrandGroups.has(excluded.name)) {
+        excludedBrandGroups.set(excluded.name, []);
+      }
+      excludedBrandGroups.get(excluded.name)!.push({
+        original,
+        normalized,
+        category: meta?.category,
+        brand: meta?.brand,
+      });
+    }
+
+    for (const [brandName, items] of excludedBrandGroups) {
+      const { data: brandProducts } = await supabase
+        .from(table)
+        .select(selectFields)
+        .ilike("brand", brandName)
+        .limit(100);
+
+      if (!brandProducts || brandProducts.length === 0) continue;
+
+      console.log(`[findExistingProducts] Excluded brand "${brandName}": ${brandProducts.length} products in DB, checking ${items.length} candidates`);
+
+      for (const item of items) {
+        const fuzzyResult = fuzzyMatchProduct(
+          item.normalized,
+          brandProducts,
+          item.brand
+        );
+
+        if (fuzzyResult) {
+          const matched = brandProducts[fuzzyResult.index];
+          console.log(`[findExistingProducts] Excluded brand match: "${item.original}" → "${matched.name}" (score: ${fuzzyResult.score.toFixed(3)}, ${fuzzyResult.matchReason})`);
+          result.set(item.original, matched as ExistingProductMatch);
+        } else {
+          // ファジーマッチ失敗時、URL一致で再試行（公式サイト商品用）
+          // amazon_url に公式サイトURLが保存されているケースに対応
+          for (const bp of brandProducts) {
+            const bpMatch = bp as ExistingProductMatch;
+            if (bpMatch.amazon_url) {
+              // 商品名のキーワードがURLに含まれているかチェック
+              const urlLower = bpMatch.amazon_url.toLowerCase();
+              const nameWords = item.normalized.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+              const urlWordMatches = nameWords.filter(w => urlLower.includes(w));
+              if (urlWordMatches.length >= Math.min(2, nameWords.length) && nameWords.length > 0) {
+                console.log(`[findExistingProducts] Excluded brand URL match: "${item.original}" → "${bpMatch.name}" (url: ${bpMatch.amazon_url})`);
+                result.set(item.original, bpMatch);
+                break;
+              }
+            }
+          }
         }
       }
     }

@@ -94,6 +94,7 @@ const SIZE_SUFFIX_PATTERN = /[\s\-\/]([SML])(?:\s|$|[\)\]】」])/gi;
  * - 余分な空白を正規化
  */
 export function normalizeProductName(name: string): string {
+  if (!name) return "";
   let normalized = name;
 
   // 1. 全角スペース→半角スペース
