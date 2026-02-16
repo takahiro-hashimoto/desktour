@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { OCCUPATION_TAGS, slugToOccupation, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP } from "@/lib/constants";
+import { OCCUPATION_TAGS, slugToOccupation, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP, slugToDesktourSubcategory } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -11,15 +11,14 @@ import { FAQSection } from "@/components/detail/FAQSection";
 import { assignRanks } from "@/lib/rankUtils";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import { generateItemListStructuredData } from "@/lib/structuredData";
-import "../../../../detail-styles.css";
-import "../../../../listing-styles.css";
+import "../../../../../detail-styles.css";
+import "../../../../../listing-styles.css";
 
 export const revalidate = 3600;
 
 interface PageProps {
-  params: { slug: string; category: string };
+  params: { slug: string; category: string; sub: string };
   searchParams: {
-    type?: string;
     sort?: string;
     page?: string;
   };
@@ -28,33 +27,34 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const occupation = slugToOccupation(params.slug);
   const category = slugToCategory(params.category);
+  const subcategory = slugToDesktourSubcategory(params.sub);
 
-  if (!occupation || !category || !(OCCUPATION_TAGS as readonly string[]).includes(occupation) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!occupation || !category || !subcategory || !(OCCUPATION_TAGS as readonly string[]).includes(occupation) || !PRODUCT_CATEGORIES.includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
-  const { total } = await searchProducts({ category, occupationTag: occupation, limit: 1 });
+  const { total } = await searchProducts({ category, occupationTag: occupation, typeTag: subcategory, limit: 1 });
 
-  const title = `${occupation}のデスク環境で人気の${category}まとめ`;
-  const description = `${occupation}が実際にデスク環境で使っている${category}を採用数順にランキング。使用者のリアルなコメント付きで比較できます。【${total}件掲載】`;
+  const title = `${occupation}のデスク環境で人気の${subcategory}まとめ`;
+  const description = `${occupation}が実際にデスク環境で使っている${subcategory}を採用数順にランキング。使用者のリアルなコメント付きで比較できます。【${total}件掲載】`;
 
   return {
     title,
     description,
-    alternates: { canonical: `/desktour/occupation/${params.slug}/${params.category}` },
-    openGraph: { title, description, url: `/desktour/occupation/${params.slug}/${params.category}` },
+    alternates: { canonical: `/desktour/occupation/${params.slug}/${params.category}/${params.sub}` },
+    openGraph: { title, description, url: `/desktour/occupation/${params.slug}/${params.category}/${params.sub}` },
   };
 }
 
-export default async function OccupationCategoryPage({ params, searchParams }: PageProps) {
+export default async function OccupationCategorySubPage({ params, searchParams }: PageProps) {
   const occupation = slugToOccupation(params.slug);
   const category = slugToCategory(params.category);
+  const subcategory = slugToDesktourSubcategory(params.sub);
 
-  if (!occupation || !category || !(OCCUPATION_TAGS as readonly string[]).includes(occupation) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!occupation || !category || !subcategory || !(OCCUPATION_TAGS as readonly string[]).includes(occupation) || !PRODUCT_CATEGORIES.includes(category)) {
     notFound();
   }
 
-  const typeTagFilter = searchParams.type;
   const sort = searchParams.sort || "mention";
   const page = parseInt(searchParams.page || "1");
   const limit = 20;
@@ -62,7 +62,7 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
   const { products, total } = await searchProducts({
     category,
     occupationTag: occupation,
-    typeTag: typeTagFilter,
+    typeTag: subcategory,
     sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
     page,
     limit,
@@ -97,13 +97,13 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
       />
       <PageHeaderSection
         label="Database Report"
-        title={`${occupation}のデスク環境で人気の${category}まとめ`}
+        title={`${occupation}のデスク環境で人気の${subcategory}まとめ`}
         description={
           <>
-            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で{occupation}が実際に使用している{category}を使用者のコメント付きで紹介。
+            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で{occupation}が実際に使用している{subcategory}を使用者のコメント付きで紹介。
           </>
         }
-        breadcrumbCurrent={category}
+        breadcrumbCurrent={subcategory}
         breadcrumbMiddle={{ label: occupation, href: `/desktour/occupation/${params.slug}` }}
       />
 
@@ -113,7 +113,7 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
             label="種類別に絞り込み"
             filterKey="type"
             tags={typeTags}
-            currentFilter={typeTagFilter}
+            currentFilter={subcategory}
             basePath={`/desktour/occupation/${params.slug}/${params.category}`}
             tagSlugMap={DESKTOUR_SUBCATEGORY_SLUG_MAP}
           />

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_BRAND_TAGS, slugToCameraBrand, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP } from "@/lib/camera/constants";
+import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP, slugToCameraSubcategory } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -11,58 +11,58 @@ import { FAQSection } from "@/components/detail/FAQSection";
 import { assignRanks } from "@/lib/rankUtils";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
 import { generateItemListStructuredData } from "@/lib/structuredData";
-import "../../../../detail-styles.css";
-import "../../../../listing-styles.css";
+import "../../../../../detail-styles.css";
+import "../../../../../listing-styles.css";
 
 export const revalidate = 3600;
 
 interface PageProps {
-  params: { slug: string; category: string };
+  params: { slug: string; category: string; sub: string };
   searchParams: {
-    type?: string;
     sort?: string;
     page?: string;
   };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const brand = slugToCameraBrand(params.slug);
+  const subject = slugToCameraSubject(params.slug);
   const category = slugToCameraCategory(params.category);
+  const subcategory = slugToCameraSubcategory(params.sub);
 
-  if (!brand || !category || !(CAMERA_BRAND_TAGS as readonly string[]).includes(brand) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!subject || !category || !subcategory || !(CAMERA_SUBJECT_TAGS as readonly string[]).includes(subject) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
-  const { total } = await searchCameraProducts({ category, brand, limit: 1 });
+  const { total } = await searchCameraProducts({ category, setupTag: subject, typeTag: subcategory, limit: 1 });
 
-  const title = `撮影機材紹介で人気の${brand} ${category}まとめ`;
-  const description = `${total}件の撮影機材紹介で実際に使用されている${brand}の${category}をコメント付きで紹介。`;
+  const title = `${subject}撮影向け撮影機材紹介で人気の${subcategory}まとめ`;
+  const description = `${total}件のカバンの中身・撮影機材紹介で${subject}撮影に愛用されている${subcategory}をコメント付きで紹介。セットアップ事例も掲載。`;
 
   return {
     title,
     description,
-    alternates: { canonical: `/camera/brand/${params.slug}/${params.category}` },
-    openGraph: { title, description, url: `/camera/brand/${params.slug}/${params.category}` },
+    alternates: { canonical: `/camera/subject/${params.slug}/${params.category}/${params.sub}` },
+    openGraph: { title, description, url: `/camera/subject/${params.slug}/${params.category}/${params.sub}` },
   };
 }
 
-export default async function BrandCategoryPage({ params, searchParams }: PageProps) {
-  const brand = slugToCameraBrand(params.slug);
+export default async function SubjectCategorySubPage({ params, searchParams }: PageProps) {
+  const subject = slugToCameraSubject(params.slug);
   const category = slugToCameraCategory(params.category);
+  const subcategory = slugToCameraSubcategory(params.sub);
 
-  if (!brand || !category || !(CAMERA_BRAND_TAGS as readonly string[]).includes(brand) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!subject || !category || !subcategory || !(CAMERA_SUBJECT_TAGS as readonly string[]).includes(subject) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
     notFound();
   }
 
-  const typeTagFilter = searchParams.type;
   const sort = searchParams.sort || "mention";
   const page = parseInt(searchParams.page || "1");
   const limit = 20;
 
   const { products, total } = await searchCameraProducts({
     category,
-    brand,
-    typeTag: typeTagFilter,
+    setupTag: subject,
+    typeTag: subcategory,
     sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
     page,
     limit,
@@ -98,18 +98,18 @@ export default async function BrandCategoryPage({ params, searchParams }: PagePr
       <PageHeaderSection
         domain="camera"
         label="Database Report"
-        title={`撮影機材紹介で人気の${brand} ${category}まとめ`}
+        title={`${subject}撮影向け撮影機材紹介で人気の${subcategory}まとめ`}
         description={
           <>
             {total}件の
             <Link href="/camera/sources" className="link">
               撮影機材紹介
             </Link>
-            で実際に使用されている{brand}の{category}をコメント付きで紹介。
+            で{subject}撮影に愛用されている{subcategory}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
           </>
         }
-        breadcrumbCurrent={category}
-        breadcrumbMiddle={{ label: brand, href: `/camera/brand/${params.slug}` }}
+        breadcrumbCurrent={subcategory}
+        breadcrumbMiddle={{ label: subject, href: `/camera/subject/${params.slug}` }}
       />
 
       <div className="detail-container">
@@ -118,8 +118,8 @@ export default async function BrandCategoryPage({ params, searchParams }: PagePr
             label="種類別に絞り込み"
             filterKey="type"
             tags={typeTags}
-            currentFilter={typeTagFilter}
-            basePath={`/camera/brand/${params.slug}/${params.category}`}
+            currentFilter={subcategory}
+            basePath={`/camera/subject/${params.slug}/${params.category}`}
             tagSlugMap={CAMERA_SUBCATEGORY_SLUG_MAP}
           />
         )}

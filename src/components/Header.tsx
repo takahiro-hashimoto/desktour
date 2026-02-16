@@ -45,9 +45,10 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  // パスに応じてナビゲーションを切り替え（/admin/camera も含む）
-  const isCamera = pathname.startsWith("/camera") || pathname.startsWith("/admin/camera");
+  // パスに応じてナビゲーションを切り替え
+  const isCamera = pathname.startsWith("/camera");
   const nav = isCamera ? CAMERA_NAV : DESKTOUR_NAV;
+  const isDev = process.env.NODE_ENV === "development";
 
   return (
     <header className="header-container">
@@ -66,9 +67,11 @@ export function Header() {
           <Link href="/contact" className="header-nav-link">
             お問い合わせ
           </Link>
-          <Link href={isCamera ? "/admin/camera" : "/admin"} className="header-nav-link header-nav-link-admin">
-            管理
-          </Link>
+          {isDev && (
+            <Link href="/admin" className="header-nav-link" style={{ color: "#f59e0b" }}>
+              管理画面
+            </Link>
+          )}
         </nav>
 
         {/* Mobile Hamburger Button */}
@@ -107,14 +110,17 @@ export function Header() {
               <i className="fa-solid fa-envelope"></i>
               お問い合わせ
             </Link>
-            <Link
-              href={isCamera ? "/admin/camera" : "/admin"}
-              className="header-nav-mobile-link header-nav-mobile-link-admin"
-              onClick={() => setMenuOpen(false)}
-            >
-              <i className="fa-solid fa-gear"></i>
-              管理
-            </Link>
+            {isDev && (
+              <Link
+                href="/admin"
+                className="header-nav-mobile-link"
+                onClick={() => setMenuOpen(false)}
+                style={{ color: "#f59e0b" }}
+              >
+                <i className="fa-solid fa-gear"></i>
+                管理画面
+              </Link>
+            )}
           </nav>
         </>
       )}

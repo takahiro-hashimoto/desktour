@@ -105,8 +105,8 @@ export async function matchProductWithAmazon(opts: {
         productBrand,
         searchResult.title
       );
-      // API検索は閾値を緩めに（30点）— 候補リストと違いキーワード検索済みのため
-      if (apiScore >= 30) {
+      // API検索は閾値を緩めに（40点）— 誤マッチ防止のため30→40に引き上げ
+      if (apiScore >= 40) {
         amazonInfo = searchResult;
         matchScore = apiScore;
         matchReason = `API Search (${apiReason})`;

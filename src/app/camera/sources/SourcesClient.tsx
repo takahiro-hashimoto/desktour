@@ -329,7 +329,7 @@ export function SourcesClient({
                 </span>
               </div>
               <div className="sources-article-body">
-                <h3 className="sources-article-title">
+                <h2 className="sources-article-title">
                   {!isVideo && item.url ? (
                     <a
                       href={item.url}
@@ -343,7 +343,7 @@ export function SourcesClient({
                   ) : (
                     item.title
                   )}
-                </h3>
+                </h2>
                 <div className="sources-article-meta">
                   {mediaName && <span className="author">{mediaName}</span>}
                   {occupationTag && (

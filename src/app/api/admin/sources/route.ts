@@ -146,19 +146,46 @@ export async function PUT(request: NextRequest) {
         }
       }
 
-      // 3e. 更新: 既存商品（idあり）→ メタデータ + reason更新
+      // 3e. 更新: 既存商品（idあり）→ 統合チェック + メタデータ + reason更新
       const existingProducts = products.filter((p) => p.id);
       for (const p of existingProducts) {
-        const productOk = await mutations.updateProductMetadata(domainId, p.id!, {
-          name: p.name, brand: p.brand, category: p.category, tags: p.tags,
-          asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
-          amazon_price: p.amazon_price, product_source: p.product_source,
+        // 統合チェック: 変更後の名前/ASINが別の既存商品と一致するか
+        const mergeTarget = await mutations.findExistingProductByAsinOrName(domainId, {
+          asin: p.asin,
+          name: p.name,
+          brand: p.brand || undefined,
+          excludeId: p.id!,
         });
-        if (!productOk) errors.push(`商品 ${p.name} の更新に失敗`);
 
-        if (p.reason !== undefined) {
-          const reasonOk = await mutations.updateMentionReason(domainId, p.id!, sourceType, sourceId, p.reason);
-          if (!reasonOk) errors.push(`商品 ${p.name} のコメント文更新に失敗`);
+        if (mergeTarget) {
+          // 既存商品が見つかった → mentionを付け替え
+          console.log(`[PUT sources] Merging product ${p.id} → ${mergeTarget.id} (${mergeTarget.name})`);
+          const reassignResult = await mutations.reassignMention(
+            domainId, p.id!, mergeTarget.id, sourceType, sourceId, p.reason
+          );
+          if (!reassignResult.success) {
+            errors.push(`商品 ${p.name} の統合に失敗: ${reassignResult.error}`);
+          }
+          // 付け替え先のAmazon情報も更新（新しい情報があれば）
+          if (p.asin) {
+            await mutations.updateProductMetadata(domainId, mergeTarget.id, {
+              asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
+              amazon_price: p.amazon_price, product_source: p.product_source,
+            });
+          }
+        } else {
+          // 一致する既存商品なし → 従来通りメタデータ更新
+          const productOk = await mutations.updateProductMetadata(domainId, p.id!, {
+            name: p.name, brand: p.brand, category: p.category, tags: p.tags,
+            asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
+            amazon_price: p.amazon_price, product_source: p.product_source,
+          });
+          if (!productOk) errors.push(`商品 ${p.name} の更新に失敗`);
+
+          if (p.reason !== undefined) {
+            const reasonOk = await mutations.updateMentionReason(domainId, p.id!, sourceType, sourceId, p.reason);
+            if (!reasonOk) errors.push(`商品 ${p.name} のコメント文更新に失敗`);
+          }
         }
       }
     }

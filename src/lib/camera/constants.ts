@@ -46,7 +46,7 @@ const CAMERA_CATEGORY_SLUG_MAP: Record<string, string> = {
 };
 
 // サブカテゴリ→英語スラッグのマッピング
-const CAMERA_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
+export const CAMERA_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   // カメラ
   "ミラーレス一眼": "mirrorless",
   "一眼レフ": "dslr",

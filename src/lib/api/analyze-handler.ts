@@ -266,18 +266,65 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
             });
           }
         } else if (product.confidence === "low") {
-          console.log(`  [Low Confidence] Skipping API search for "${product.name}" (confidence: low)`);
-          matchedProducts.push({
-            name: product.name,
-            brand: product.brand,
-            category: product.category,
-            subcategory: product.subcategory,
-            lensTags: product.lensTags,
-            bodyTags: product.bodyTags,
-            reason: product.reason,
-            confidence: product.confidence,
-            matchReason: "Low confidence (手動検索推奨)",
-          });
+          // Low confidenceでもDB既存チェック＋概要欄候補マッチは試行する（API検索のみスキップ）
+          console.log(`  [Low Confidence] "${product.name}" — DB/候補マッチのみ試行（API検索スキップ）`);
+
+          // DB既存商品チェック
+          const existingMatch = existingProductMap.get(product.name);
+          if (existingMatch && (existingMatch.asin || existingMatch.amazon_url)) {
+            console.log(`  ✓ DB existing match (low conf): "${product.name}" → ${existingMatch.asin || existingMatch.amazon_url}`);
+            if (existingMatch.asin) usedAsins.add(existingMatch.asin);
+            matchedProducts.push({
+              name: product.name,
+              brand: product.brand || existingMatch.brand || undefined,
+              category: product.category,
+              subcategory: product.subcategory,
+              lensTags: product.lensTags,
+              bodyTags: product.bodyTags,
+              reason: product.reason,
+              confidence: product.confidence,
+              tags: existingMatch.tags || undefined,
+              amazon: existingMatch.amazon_url ? {
+                asin: existingMatch.asin || "",
+                title: existingMatch.amazon_title || existingMatch.name,
+                url: existingMatch.amazon_url,
+                imageUrl: existingMatch.amazon_image_url || "",
+                price: existingMatch.amazon_price || undefined,
+              } : null,
+              source: (existingMatch.product_source as "amazon" | "rakuten") || undefined,
+              matchScore: 300,
+              matchReason: `DB existing (low conf): ${existingMatch.asin || existingMatch.amazon_url}`,
+              isExisting: true,
+            });
+          } else {
+            // 概要欄候補からのマッチのみ試行（API検索はスキップ）
+            const result = await matchProductWithAmazon({
+              productName: product.name,
+              productBrand: product.brand,
+              productCategory: product.category,
+              candidates,
+              usedAsins,
+              skipApiSearch: true, // API検索はスキップ
+            });
+
+            matchedProducts.push({
+              name: product.name,
+              brand: product.brand,
+              category: product.category,
+              subcategory: product.subcategory,
+              lensTags: product.lensTags,
+              bodyTags: product.bodyTags,
+              reason: product.reason,
+              confidence: product.confidence,
+              amazon: toAmazonField(result.amazonInfo),
+              source: result.amazonInfo?.source,
+              matchScore: result.matchScore,
+              matchReason: result.amazonInfo
+                ? `Candidate match (low conf): ${result.matchReason}`
+                : "Low confidence (手動検索推奨)",
+              productTags: result.productTags,
+            } as MatchedProduct);
+          }
         } else {
           // ★最優先: DB既存商品マッチ（過去に登録済みの商品を再利用）
           const existingMatch = existingProductMap.get(product.name);

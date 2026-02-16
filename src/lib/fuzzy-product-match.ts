@@ -114,11 +114,18 @@ export function fuzzyMatchProduct(
     reasons.push(`jaccard:${jaccard.toFixed(2)}`);
     reasons.push(`lev:${levenshtein.toFixed(2)}`);
 
-    if (score >= MATCH_THRESHOLD && (!bestResult || score > bestResult.score)) {
+    // ブランドが一致している場合は閾値を緩和（0.85 → 0.65）
+    // 例: brand="Apple" が一致していれば "Studio Display" vs "Apple Studio Display" でも許容
+    const brandMatched = inputBrandLower && candidate.brand &&
+      (inputBrandLower === candidate.brand.toLowerCase().trim() ||
+       getBrandAliases(inputBrandLower).includes(candidate.brand.toLowerCase().trim()));
+    const effectiveThreshold = brandMatched ? 0.65 : MATCH_THRESHOLD;
+
+    if (score >= effectiveThreshold && (!bestResult || score > bestResult.score)) {
       bestResult = {
         index: i,
         score,
-        matchReason: reasons.join(", "),
+        matchReason: reasons.join(", ") + (brandMatched ? ", brand-boost" : ""),
       };
     }
   }

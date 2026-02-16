@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
-import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl } from "@/lib/constants";
+import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -114,6 +114,8 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
             filterKey="type"
             tags={typeTags}
             currentFilter={typeTagFilter}
+            basePath={`/desktour/style/${params.slug}/${params.category}`}
+            tagSlugMap={DESKTOUR_SUBCATEGORY_SLUG_MAP}
           />
         )}
 

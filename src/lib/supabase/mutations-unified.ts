@@ -213,6 +213,41 @@ export async function saveProduct(
     }
   }
 
+  // 【優先2.7】brand + name 結合検索（name単体で不一致だった場合のフォールバック）
+  // 例: brand="Apple", name="Studio Display" → DB上の "Apple Studio Display" にマッチ
+  if (!existing && product.brand) {
+    const brandPlusNormalized = normalizeProductName(`${product.brand} ${product.name}`);
+
+    // パターンA: DB側が "BrandName ProductName" 形式で保存されている場合
+    const { data: byBrandName } = await supabase
+      .from(productsTable)
+      .select("*")
+      .eq("normalized_name", brandPlusNormalized)
+      .limit(1)
+      .maybeSingle();
+
+    if (byBrandName) {
+      existing = byBrandName;
+      console.log(`${logPrefix} Found existing by brand+name: "${byBrandName.name}" (brand: ${product.brand}, normalized: ${brandPlusNormalized})`);
+    }
+
+    // パターンB: brand一致かつnormalized_nameが部分一致する場合
+    if (!existing) {
+      const { data: byBrandPartial } = await supabase
+        .from(productsTable)
+        .select("*")
+        .ilike("brand", product.brand)
+        .ilike("normalized_name", `%${normalizedName}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (byBrandPartial) {
+        existing = byBrandPartial;
+        console.log(`${logPrefix} Found existing by brand+partial name: "${byBrandPartial.name}" (brand: ${product.brand})`);
+      }
+    }
+  }
+
   // --- ファジーマッチフォールバック ---
   if (!existing && product.category) {
     let sameCategoryProducts = fuzzyCategoryCache?.get(product.category);
@@ -1028,4 +1063,146 @@ export async function updateProductMetadata(
     return false;
   }
   return true;
+}
+
+/** ASIN or 名前+ブランドで既存商品を検索（自分自身を除外可） */
+export async function findExistingProductByAsinOrName(
+  domain: DomainId,
+  opts: { asin?: string; name?: string; brand?: string; excludeId?: string }
+): Promise<{ id: string; name: string; asin?: string } | null> {
+  const config = getDomainConfig(domain);
+  const logPrefix = `[findExistingProductByAsinOrName][${domain}]`;
+
+  // 1. ASINで検索
+  if (opts.asin) {
+    const { data } = await supabase
+      .from(config.tables.products)
+      .select("id, name, asin")
+      .eq("asin", opts.asin)
+      .limit(1)
+      .single();
+    if (data && data.id !== opts.excludeId) {
+      console.log(`${logPrefix} ASIN match: ${opts.asin} → ${data.name} (${data.id})`);
+      return data as { id: string; name: string; asin?: string };
+    }
+  }
+
+  // 2. normalized_name で検索
+  if (opts.name) {
+    const normalized = normalizeProductName(opts.name);
+    const { data } = await supabase
+      .from(config.tables.products)
+      .select("id, name, asin")
+      .eq("normalized_name", normalized)
+      .limit(1)
+      .single();
+    if (data && data.id !== opts.excludeId) {
+      console.log(`${logPrefix} Name match: "${opts.name}" → ${data.name} (${data.id})`);
+      return data as { id: string; name: string; asin?: string };
+    }
+
+    // 3. brand + name 結合で検索
+    if (opts.brand) {
+      const brandPlusName = normalizeProductName(`${opts.brand} ${opts.name}`);
+      const { data: data2 } = await supabase
+        .from(config.tables.products)
+        .select("id, name, asin")
+        .eq("normalized_name", brandPlusName)
+        .limit(1)
+        .single();
+      if (data2 && data2.id !== opts.excludeId) {
+        console.log(`${logPrefix} Brand+Name match: "${opts.brand} ${opts.name}" → ${data2.name} (${data2.id})`);
+        return data2 as { id: string; name: string; asin?: string };
+      }
+    }
+  }
+
+  return null;
+}
+
+/** mention付け替え（旧商品→新商品）+ 旧商品のorphan削除 */
+export async function reassignMention(
+  domain: DomainId,
+  oldProductId: string,
+  newProductId: string,
+  sourceType: "video" | "article",
+  sourceId: string,
+  reason?: string
+): Promise<{ success: boolean; orphanDeleted: boolean; error?: string }> {
+  const config = getDomainConfig(domain);
+  const mentionsTable = config.tables.product_mentions;
+  const logPrefix = `[reassignMention][${domain}]`;
+
+  try {
+    const mentionColumn = sourceType === "video" ? "video_id" : "article_id";
+
+    // 1. 付け替え先に既に同じmentionが存在するかチェック
+    const { data: existingTarget } = await supabase
+      .from(mentionsTable)
+      .select("id")
+      .eq("product_id", newProductId)
+      .eq(mentionColumn, sourceId)
+      .single();
+
+    if (existingTarget) {
+      // 付け替え先に既にmentionがある → 旧mentionを削除するだけ
+      console.log(`${logPrefix} Target already has mention, deleting old mention`);
+      const { error: delErr } = await supabase
+        .from(mentionsTable)
+        .delete()
+        .eq("product_id", oldProductId)
+        .eq(mentionColumn, sourceId);
+      if (delErr) {
+        console.error(`${logPrefix} Error deleting old mention:`, delErr);
+        return { success: false, orphanDeleted: false, error: "旧mentionの削除に失敗" };
+      }
+      // reason更新（付け替え先の既存mentionに）
+      if (reason !== undefined) {
+        await supabase
+          .from(mentionsTable)
+          .update({ reason })
+          .eq("product_id", newProductId)
+          .eq(mentionColumn, sourceId);
+      }
+    } else {
+      // 付け替え先にmentionがない → product_idを更新
+      const updateData: Record<string, unknown> = { product_id: newProductId };
+      if (reason !== undefined) updateData.reason = reason;
+
+      const { error: updateErr } = await supabase
+        .from(mentionsTable)
+        .update(updateData)
+        .eq("product_id", oldProductId)
+        .eq(mentionColumn, sourceId);
+      if (updateErr) {
+        console.error(`${logPrefix} Error reassigning mention:`, updateErr);
+        return { success: false, orphanDeleted: false, error: "mention付け替えに失敗" };
+      }
+    }
+
+    // 2. 旧商品のorphanチェック
+    const { count } = await supabase
+      .from(mentionsTable)
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", oldProductId);
+
+    let orphanDeleted = false;
+    if (count === 0) {
+      const { error: productDeleteError } = await supabase
+        .from(config.tables.products)
+        .delete()
+        .eq("id", oldProductId);
+      if (productDeleteError) {
+        console.error(`${logPrefix} Error deleting orphan product:`, productDeleteError);
+      } else {
+        orphanDeleted = true;
+      }
+    }
+
+    console.log(`${logPrefix} Reassigned mention: ${oldProductId} → ${newProductId}, orphanDeleted=${orphanDeleted}`);
+    return { success: true, orphanDeleted };
+  } catch (error) {
+    console.error(`${logPrefix} Error:`, error);
+    return { success: false, orphanDeleted: false, error: "付け替え中にエラーが発生しました" };
+  }
 }

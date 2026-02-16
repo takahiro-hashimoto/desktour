@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRevealOnScroll } from "@/hooks/useRevealOnScroll";
 
@@ -8,6 +9,10 @@ interface FilterSectionProps {
   filterKey: string; // クエリパラメータのキー名（例: "type"）
   tags: string[];
   currentFilter?: string;
+  /** パスベースURL用: ベースパス（例: "/desktour/brand/apple/keyboard"） */
+  basePath?: string;
+  /** パスベースURL用: タグ名→スラッグのマップ（例: { "メカニカルキーボード": "mechanical" }） */
+  tagSlugMap?: Record<string, string>;
 }
 
 export function FilterSection({
@@ -15,10 +20,15 @@ export function FilterSection({
   filterKey,
   tags,
   currentFilter,
+  basePath,
+  tagSlugMap,
 }: FilterSectionProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionRef = useRevealOnScroll<HTMLDivElement>();
+
+  // パスベースモード: basePath と tagSlugMap が渡されている場合
+  const isPathMode = !!(basePath && tagSlugMap);
 
   const handleFilterChange = (tag: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -29,11 +39,16 @@ export function FilterSection({
       params.set(filterKey, tag);
     }
 
-    // ページパラメータもリセット
     params.delete("page");
 
     const query = params.toString();
     router.push(query ? `?${query}` : window.location.pathname, { scroll: false });
+  };
+
+  const getTagHref = (tag: string): string => {
+    if (!basePath || !tagSlugMap) return "#";
+    const slug = tagSlugMap[tag];
+    return slug ? `${basePath}/${slug}` : basePath;
   };
 
   return (
@@ -44,21 +59,43 @@ export function FilterSection({
           {label}
         </div>
         <div className="detail-filter-tags">
-          <button
-            className={`detail-filter-tag ${!currentFilter ? "active" : ""}`}
-            onClick={() => handleFilterChange("すべて")}
-          >
-            すべて
-          </button>
-          {tags.map((tag) => (
-            <button
-              key={tag}
-              className={`detail-filter-tag ${currentFilter === tag ? "active" : ""}`}
-              onClick={() => handleFilterChange(tag)}
-            >
-              {tag}
-            </button>
-          ))}
+          {isPathMode ? (
+            <>
+              <Link
+                href={basePath!}
+                className={`detail-filter-tag ${!currentFilter ? "active" : ""}`}
+              >
+                すべて
+              </Link>
+              {tags.map((tag) => (
+                <Link
+                  key={tag}
+                  href={getTagHref(tag)}
+                  className={`detail-filter-tag ${currentFilter === tag ? "active" : ""}`}
+                >
+                  {tag}
+                </Link>
+              ))}
+            </>
+          ) : (
+            <>
+              <button
+                className={`detail-filter-tag ${!currentFilter ? "active" : ""}`}
+                onClick={() => handleFilterChange("すべて")}
+              >
+                すべて
+              </button>
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  className={`detail-filter-tag ${currentFilter === tag ? "active" : ""}`}
+                  onClick={() => handleFilterChange(tag)}
+                >
+                  {tag}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </div>

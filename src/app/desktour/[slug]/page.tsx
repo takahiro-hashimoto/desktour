@@ -281,6 +281,12 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
     name: product.name,
   });
 
+  // 公式サイトURLかどうか判定（Amazon/楽天以外のURL）
+  const isOfficialSite = product.amazon_url
+    && !product.amazon_url.includes("amazon.co.jp")
+    && !product.amazon_url.includes("amazon.com")
+    && !product.amazon_url.includes("rakuten.co.jp");
+
   const lastUpdated = product.updated_at || new Date().toISOString();
 
   const breadcrumbData = generateBreadcrumbStructuredData([
@@ -327,7 +333,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
           </div>
 
           <div className="product-hero">
-            <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="product-image">
+            <a href={isOfficialSite ? product.amazon_url! : amazonUrl} target="_blank" rel={isOfficialSite ? "noopener noreferrer" : "noopener noreferrer sponsored"} className="product-image">
               {product.amazon_image_url ? (
                 <img src={product.amazon_image_url} alt={product.name} width={400} height={400} />
               ) : (
@@ -378,12 +384,20 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
               </div>
 
               <div className="product-actions">
-                <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="action-btn">
-                  <span className="icon-amazon">A</span>Amazonで見る
-                </a>
-                <a href={rakutenUrl} target="_blank" rel="noopener noreferrer sponsored" className="action-btn">
-                  <span className="icon-rakuten">R</span>楽天で見る
-                </a>
+                {isOfficialSite ? (
+                  <a href={product.amazon_url!} target="_blank" rel="noopener noreferrer" className="action-btn">
+                    <i className="fa-solid fa-globe" style={{ marginRight: 6 }}></i>公式サイトで見る
+                  </a>
+                ) : (
+                  <>
+                    <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="action-btn">
+                      <span className="icon-amazon">A</span>Amazonで見る
+                    </a>
+                    <a href={rakutenUrl} target="_blank" rel="noopener noreferrer sponsored" className="action-btn">
+                      <span className="icon-rakuten">R</span>楽天で見る
+                    </a>
+                  </>
+                )}
               </div>
               <span className="pr-note">（本ページにはPRを含みます）</span>
             </div>
@@ -588,14 +602,22 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
 
         <div className="purchase-section product-reveal">
           <div className="purchase-card">
-            <div className="purchase-title">販売・在庫状況</div>
+            <div className="purchase-title">{isOfficialSite ? "公式サイト" : "販売・在庫状況"}</div>
             <div className="purchase-buttons">
-              <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="purchase-btn amazon">
-                <span className="icon-dot am">A</span>Amazonで現在の価格を見る
-              </a>
-              <a href={rakutenUrl} target="_blank" rel="noopener noreferrer sponsored" className="purchase-btn rakuten">
-                <span className="icon-dot rk">R</span>楽天で在庫を確認する
-              </a>
+              {isOfficialSite ? (
+                <a href={product.amazon_url!} target="_blank" rel="noopener noreferrer" className="purchase-btn amazon">
+                  <i className="fa-solid fa-globe" style={{ marginRight: 8 }}></i>公式サイトで詳細を見る
+                </a>
+              ) : (
+                <>
+                  <a href={amazonUrl} target="_blank" rel="noopener noreferrer sponsored" className="purchase-btn amazon">
+                    <span className="icon-dot am">A</span>Amazonで現在の価格を見る
+                  </a>
+                  <a href={rakutenUrl} target="_blank" rel="noopener noreferrer sponsored" className="purchase-btn rakuten">
+                    <span className="icon-dot rk">R</span>楽天で在庫を確認する
+                  </a>
+                </>
+              )}
             </div>
           </div>
         </div>

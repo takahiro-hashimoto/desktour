@@ -97,7 +97,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
 export const TAG_GROUP_STYLE = [
   "ミニマル",
   "ゲーミング",
-  "ナチュラル・北欧",
+  "ナチュラル",
   "インダストリアル",
   "かわいい",
   "モノトーン",
@@ -135,6 +135,8 @@ export const TAG_GROUP_FEATURES = [
   "自作PC",
   "iPad連携",
   "DIY",
+  "壁付型",
+  "アイランド型",
 ] as const;
 
 // --- 排他グループ一覧（バリデーション用） ---
@@ -172,7 +174,7 @@ export const DESK_SETUP_TAGS = [
 const STYLE_SLUG_MAP: Record<string, string> = {
   "ミニマル": "minimal",
   "ゲーミング": "gaming",
-  "ナチュラル・北欧": "natural-nordic",
+  "ナチュラル": "natural",
   "インダストリアル": "industrial",
   "かわいい": "cute",
   "モノトーン": "monotone",
@@ -286,7 +288,7 @@ export function productUrl(product: { slug?: string; id: string }): string {
 // デスクツアー サブカテゴリ（種類タグ → パスベース）
 // ============================================================
 
-const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
+export const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   // キーボード
   "メカニカルキーボード": "mechanical",
   "静電容量無接点": "capacitive",
@@ -294,8 +296,6 @@ const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "60%・65%": "60-65",
   "テンキーレス": "tenkeyless",
   "フルサイズ": "fullsize",
-  "分割キーボード": "split",
-  "ロープロファイル": "low-profile",
   // マウス
   "トラックボール": "trackball",
   "縦型マウス": "vertical",
@@ -304,30 +304,18 @@ const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "4K": "4k",
   "フルHD": "full-hd",
   "ウルトラワイド": "ultrawide",
-  // モバイルモニター
-  "13インチモバイルモニター": "13-inch",
-  "15インチモバイルモニター": "15-inch",
-  "タッチ対応モバイルモニター": "touch",
   // ヘッドホン・イヤホン
   "イヤホン": "earphone",
   "ヘッドホン": "headphone",
-  "開放型": "open-back",
-  "密閉型": "closed-back",
-  "モニター用": "monitor-headphone",
-  "ゲーミング": "gaming-headset",
   // チェア
   "ゲーミングチェア": "gaming-chair",
   "メッシュチェア": "mesh-chair",
   "バランスチェア": "balance-chair",
-  // デスク
-  "昇降デスク": "standing",
-  "L字デスク": "l-shaped",
+  "クッションチェア": "cushion-chair",
   // マイク
   "コンデンサーマイク": "condenser",
   "ダイナミックマイク": "dynamic",
   "ピンマイク": "lavalier",
-  "USB": "usb-mic",
-  "XLR": "xlr",
   // スピーカー
   "ブックシェルフ型": "bookshelf",
   "サウンドバー": "soundbar",
@@ -337,50 +325,11 @@ const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "LEDテープ": "led-strip",
   "間接照明": "indirect",
   "デスクライト": "desk-lamp",
-  // ウェブカメラ（4K/フルHDはモニターと被るのでwebcam接頭辞）
   // PC本体
   "自作PC": "custom-build",
   "ミニPC": "mini-pc",
   "ノートPC": "laptop",
   "デスクトップPC": "desktop-pc",
-  "Mac": "mac",
-  "Windows": "windows",
-  // HDD・SSD
-  "外付けSSD": "external-ssd",
-  "外付けHDD": "external-hdd",
-  "内蔵SSD": "internal-ssd",
-  "内蔵HDD": "internal-hdd",
-  // コントローラー
-  "レーシングホイール": "racing-wheel",
-  "アーケードスティック": "arcade-stick",
-  // キャプチャーボード
-  "外付け": "external",
-  "内蔵": "internal",
-  // NAS
-  "2ベイ": "2-bay",
-  "4ベイ": "4-bay",
-  // マイクアーム
-  "ロープロファイルマイクアーム": "low-profile-arm",
-  "クランプ式マイクアーム": "clamp-arm",
-  "デスクマウント型マイクアーム": "desk-mount-arm",
-  // 充電器・電源タップ
-  "ワイヤレス充電器": "wireless-charger",
-  "ポータブル電源": "portable-power",
-  "電源タップ": "power-strip",
-  "USB充電器": "usb-charger",
-  // 配線整理グッズ
-  "ケーブルトレイ": "cable-tray",
-  "ケーブルクリップ": "cable-clip",
-  "ケーブルチューブ": "cable-tube",
-  "ケーブルボックス": "cable-box",
-  "マジックテープ": "velcro",
-  "ケーブルホルダー": "cable-holder",
-  // モニターアーム
-  "デュアルアーム": "dual-arm",
-  "シングルアーム": "single-arm",
-  // ペンタブ
-  "液タブ": "pen-display",
-  "板タブ": "pen-tablet",
 };
 
 const _subcategoryConverter = createSlugConverter(DESKTOUR_SUBCATEGORY_SLUG_MAP);

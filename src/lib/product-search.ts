@@ -13,8 +13,8 @@ const creatorsVersion = process.env.AMAZON_CREATORS_VERSION || "2.3";
 const rakutenAppId = process.env.RAKUTEN_APP_ID!;
 const rakutenAffiliateId = process.env.RAKUTEN_AFFILIATE_ID;
 
-// スコア閾値（引き上げ: 0.5 → 0.6）
-const SCORE_THRESHOLD = 0.6;
+// スコア閾値（0.5に調整 — 日本語商品名・文字起こしからの検索に対応）
+const SCORE_THRESHOLD = 0.5;
 
 // ========================================
 // 型定義

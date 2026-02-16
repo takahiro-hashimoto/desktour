@@ -19,8 +19,15 @@ export default function AdminLayout({
           <Link href="/admin" className="hover:text-blue-300 transition-colors">
             デスクツアー
           </Link>
+          <Link href="/admin/products" className="hover:text-blue-300 transition-colors text-gray-400">
+            商品管理
+          </Link>
+          <span className="text-gray-600">|</span>
           <Link href="/admin/camera" className="hover:text-blue-300 transition-colors">
             撮影機材
+          </Link>
+          <Link href="/admin/camera/products" className="hover:text-blue-300 transition-colors text-gray-400">
+            商品管理
           </Link>
         </div>
       </nav>

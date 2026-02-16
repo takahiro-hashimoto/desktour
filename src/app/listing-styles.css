@@ -32,13 +32,16 @@
   overflow: hidden;
 }
 
-/* Subtle pattern overlay */
+/* Wave pattern overlay */
 .listing-page-header::before {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background-image: url(/images/header-wave.png);
+  background-repeat: no-repeat;
+  background-position: center;
+  /* background-size: 120%; */
+  opacity: 0.05;
   pointer-events: none;
 }
 
@@ -178,6 +181,10 @@
 
   .listing-page-desc {
     margin: 0;
+  }
+
+  .listing-page-header::before {
+    display: none;
   }
 }
 

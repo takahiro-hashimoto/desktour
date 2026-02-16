@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl } from "@/lib/camera/constants";
+import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP } from "@/lib/camera/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -119,6 +119,8 @@ export default async function SubjectCategoryPage({ params, searchParams }: Page
             filterKey="type"
             tags={typeTags}
             currentFilter={typeTagFilter}
+            basePath={`/camera/subject/${params.slug}/${params.category}`}
+            tagSlugMap={CAMERA_SUBCATEGORY_SLUG_MAP}
           />
         )}
 

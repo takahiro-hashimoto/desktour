@@ -98,19 +98,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
         },
       ],
     },
-    {
-      axis: "形状",
-      tags: [
-        {
-          name: "分割キーボード",
-          detect: [{ keywords: ["split", "分割", "ergodox", "kinesis"] }],
-        },
-        {
-          name: "ロープロファイル",
-          detect: [{ keywords: ["ロープロファイル", "low profile", "ultra slim"] }],
-        },
-      ],
-    },
   ],
 
   // ======== マウス ========
@@ -128,7 +115,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
           detect: [{ keywords: ["vertical", "縦型", "mx vertical"] }],
           amazonDetect: [{ keywords: ["縦型", "vertical"] }],
         },
-        // 「通常マウス」はデフォルト（トラックボール/縦型に該当しなければ通常）
       ],
     },
   ],
@@ -168,23 +154,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
     },
   ],
 
-  // ======== モバイルモニター ========
-  "モバイルモニター": [
-    {
-      axis: "サイズ",
-      tags: [
-        { name: "13インチモバイルモニター", detect: [{ keywords: ["13インチ", "13.3インチ", "13\"", "13.3\""] }] },
-        { name: "15インチモバイルモニター", detect: [{ keywords: ["15インチ", "15.6インチ", "15\"", "15.6\""] }] },
-      ],
-    },
-    {
-      axis: "機能",
-      tags: [
-        { name: "タッチ対応モバイルモニター", detect: [{ keywords: ["タッチ", "touch", "タッチパネル"] }] },
-      ],
-    },
-  ],
-
   // ======== ヘッドホン・イヤホン ========
   "ヘッドホン・イヤホン": [
     {
@@ -192,38 +161,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
       tags: [
         { name: "イヤホン", detect: [{ keywords: ["イヤホン", "earphone", "earbuds", "airpods", "tws", "in-ear"] }] },
         { name: "ヘッドホン", detect: [{ keywords: ["ヘッドホン", "headphone", "headset", "over-ear", "on-ear"] }] },
-      ],
-    },
-    {
-      axis: "ハウジング",
-      tags: [
-        {
-          name: "開放型",
-          detect: [
-            { allOf: ["open", "back"] },
-            { keywords: ["開放型", "音漏れ", "open-back"] },
-          ],
-        },
-        {
-          name: "密閉型",
-          detect: [
-            { allOf: ["closed", "back"] },
-            { keywords: ["密閉型", "遮音", "closed-back"] },
-          ],
-        },
-      ],
-    },
-    {
-      axis: "用途",
-      tags: [
-        { name: "モニター用", detect: [{ keywords: ["モニターヘッドホン", "dtm", "音楽制作", "studio monitor", "スタジオ"] }] },
-        {
-          name: "ゲーミング",
-          detect: [
-            { keywords: ["gaming headset", "ゲーミングヘッドセット", "7.1ch"] },
-            { allOf: ["マイク付き", "gaming"] },
-          ],
-        },
       ],
     },
   ],
@@ -247,32 +184,10 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
           name: "バランスチェア",
           detect: [{ keywords: ["balance", "バランスチェア", "姿勢"] }],
         },
-      ],
-    },
-  ],
-
-  // ======== デスク ========
-  "デスク": [
-    {
-      axis: "機構",
-      tags: [
         {
-          name: "昇降デスク",
-          detect: [{ keywords: ["昇降", "standing", "電動", "height adjustable", "スタンディング"] }],
-          amazonDetect: [{ keywords: ["昇降", "standing", "height adjustable"] }],
+          name: "クッションチェア",
+          detect: [{ keywords: ["クッションチェア", "クッション", "座椅子", "cushion chair"] }],
         },
-        // 「固定デスク」はデフォルト
-      ],
-    },
-    {
-      axis: "形状",
-      tags: [
-        {
-          name: "L字デスク",
-          detect: [{ keywords: ["l字", "l型", "l-shaped", "コーナー"] }],
-          amazonDetect: [{ keywords: ["l字", "l型", "l-shaped"] }],
-        },
-        // 「ストレートデスク」はデフォルト
       ],
     },
   ],
@@ -295,20 +210,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
         {
           name: "ピンマイク",
           detect: [{ keywords: ["lavalier", "ピンマイク", "ラベリア", "襟元"] }],
-        },
-      ],
-    },
-    {
-      axis: "接続",
-      tags: [
-        {
-          name: "USB",
-          detect: [{ keywords: ["usb mic", "usbマイク", "blue yeti", "fifine", "usb接続"] }],
-          amazonDetect: [{ keywords: ["usb"] }],
-        },
-        {
-          name: "XLR",
-          detect: [{ keywords: ["xlr", "ファンタム電源", "phantom power"] }],
         },
       ],
     },
@@ -347,17 +248,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
     },
   ],
 
-  // ======== ウェブカメラ ========
-  "ウェブカメラ": [
-    {
-      axis: "解像度",
-      tags: [
-        { name: "4K", detect: [{ keywords: ["4k", "3840"] }] },
-        { name: "フルHD", detect: [{ keywords: ["1080p", "full hd", "フルhd"] }] },
-      ],
-    },
-  ],
-
   // ======== PC本体 ========
   "PC本体": [
     {
@@ -369,138 +259,6 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
         { name: "デスクトップPC", detect: [{ keywords: ["desktop", "デスクトップpc", "タワー型", "imac", "mac studio", "mac pro"] }] },
       ],
     },
-    {
-      axis: "OS",
-      tags: [
-        { name: "Mac", detect: [{ keywords: ["mac", "macbook", "imac", "mac studio", "mac pro", "macos"] }] },
-        { name: "Windows", detect: [{ keywords: ["windows"] }] },
-      ],
-    },
-  ],
-
-  // ======== HDD・SSD ========
-  "HDD・SSD": [
-    {
-      axis: "形態",
-      tags: [
-        { name: "外付けSSD", detect: [{ keywords: ["外付けssd", "external ssd", "portable ssd"] }] },
-        { name: "外付けHDD", detect: [{ keywords: ["外付けhdd", "external hdd", "portable hdd"] }] },
-        { name: "内蔵SSD", detect: [{ keywords: ["内蔵ssd", "internal ssd", "m.2", "nvme"] }] },
-        { name: "内蔵HDD", detect: [{ keywords: ["内蔵hdd", "internal hdd"] }] },
-      ],
-    },
-  ],
-
-  // ======== コントローラー ========
-  "コントローラー": [
-    {
-      axis: "種類",
-      tags: [
-        { name: "レーシングホイール", detect: [{ keywords: ["racing wheel", "レーシングホイール", "ハンドル"] }] },
-        { name: "アーケードスティック", detect: [{ keywords: ["arcade stick", "アーケードスティック", "fight stick"] }] },
-        // 「ゲームパッド」はデフォルト
-      ],
-    },
-  ],
-
-  // ======== キャプチャーボード ========
-  "キャプチャーボード": [
-    {
-      axis: "形態",
-      tags: [
-        { name: "外付け", detect: [{ keywords: ["外付け", "external", "usb"] }] },
-        { name: "内蔵", detect: [{ keywords: ["内蔵", "internal", "pcie"] }] },
-      ],
-    },
-  ],
-
-  // ======== NAS ========
-  "NAS": [
-    {
-      axis: "ベイ数",
-      tags: [
-        { name: "2ベイ", detect: [{ keywords: ["2bay", "2ベイ", "2台"] }] },
-        { name: "4ベイ", detect: [{ keywords: ["4bay", "4ベイ", "4台"] }] },
-      ],
-    },
-  ],
-
-  // ======== マイクアーム ========
-  "マイクアーム": [
-    {
-      axis: "種類",
-      tags: [
-        { name: "ロープロファイルマイクアーム", detect: [{ keywords: ["ロープロファイル", "low profile"] }] },
-        { name: "クランプ式マイクアーム", detect: [{ keywords: ["クランプ", "clamp"] }] },
-        { name: "デスクマウント型マイクアーム", detect: [{ keywords: ["デスクマウント", "desk mount", "boom arm", "ブームアーム"] }] },
-      ],
-    },
-  ],
-
-  // ======== 充電器・電源タップ ========
-  "充電器・電源タップ": [
-    {
-      axis: "種類",
-      tags: [
-        { name: "ワイヤレス充電器", detect: [{ keywords: ["wireless charger", "ワイヤレス充電", "qi", "magsafe"] }] },
-        { name: "ポータブル電源", detect: [{ keywords: ["ポータブル電源", "portable power"] }] },
-        { name: "電源タップ", detect: [{ keywords: ["電源タップ", "power strip", "延長コード"] }] },
-        { name: "USB充電器", detect: [{ keywords: ["usb充電器", "usb charger", "急速充電", "gan"] }] },
-      ],
-    },
-  ],
-
-  // ======== 配線整理グッズ ========
-  "配線整理グッズ": [
-    {
-      axis: "種類",
-      tags: [
-        { name: "ケーブルトレイ", detect: [{ keywords: ["ケーブルトレイ", "cable tray"] }] },
-        { name: "ケーブルクリップ", detect: [{ keywords: ["ケーブルクリップ", "cable clip"] }] },
-        { name: "ケーブルチューブ", detect: [{ keywords: ["ケーブルチューブ", "cable sleeve", "スリーブ"] }] },
-        { name: "ケーブルボックス", detect: [{ keywords: ["ケーブルボックス", "cable box"] }] },
-        { name: "マジックテープ", detect: [{ keywords: ["マジックテープ", "velcro", "面ファスナー"] }] },
-        { name: "ケーブルホルダー", detect: [{ keywords: ["ケーブルホルダー", "cable holder", "ケーブルクリ"] }] },
-      ],
-    },
-  ],
-
-  // ======== モニターアーム ========
-  "モニターアーム": [
-    {
-      axis: "構成",
-      tags: [
-        {
-          name: "デュアルアーム",
-          detect: [{ keywords: ["dual", "デュアル", "2画面", "ダブル"] }],
-          amazonDetect: [{ keywords: ["デュアル", "dual", "2画面"] }],
-        },
-        {
-          name: "シングルアーム",
-          detect: [{ keywords: ["single", "シングル", "1画面"] }],
-          amazonDetect: [{ keywords: ["シングル", "single"] }],
-        },
-      ],
-    },
-  ],
-
-  // ======== ペンタブ ========
-  "ペンタブ": [
-    {
-      axis: "種類",
-      tags: [
-        {
-          name: "液タブ",
-          detect: [{ keywords: ["液タブ", "液晶タブレット", "cintiq", "kamvas", "pen display"] }],
-          amazonDetect: [{ keywords: ["液タブ", "液晶タブレット", "pen display"] }],
-        },
-        {
-          name: "板タブ",
-          detect: [{ keywords: ["板タブ", "ペンタブレット", "intuos", "pen tablet"] }],
-          amazonDetect: [{ keywords: ["板タブ", "ペンタブレット", "pen tablet"] }],
-        },
-      ],
-    },
   ],
 };
 
@@ -510,22 +268,7 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
 
 /** カテゴリ固有の特徴タグ */
 export const CATEGORY_FEATURE_TAG_DEFS: Record<string, FeatureTagDef[]> = {
-  "キーボード": [
-    { name: "ホットスワップ", detect: [{ type: "keywords", keywords: ["hot swap", "ホットスワップ"] }] },
-    { name: "日本語配列", detect: [{ type: "keywords", keywords: ["日本語配列", "jis"] }] },
-    { name: "英語配列", detect: [{ type: "keywords", keywords: ["英語配列", "us layout", "ansi"] }] },
-    { name: "Mac配列", detect: [{ type: "allOf", keywords: ["mac", "配列"] }] },
-  ],
-  "マウス": [
-    { name: "多ボタン", detect: [{ type: "keywords", keywords: ["多ボタン", "multi button", "programmable"] }] },
-    { name: "超軽量", detect: [{ type: "numeric", field: "重量", op: "<", value: 80 }] },
-  ],
   "ディスプレイ・モニター": [
-    { name: "IPS", detect: [{ type: "keywords", keywords: ["ips", "ipsパネル"] }] },
-    { name: "VA", detect: [{ type: "keywords", keywords: ["va", "vaパネル"] }] },
-    { name: "湾曲", detect: [{ type: "keywords", keywords: ["湾曲", "curved", "曲面"] }] },
-    { name: "HDR", detect: [{ type: "keywords", keywords: ["hdr"] }] },
-    { name: "USB-C", detect: [{ type: "keywords", keywords: ["usb-c", "type-c"] }] },
     {
       name: "24インチ以下",
       detect: [{
@@ -535,27 +278,9 @@ export const CATEGORY_FEATURE_TAG_DEFS: Record<string, FeatureTagDef[]> = {
         ranges: [{ max: 24, tag: "24インチ以下" }, { max: 27, tag: "27インチ" }, { max: 32, tag: "32インチ" }, { max: Infinity, tag: "34インチ以上" }],
       }],
     },
-    { name: "27インチ", detect: [] }, // regexRange で自動判定されるのでここでは detect 空
+    { name: "27インチ", detect: [] },
     { name: "32インチ", detect: [] },
     { name: "34インチ以上", detect: [] },
-  ],
-  "チェア": [
-    { name: "リクライニング", detect: [{ type: "keywords", keywords: ["リクライニング"] }] },
-    { name: "ハイバック", detect: [{ type: "keywords", keywords: ["ハイバック"] }] },
-    { name: "アームレスト付き", detect: [{ type: "keywords", keywords: ["アームレスト", "肘掛け"] }] },
-  ],
-  "デスク": [
-    { name: "電動", detect: [{ type: "keywords", keywords: ["電動", "electric"] }] },
-    { name: "手動", detect: [{ type: "keywords", keywords: ["手動"] }] },
-    { name: "天板のみ", detect: [{ type: "keywords", keywords: ["天板のみ", "天板単品"] }] },
-    { name: "脚のみ", detect: [{ type: "keywords", keywords: ["脚のみ", "脚単品", "フレームのみ"] }] },
-    { name: "木目天板", detect: [{ type: "keywords", keywords: ["木目", "ウッド", "wood", "木製"] }] },
-    { name: "黒天板", detect: [{ type: "keywords", keywords: ["黒天板"] }, { type: "allOf", keywords: ["黒", "天板"] }] },
-    { name: "白天板", detect: [{ type: "keywords", keywords: ["白天板"] }, { type: "allOf", keywords: ["白", "天板"] }] },
-    { name: "120cm", detect: [{ type: "keywords", keywords: ["120cm", "120 cm", "幅120"] }] },
-    { name: "140cm", detect: [{ type: "keywords", keywords: ["140cm", "140 cm", "幅140"] }] },
-    { name: "160cm", detect: [{ type: "keywords", keywords: ["160cm", "160 cm", "幅160"] }] },
-    { name: "180cm", detect: [{ type: "keywords", keywords: ["180cm", "180 cm", "幅180"] }] },
   ],
 };
 

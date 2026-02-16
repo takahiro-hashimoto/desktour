@@ -14,6 +14,10 @@ const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
+  robots: {
+    index: false,
+    follow: false,
+  },
   title: {
     default: "Creator Clip - デスクツアー・撮影機材データベース",
     template: "%s | Creator Clip",

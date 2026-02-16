@@ -120,6 +120,56 @@ export async function findExistingProducts(
     }
   }
 
+  // --- brand+name 結合検索（name単体で不一致だった商品のフォールバック） ---
+  // 例: brand="Apple", name="Studio Display" → "Apple Studio Display" で再検索
+  if (unmatchedNames.length > 0 && productMeta) {
+    for (const item of unmatchedNames) {
+      if (result.has(item.original)) continue;
+      if (!item.brand) continue;
+
+      const brandPlusName = normalizeProductName(`${item.brand} ${item.original}`);
+      const brandPlusNameLower = brandPlusName.toLowerCase();
+
+      // DB側のnormalized_nameが "Brand ProductName" 形式の場合にヒット
+      const matchByBrandName = normalizedToProduct.get(brandPlusNameLower);
+      if (matchByBrandName) {
+        console.log(`[findExistingProducts] Brand+name match: "${item.original}" (brand: ${item.brand}) → "${matchByBrandName.name}"`);
+        result.set(item.original, matchByBrandName);
+        continue;
+      }
+
+      // 逆パターン: DB側がname単体で、入力がbrand+name結合の場合にも対応
+      // → normalized_name に brand+name で追加クエリ
+      const { data: brandNameMatch } = await supabase
+        .from(table)
+        .select("id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags")
+        .eq("normalized_name", brandPlusName)
+        .limit(1)
+        .maybeSingle();
+
+      if (brandNameMatch) {
+        console.log(`[findExistingProducts] Brand+name DB match: "${item.original}" (brand: ${item.brand}) → "${brandNameMatch.name}"`);
+        result.set(item.original, brandNameMatch as ExistingProductMatch);
+        continue;
+      }
+
+      // DB側が "Apple Studio Display" で入力が "Studio Display" (brand=Apple) の場合
+      // → brand + normalized_name で検索
+      const { data: brandAndNameMatch } = await supabase
+        .from(table)
+        .select("id, name, normalized_name, brand, category, asin, amazon_url, amazon_image_url, amazon_title, amazon_price, amazon_brand, product_source, tags")
+        .ilike("brand", item.brand)
+        .ilike("normalized_name", `%${item.normalized}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (brandAndNameMatch) {
+        console.log(`[findExistingProducts] Brand+partial name match: "${item.original}" (brand: ${item.brand}) → "${brandAndNameMatch.name}"`);
+        result.set(item.original, brandAndNameMatch as ExistingProductMatch);
+      }
+    }
+  }
+
   // --- ファジーマッチフォールバック ---
   if (unmatchedNames.length > 0 && productMeta) {
     // カテゴリごとにグループ化
