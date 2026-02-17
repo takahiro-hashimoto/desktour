@@ -140,7 +140,7 @@ export default async function CategoryIndexPage() {
               <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
                 {category}の人気ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件の撮影機材紹介に登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
               </p>
-              <ProductGrid products={products} domain="camera" />
+              <ProductGrid products={products} domain="camera" headingLevel="h3" />
             </div>
           ))
         )}

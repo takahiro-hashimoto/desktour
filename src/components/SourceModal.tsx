@@ -109,6 +109,15 @@ export function SourceModal({
             <span className="font-medium text-gray-700">
               {sourceType === "video" ? "動画" : "記事"}の詳細
             </span>
+            {typeof window !== "undefined" && window.location.hostname === "localhost" && (
+              <a
+                href={`${domain === "camera" ? "/admin/camera" : "/admin"}?source=${sourceType}&id=${encodeURIComponent(sourceId)}`}
+                className="text-xs px-2 py-1 bg-amber-100 text-amber-700 border border-amber-300 rounded hover:bg-amber-200 transition-colors"
+                onClick={onClose}
+              >
+                管理画面で編集
+              </a>
+            )}
           </div>
           <button
             onClick={onClose}

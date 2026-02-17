@@ -248,6 +248,18 @@ export default function CameraAdminPage() {
 
   // サジェストは「DB登録リストを表示」ボタンで手動取得（自動取得しない）
 
+  // URLパラメータからソース詳細を自動読み込み（管理画面で編集リンクからの遷移時）
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sourceParam = params.get("source");
+    const idParam = params.get("id");
+    if (sourceParam && idParam && (sourceParam === "video" || sourceParam === "article")) {
+      loadSourceDetail(sourceParam, idParam);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // プレビュー結果が設定されたらタグを初期化
   useEffect(() => {
     if (previewResult) {

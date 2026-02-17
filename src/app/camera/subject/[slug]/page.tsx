@@ -155,7 +155,7 @@ export default async function SubjectDetailPage({ params }: PageProps) {
                 </Link>
               )}
             </div>
-            <ProductGrid products={products} domain="camera" />
+            <ProductGrid products={products} domain="camera" headingLevel="h3" />
           </div>
           ))
         )}

@@ -10,6 +10,7 @@ import { cameraProductUrl } from "@/lib/camera/constants";
 interface ProductGridProps {
   products: DisplayProduct[];
   domain?: "desktour" | "camera";
+  headingLevel?: "h2" | "h3";
 }
 
 const isAmazonUrl = (url: string) =>
@@ -23,7 +24,8 @@ function getLinkInfo(url: string): { label: string; className: string; rel: stri
   return { label: "公式サイトで見る", className: "official", rel: "noopener noreferrer" };
 }
 
-export function ProductGrid({ products, domain = "desktour" }: ProductGridProps) {
+export function ProductGrid({ products, domain = "desktour", headingLevel = "h2" }: ProductGridProps) {
+  const Heading = headingLevel;
   const gridRef = useRevealOnScroll<HTMLDivElement>();
 
   const getRankBadgeClass = (rank?: number) => {
@@ -61,7 +63,7 @@ export function ProductGrid({ products, domain = "desktour" }: ProductGridProps)
             <div className="detail-product-brand">
               {product.brand || "ブランド不明"}
             </div>
-            <div className="detail-product-name">{product.name}</div>
+            <Heading className="detail-product-name">{product.name}</Heading>
             <div className="detail-product-meta">
               <span className="detail-mention-badge">
                 <i className="fa-solid fa-circle-check"></i> {product.mention_count}回登場

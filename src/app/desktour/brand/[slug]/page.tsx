@@ -149,7 +149,7 @@ export default async function BrandDetailPage({ params }: PageProps) {
                 全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
               </Link>
             </div>
-            <ProductGrid products={products} />
+            <ProductGrid products={products} headingLevel="h3" />
           </div>
           ))
         )}

@@ -121,7 +121,7 @@ export default async function OccupationCategoryPage({ params, searchParams }: P
 
         <ResultsBar total={total} currentSort={sort} />
 
-        <ProductGrid products={productsWithRank} />
+        <ProductGrid products={productsWithRank} headingLevel="h3" />
 
         <FAQSection items={[...COMMON_FAQ_ITEMS]} />
       </div>
