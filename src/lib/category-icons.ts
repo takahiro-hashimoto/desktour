@@ -37,6 +37,7 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   "パームレスト": "fa-hand",
   "掃除グッズ": "fa-broom",
   "文房具": "fa-pen",
+  "時計": "fa-clock",
   "その他デスクアクセサリー": "fa-puzzle-piece",
 };
 

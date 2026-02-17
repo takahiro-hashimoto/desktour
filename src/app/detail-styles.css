@@ -238,6 +238,11 @@
   flex: 1;
 }
 
+.detail-product-heading {
+  all: unset;
+  display: block;
+}
+
 .detail-product-brand {
   font-size: 12px;
   color: var(--text-muted);

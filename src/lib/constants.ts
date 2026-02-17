@@ -40,6 +40,7 @@ export const PRODUCT_CATEGORIES = [
   "スマートホーム",
   "掃除グッズ",
   "文房具",
+  "時計",
   "その他デスクアクセサリー",
 ];
 
@@ -90,6 +91,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "スマートホーム": "smart-home",
   "掃除グッズ": "cleaning",
   "文房具": "stationery",
+  "時計": "watch",
   "その他デスクアクセサリー": "other-accessories",
 };
 
@@ -476,6 +478,7 @@ export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
   "配線整理グッズ": ["デスク", "充電器・電源タップ", "収納・整理"],
   "掃除グッズ": ["デスク", "デスクマット", "キーボード"],
   "文房具": ["デスク", "収納・整理", "デスクマット"],
+  "時計": ["デスク", "スマートホーム", "充電器・電源タップ"],
   "その他デスクアクセサリー": ["デスク", "収納・整理"],
 };
 

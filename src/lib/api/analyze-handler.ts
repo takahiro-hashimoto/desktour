@@ -32,6 +32,7 @@ import {
   checkExistingProducts,
   findExistingProducts,
   buildBrandNormalizationMap,
+  getExistingBrandNames,
 } from "@/lib/supabase/queries-common";
 import { getDomainConfig, type DomainId } from "@/lib/domain";
 
@@ -138,6 +139,11 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
         console.log(`Product hints for Gemini: ${productHints.length} items`);
       }
 
+      // 6.9. DB登録済みブランド名を取得（Geminiプロンプトで表記揺れ防止に使用）
+      console.log("Fetching existing brand names for Gemini prompt...");
+      const knownBrands = await getExistingBrandNames(productsTable);
+      console.log(`Known brands: ${knownBrands.length} brands`);
+
       // 7. Gemini APIで解析（概要欄 + サムネイル画像 + 商品ヒントも含める）
       console.log(`Analyzing transcript with Gemini (${domain} domain)...`);
       const analysisResult = await analyzeTranscript(
@@ -148,7 +154,8 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
         videoInfo.thumbnailUrl,
         domain,
         videoInfo.channelTitle,
-        productHints
+        productHints,
+        knownBrands
       );
       console.log(`Found ${analysisResult.products.length} products`);
       console.log(`Influencer occupation: ${analysisResult.influencerOccupation}`);

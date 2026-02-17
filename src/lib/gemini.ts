@@ -357,7 +357,15 @@ function buildProductNameRules(linkSource: string, sourceRef: string): string {
 }
 
 /** ブランド名の記述ルール（両ソース共通） */
-const BRAND_NAME_RULES = `【ブランド名の記述ルール】★重要★
+function buildBrandNameRules(knownBrands?: string[]): string {
+  const knownBrandSection = knownBrands && knownBrands.length > 0
+    ? `\n【DB登録済みブランド一覧】★最重要★
+以下はデータベースに登録済みのブランド名です。これらのブランドが動画/記事に登場した場合は、必ずこのリストと同じ表記を使用してください。
+独自の表記や別表記に変換しないこと。このリストにあるブランドは「正式表記」として扱ってください。
+${knownBrands.join(", ")}`
+    : "";
+
+  return `【ブランド名の記述ルール】★重要★
 - 正式な表記を使用（スペルミス厳禁）
 - 日本語ブランドは日本語で：コクヨ、サンワサプライ、エレコム、無印良品、オウルテック
 - 海外ブランドは英語で：Logicool, Dell, ASUS, BenQ, Apple, Anker, Belkin, Satechi, Herman Miller, FLEXISPOT
@@ -367,7 +375,9 @@ const BRAND_NAME_RULES = `【ブランド名の記述ルール】★重要★
   - ○ FLEXISPOT / × FlexiSpot
   - ○ Herman Miller / × HermanMiller
   - ○ サンワサプライ / × Sanwa Supply
-- 不明な場合は空文字""を設定`;
+- 上記のDB登録済みブランド一覧にあるブランドは、そのリストの表記に完全一致させること
+- 不明な場合は空文字""を設定${knownBrandSection}`;
+}
 
 /**
  * 職業の抽出ルール
@@ -533,7 +543,8 @@ export async function analyzeTranscript(
   thumbnailUrl?: string,
   domain: AnalysisDomain = "desktour",
   channelTitle?: string,
-  productHints?: string[]
+  productHints?: string[],
+  knownBrands?: string[]
 ): Promise<AnalysisResult> {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
@@ -651,7 +662,7 @@ ${buildProductNameRules(
   "動画/記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名"
 )}
 
-${BRAND_NAME_RULES}
+${buildBrandNameRules(knownBrands)}
 
 ${buildReasonRules("動画内", [
   "- 例（良い例）：「映像制作で暗所撮影が多いため、高感度耐性に優れたこの機種を選んだ。ISO12800でもノイズが少なく、ダイナミックレンジの広さが色補正の余地を生んでくれる。同価格帯の他社機と比較してAFの食いつきも良い」",
@@ -711,7 +722,7 @@ ${buildProductNameRules(
   "動画/記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名"
 )}
 
-${BRAND_NAME_RULES}
+${buildBrandNameRules(knownBrands)}
 
 ${buildReasonRules("動画内", [
   "- 例（良い例）：「在宅勤務で長時間座ることが増えて、腰痛対策として購入した。ランバーサポートが腰にフィットして、8時間座っても疲れにくい。メッシュ素材で夏場も蒸れないのが気に入っている」",
@@ -774,7 +785,8 @@ export async function analyzeArticle(
   content: string,
   articleTitle: string,
   domain: AnalysisDomain = "desktour",
-  productHints?: string[]
+  productHints?: string[],
+  knownBrands?: string[]
 ): Promise<AnalysisResult> {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
@@ -848,7 +860,7 @@ ${buildProductNameRules(
   "記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名"
 )}
 
-${BRAND_NAME_RULES}
+${buildBrandNameRules(knownBrands)}
 
 ${buildOccupationRules(
   [
@@ -886,7 +898,7 @@ ${buildProductNameRules(
   "記事内で「〇〇の△△」「△△ by 〇〇」と紹介されている場合、〇〇がブランド、△△が商品名"
 )}
 
-${BRAND_NAME_RULES}
+${buildBrandNameRules(knownBrands)}
 
 ${buildOccupationRules(
   [
@@ -927,6 +939,7 @@ export async function analyzeOfficialPage(
   pageTitle: string,
   brandName: string,
   domain: AnalysisDomain = "desktour",
+  knownBrands?: string[]
 ): Promise<AnalysisResult> {
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash",
@@ -988,7 +1001,7 @@ ${buildProductNameRules(
   "メーカー公式の表記に従うこと"
 )}
 
-${BRAND_NAME_RULES}
+${buildBrandNameRules(knownBrands)}
 
 【公式ページ解析の特別ルール】
 - influencerOccupation: 必ずnull（公式ページには著者/クリエイターは不在）

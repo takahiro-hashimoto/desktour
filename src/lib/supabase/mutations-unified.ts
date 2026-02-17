@@ -249,7 +249,10 @@ export async function saveProduct(
   }
 
   // --- ファジーマッチフォールバック ---
-  if (!existing && product.category) {
+  // 除外ブランドはURLベースで判定済み。ファジーマッチで誤マージされるリスクが高いためスキップ
+  const isExcluded = isExcludedBrand(product.name) ||
+    (product.brand ? isExcludedBrand(product.brand) : null);
+  if (!existing && product.category && !isExcluded) {
     let sameCategoryProducts = fuzzyCategoryCache?.get(product.category);
 
     if (!sameCategoryProducts) {
@@ -282,39 +285,12 @@ export async function saveProduct(
     }
   }
 
-  // --- 除外ブランド（PREDUCTS, Grovemade, WAAK等）の場合、同ブランド商品をDB検索してファジーマッチ ---
-  if (!existing) {
-    const excludedBrand = isExcludedBrand(product.name) ||
-      (product.brand ? isExcludedBrand(product.brand) : null);
-
-    if (excludedBrand) {
-      console.log(`${logPrefix} Excluded brand "${excludedBrand.name}" detected — searching DB by brand...`);
-      const { data: brandProducts } = await supabase
-        .from(productsTable)
-        .select("id, name, normalized_name, brand")
-        .ilike("brand", excludedBrand.name)
-        .limit(100);
-
-      if (brandProducts && brandProducts.length > 0) {
-        console.log(`${logPrefix} Found ${brandProducts.length} "${excludedBrand.name}" products in DB`);
-        const fuzzyResult = fuzzyMatchProduct(
-          normalizedName,
-          brandProducts as Array<{ id: string; name: string; normalized_name: string; brand: string | null }>,
-          product.brand
-        );
-        if (fuzzyResult) {
-          const matched = brandProducts[fuzzyResult.index];
-          console.log(`${logPrefix} Excluded brand fuzzy match: "${product.name}" → "${matched.name}" (score: ${fuzzyResult.score.toFixed(3)}, ${fuzzyResult.matchReason})`);
-          const { data: fullProduct } = await supabase
-            .from(productsTable)
-            .select("*")
-            .eq("id", matched.id)
-            .single();
-          if (fullProduct) existing = fullProduct;
-        }
-      }
-    }
-  }
+  // --- 除外ブランド（PREDUCTS, Grovemade, WAAK等）---
+  // ファジーマッチは行わない。これらのブランドは公式サイトURLがユニークIDとして
+  // 機能するため、優先1.5のamazon_url照合で既存判定される。
+  // URLが異なる=別商品なので、新規作成させる。
+  // ※ 以前はファジーマッチを行っていたが、商品名が短く型番もないため
+  //   別商品が誤って同一商品にマージされるバグが発生していた。
 
   if (existing) {
     // 既存商品のフィールドをアップデート（変更があるもののみ）

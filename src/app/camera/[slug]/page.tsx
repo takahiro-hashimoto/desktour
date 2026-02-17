@@ -478,7 +478,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
           <div className="product-hero">
             <a href={isOfficialSite ? product.amazon_url! : amazonUrl} target="_blank" rel={isOfficialSite ? "noopener noreferrer" : "noopener noreferrer sponsored"} className="product-image">
               {product.amazon_image_url ? (
-                <img src={product.amazon_image_url} alt={product.name} width={400} height={400} />
+                <img src={product.amazon_image_url} alt={`${product.brand || ""} ${product.name}`.trim()} width={400} height={400} />
               ) : (
                 <i className={`fa-solid ${getCameraCategoryIcon(product.category)} img-placeholder`}></i>
               )}

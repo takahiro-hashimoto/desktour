@@ -130,7 +130,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // カテゴリページ（/desktour/${catSlug}）
   const categoryPages: MetadataRoute.Sitemap = PRODUCT_CATEGORIES.map((category) => ({
-    url: `${baseUrl}/desktour/${categoryToSlug(category)}`,
+    url: `${baseUrl}/desktour/category/${categoryToSlug(category)}`,
     lastModified: new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,
@@ -141,7 +141,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const subcategories = TYPE_TAGS[category] || [];
     const catSlug = categoryToSlug(category);
     return subcategories.map((sub) => ({
-      url: `${baseUrl}/desktour/${catSlug}/${desktourSubcategoryToSlug(sub)}`,
+      url: `${baseUrl}/desktour/category/${catSlug}/${desktourSubcategoryToSlug(sub)}`,
       lastModified: new Date(),
       changeFrequency: "weekly" as const,
       priority: 0.7,

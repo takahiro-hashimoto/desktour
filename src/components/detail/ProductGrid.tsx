@@ -53,17 +53,19 @@ export function ProductGrid({ products, domain = "desktour", headingLevel = "h2"
             )}
             <div className="detail-product-img-inner">
               {product.image_url ? (
-                <img src={product.image_url} alt={product.name} />
+                <img src={product.image_url} alt={`${product.brand || ""} ${product.name}`.trim()} />
               ) : (
                 <i className="fa-solid fa-cube img-placeholder"></i>
               )}
             </div>
           </a>
           <div className="detail-product-body">
-            <div className="detail-product-brand">
-              {product.brand || "ブランド不明"}
-            </div>
-            <Heading className="detail-product-name">{product.name}</Heading>
+            <Heading className="detail-product-heading">
+              <div className="detail-product-brand">
+                {product.brand || "ブランド不明"}{" "}
+              </div>
+              <div className="detail-product-name">{product.name}</div>
+            </Heading>
             <div className="detail-product-meta">
               <span className="detail-mention-badge">
                 <i className="fa-solid fa-circle-check"></i> {product.mention_count}回登場

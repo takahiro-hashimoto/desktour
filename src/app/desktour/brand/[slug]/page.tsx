@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getSiteStats, findBrandInDatabase } from "@/lib/supabase";
-import { PRODUCT_CATEGORIES, categoryToSlug, productUrl, inferBrandFromSlug } from "@/lib/constants";
+import { PRODUCT_CATEGORIES, productUrl, inferBrandFromSlug } from "@/lib/constants";
 import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const { total } = await searchProducts({ brand, limit: 1 });
 
-  const title = `${brand}の評判と人気商品一覧【${total}件掲載】`;
+  const title = `デスクツアーで人気の${brand}の商品まとめ【${total}件掲載】`;
   const description = `${brand}の商品を実際にデスク環境で使っている人のリアルな声を集約。カテゴリ別の人気商品と使用者コメントを掲載。【${total}件】`;
 
   return {
@@ -52,14 +52,14 @@ export default async function BrandDetailPage({ params }: PageProps) {
   const stats = await getSiteStats();
   const totalSources = stats.total_videos + stats.total_articles;
 
-  // 各カテゴリーごとにトップ4商品を取得
+  // 各カテゴリーごとに全商品を取得
   const categoryProducts = await Promise.all(
     PRODUCT_CATEGORIES.map(async (category) => {
       const { products, total } = await searchProducts({
         category,
         brand,
         sortBy: "mention_count",
-        limit: 4,
+        limit: 100,
       });
 
       return {
@@ -112,7 +112,7 @@ export default async function BrandDetailPage({ params }: PageProps) {
       />
       <PageHeaderSection
         label="Database Report"
-        title={`${brand}の評判と人気商品一覧`}
+        title={`デスクツアーで人気の${brand}の商品まとめ`}
         description={
           <>
             {totalSources}件の
@@ -140,15 +140,12 @@ export default async function BrandDetailPage({ params }: PageProps) {
         ) : (
           filteredCategories.map(({ category, products, total }) => (
           <div key={category} style={{ marginBottom: "60px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
+            <div style={{ marginBottom: "8px" }}>
               <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
-              <Link
-                href={`/desktour/brand/${params.slug}/${categoryToSlug(category)}`}
-                style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
-              </Link>
             </div>
+            <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
+              {brand}の{category}ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件のデスクツアーに登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
+            </p>
             <ProductGrid products={products} headingLevel="h3" />
           </div>
           ))

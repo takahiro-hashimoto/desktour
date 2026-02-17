@@ -284,6 +284,23 @@ export async function findExistingProducts(
 }
 
 /**
+ * DBに登録済みのユニークブランド名一覧を取得する
+ * → Geminiプロンプトに既知ブランドリストとして渡し、初回抽出の精度を向上させる
+ */
+export async function getExistingBrandNames(
+  table: "products_camera" | "products"
+): Promise<string[]> {
+  const { data } = await supabase
+    .from(table)
+    .select("brand")
+    .not("brand", "is", null);
+
+  const brands = [...new Set((data || []).map(d => d.brand as string).filter(Boolean))];
+  // アルファベット・日本語混在をソート
+  return brands.sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+/**
  * DBに登録済みのブランド名を一括取得し、入力ブランド名を正規化するマップを返す
  * 例: "sony" → "Sony", "SONY" → "Sony", "SONY（ソニー）" → "Sony", "ソニー" → "Sony"
  * → Gemini抽出結果のブランド表記揺れを解消するために使用

@@ -24,7 +24,7 @@ import {
   type MatchedProduct,
   type MatchCandidate,
 } from "@/lib/product-matching";
-import { checkExistingProducts, findExistingProducts, buildBrandNormalizationMap } from "@/lib/supabase/queries-common";
+import { checkExistingProducts, findExistingProducts, buildBrandNormalizationMap, getExistingBrandNames } from "@/lib/supabase/queries-common";
 import { getDomainConfig, type DomainId } from "@/lib/domain";
 
 // ============================================================
@@ -165,14 +165,19 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
         console.log(`Providing ${productHints.length} product hints to Gemini`);
       }
 
+      // 6.9. DB登録済みブランド名を取得（Geminiプロンプトで表記揺れ防止に使用）
+      console.log("Fetching existing brand names for Gemini prompt...");
+      const knownBrands = await getExistingBrandNames(productsTable);
+      console.log(`Known brands: ${knownBrands.length} brands`);
+
       // 7. Gemini APIで解析（公式サイトは専用関数、それ以外は通常解析）
       console.log(`Analyzing ${isOfficial ? "official page" : "article"} with Gemini (${domain} domain)...`);
       let analysisResult;
       if (isOfficial) {
         const brandName = getBrandFromDomain(new URL(url).hostname.replace(/^www\./, "")) || articleInfo.siteName || "";
-        analysisResult = await analyzeOfficialPage(articleInfo.content, articleInfo.title, brandName, domain);
+        analysisResult = await analyzeOfficialPage(articleInfo.content, articleInfo.title, brandName, domain, knownBrands);
       } else {
-        analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title, domain, productHints);
+        analysisResult = await analyzeArticle(articleInfo.content, articleInfo.title, domain, productHints, knownBrands);
       }
       console.log(`Found ${analysisResult.products.length} products`);
       console.log(`Author occupation: ${analysisResult.influencerOccupation}`);

@@ -113,7 +113,7 @@ export default async function DesktourPage() {
     name: cat,
     count: categoryCounts[cat] || 0,
     icon: CATEGORY_ICONS[cat] || "📦",
-    href: `/desktour/${categoryToSlug(cat)}`,
+    href: `/desktour/category/${categoryToSlug(cat)}`,
   }));
 
   // サブカテゴリ（掲載数が多い順にソート、その他デスクアクセサリーは除外）
@@ -123,7 +123,7 @@ export default async function DesktourPage() {
       name: cat,
       count: categoryCounts[cat] || 0,
       icon: SUB_CATEGORY_ICONS[cat] || "📦",
-      href: `/desktour/${categoryToSlug(cat)}`,
+      href: `/desktour/category/${categoryToSlug(cat)}`,
     }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 16);
@@ -187,7 +187,7 @@ export default async function DesktourPage() {
         "@type": "ListItem",
         "position": index + 1,
         "name": cat.name,
-        "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/category/${categoryToSlug(cat.name)}`,
+        "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com"}/desktour/category/${categoryToSlug(cat.name)}`,
       })),
     },
   };

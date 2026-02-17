@@ -27,6 +27,7 @@ import {
   Layers,
   GripVertical,
   Package,
+  Clock,
   LucideIcon,
 } from "lucide-react";
 
@@ -57,6 +58,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "ケーブル": Plug,
   "配線整理グッズ": Cable,
   "パームレスト": Square,
+  "時計": Clock,
   "その他デスクアクセサリー": Package,
 };
 

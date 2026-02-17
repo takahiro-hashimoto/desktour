@@ -61,6 +61,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "デスクシェルフ・モニター台": "fa-solid fa-layer-group",
   "ケーブル": "fa-solid fa-link",
   "配線整理グッズ": "fa-solid fa-grip-lines",
+  "時計": "fa-solid fa-clock",
   "その他デスクアクセサリー": "fa-solid fa-puzzle-piece",
 };
 
@@ -166,7 +167,7 @@ export default async function CategoryIndexPage() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
                 <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
                 <Link
-                  href={`/desktour/${categoryToSlug(category)}`}
+                  href={`/desktour/category/${categoryToSlug(category)}`}
                   style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
                 >
                   全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
