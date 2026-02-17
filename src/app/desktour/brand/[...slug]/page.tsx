@@ -8,6 +8,7 @@ import {
   categoryToSlug,
   brandToSlug,
 } from "@/lib/constants";
+import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { PageHeader } from "@/components/PageHeader";
 import { CategorySection } from "@/components/CategorySection";
@@ -25,9 +26,12 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const [brandSlug, categorySlug] = params.slug;
 
-  // スラッグからブランド名を推測し、DBに存在するか確認
-  const inferredBrand = inferBrandFromSlug(brandSlug);
-  const brand = await findBrandInDatabase(inferredBrand);
+  // slug完全一致でブランド検索、未登録はフォールバック
+  const brandRow = await getBrandBySlug(brandSlug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(brandSlug);
+    return findBrandInDatabase(inferred);
+  })();
 
   if (!brand) {
     return { title: "Not Found" };
@@ -61,9 +65,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function BrandPage({ params, searchParams }: PageProps) {
   const [brandSlug, categorySlug] = params.slug;
 
-  // スラッグからブランド名を推測し、DBに存在するか確認
-  const inferredBrand = inferBrandFromSlug(brandSlug);
-  const brand = await findBrandInDatabase(inferredBrand);
+  // slug完全一致でブランド検索、未登録はフォールバック
+  const brandRow = await getBrandBySlug(brandSlug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(brandSlug);
+    return findBrandInDatabase(inferred);
+  })();
 
   if (!brand) {
     notFound();

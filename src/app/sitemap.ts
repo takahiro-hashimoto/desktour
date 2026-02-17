@@ -5,25 +5,22 @@ import {
   occupationToSlug,
   styleTagToSlug,
   environmentTagToSlug,
-  brandToSlug,
   desktourSubcategoryToSlug,
   PRODUCT_CATEGORIES,
   OCCUPATION_TAGS,
   STYLE_TAGS,
   ENVIRONMENT_TAGS,
-  BRAND_TAGS,
 } from "@/lib/constants";
 import { TYPE_TAGS } from "@/lib/tag-definitions";
 import {
   cameraCategoryToSlug,
   cameraOccupationToSlug,
-  cameraBrandToSlug,
   cameraSubcategoryToSlug,
   CAMERA_PRODUCT_CATEGORIES,
   CAMERA_OCCUPATION_TAGS,
-  CAMERA_BRAND_TAGS,
 } from "@/lib/camera/constants";
 import { CAMERA_TYPE_TAGS } from "@/lib/camera/camera-tag-definitions";
+import { getBrands } from "@/lib/supabase/queries-brands";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://desktour-db.com";
@@ -175,9 +172,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // ブランドページ
-  const brandPages: MetadataRoute.Sitemap = BRAND_TAGS.map((brand) => ({
-    url: `${baseUrl}/desktour/brand/${brandToSlug(brand)}`,
+  // ブランドページ（brands テーブルから動的取得）
+  const desktourBrands = await getBrands("desktour");
+  const brandPages: MetadataRoute.Sitemap = desktourBrands.map((b) => ({
+    url: `${baseUrl}/desktour/brand/${b.slug}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,
@@ -235,9 +233,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  // カメラ - ブランドページ
-  const cameraBrandPages: MetadataRoute.Sitemap = CAMERA_BRAND_TAGS.map((brand) => ({
-    url: `${baseUrl}/camera/brand/${cameraBrandToSlug(brand)}`,
+  // カメラ - ブランドページ（brands テーブルから動的取得）
+  const cameraBrands = await getBrands("camera");
+  const cameraBrandPages: MetadataRoute.Sitemap = cameraBrands.map((b) => ({
+    url: `${baseUrl}/camera/brand/${b.slug}`,
     lastModified: new Date(),
     changeFrequency: "weekly" as const,
     priority: 0.7,

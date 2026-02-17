@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { BRAND_TAGS, brandToSlug, slugToBrand, PRODUCT_CATEGORIES, categoryToSlug, productUrl } from "@/lib/constants";
+import { searchProducts, getSiteStats, findBrandInDatabase } from "@/lib/supabase";
+import { PRODUCT_CATEGORIES, categoryToSlug, productUrl, inferBrandFromSlug } from "@/lib/constants";
+import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
@@ -18,14 +19,12 @@ interface PageProps {
   searchParams: Record<string, string>;
 }
 
-// ブランド名を取得
-function getBrandFromSlug(slug: string): string | null {
-  const brand = slugToBrand(slug);
-  return brand && (BRAND_TAGS as readonly string[]).includes(brand) ? brand : null;
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const brand = getBrandFromSlug(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(params.slug);
+    return findBrandInDatabase(inferred);
+  })();
   if (!brand) return { title: "ブランドが見つかりません" };
 
   const { total } = await searchProducts({ brand, limit: 1 });
@@ -43,7 +42,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function BrandDetailPage({ params }: PageProps) {
-  const brand = getBrandFromSlug(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(params.slug);
+    return findBrandInDatabase(inferred);
+  })();
   if (!brand) notFound();
 
   const stats = await getSiteStats();

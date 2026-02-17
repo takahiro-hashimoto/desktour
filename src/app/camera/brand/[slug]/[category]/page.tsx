@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_BRAND_TAGS, slugToCameraBrand, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP } from "@/lib/camera/constants";
+import { searchCameraProducts, getCameraSiteStats, findCameraBrandInDatabase } from "@/lib/supabase/queries-camera";
+import { inferCameraBrandFromSlug, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP } from "@/lib/camera/constants";
+import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -26,10 +27,14 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const brand = slugToCameraBrand(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferCameraBrandFromSlug(params.slug);
+    return findCameraBrandInDatabase(inferred);
+  })();
   const category = slugToCameraCategory(params.category);
 
-  if (!brand || !category || !(CAMERA_BRAND_TAGS as readonly string[]).includes(brand) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!brand || !category || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
@@ -47,10 +52,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function BrandCategoryPage({ params, searchParams }: PageProps) {
-  const brand = slugToCameraBrand(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferCameraBrandFromSlug(params.slug);
+    return findCameraBrandInDatabase(inferred);
+  })();
   const category = slugToCameraCategory(params.category);
 
-  if (!brand || !category || !(CAMERA_BRAND_TAGS as readonly string[]).includes(brand) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!brand || !category || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
     notFound();
   }
 

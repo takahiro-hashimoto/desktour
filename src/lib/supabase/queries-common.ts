@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { findBrandByName } from "./queries-brands";
 import { normalizeProductName } from "../product-normalize";
 import { normalizeBrandByList, getBrandAliases } from "../brand-category-utils";
 import { fuzzyMatchProduct } from "../fuzzy-product-match";
@@ -349,10 +350,11 @@ export async function buildBrandNormalizationMap(
 
 /**
  * ブランド名を正規化する
- * 1. 定数リスト（BRAND_TAGS / CAMERA_BRAND_TAGS）でマッチ
- * 2. エイリアス（日本語名等）でマッチ
- * 3. DBに既存のブランド名をilkeで検索し、最初に登録された表記を正とする
- * 4. いずれもマッチしなければ元の値をそのまま返す（新規ブランド）
+ * 1. 定数リスト（BRAND_TAGS / CAMERA_BRAND_TAGS）でマッチ（高速）
+ * 2. brands マスターテーブルで name / aliases マッチ
+ * 3. products テーブルで ilike 検索（fallback）
+ * 4. エイリアス経由で products テーブル検索（fallback）
+ * 5. いずれもマッチしなければ元の値をそのまま返す（新規ブランド）
  */
 export async function normalizeBrand(
   brand: string,
@@ -366,7 +368,11 @@ export async function normalizeBrand(
   const listMatch = normalizeBrandByList(trimmed, knownBrands);
   if (listMatch !== trimmed) return listMatch;
 
-  // 2. DBに同名ブランドが既に存在するか検索（大文字小文字無視）
+  // 2. brands マスターテーブルで検索（name / aliases）
+  const brandRow = await findBrandByName(trimmed);
+  if (brandRow) return brandRow.name;
+
+  // 3. products テーブルで ilike 検索（brands テーブル未登録ブランド用）
   const { data } = await supabase
     .from(table)
     .select("brand")
@@ -377,10 +383,10 @@ export async function normalizeBrand(
     return data[0].brand;
   }
 
-  // 3. エイリアス経由でDB検索（例: "ソニー" → DB上の "Sony" を探す）
+  // 4. エイリアス経由で products テーブル検索（例: "ソニー" → DB上の "Sony" を探す）
   const aliases = getBrandAliases(trimmed);
   for (const alias of aliases) {
-    if (alias === trimmed.toLowerCase()) continue; // ilike で既に検索済み
+    if (alias === trimmed.toLowerCase()) continue;
     const { data: aliasData } = await supabase
       .from(table)
       .select("brand")
@@ -392,6 +398,6 @@ export async function normalizeBrand(
     }
   }
 
-  // 4. 新規ブランド → そのまま返す
+  // 5. 新規ブランド → そのまま返す
   return trimmed;
 }

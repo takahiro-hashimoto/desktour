@@ -42,9 +42,13 @@ function defaultFallback(value: string): string {
   return value.replace(/[/・]/g, "-").replace(/\s+/g, "-").toLowerCase();
 }
 
-/** ブランド用フォールバック: スペースのみハイフン化 */
+/** ブランド用フォールバック: URL安全なスラッグに変換 */
 export function brandFallback(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, "-");
+  return value
+    .replace(/[（(].+?[）)]/g, "")   // 括弧付きサフィックスを除去（例: Apple(アップル)→Apple）
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 }
 
 /**

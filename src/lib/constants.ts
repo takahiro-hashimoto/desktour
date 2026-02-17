@@ -36,6 +36,7 @@ export const PRODUCT_CATEGORIES = [
   "デスクシェルフ・モニター台",
   "ケーブル",
   "配線整理グッズ",
+  "パームレスト",
   "スマートホーム",
   "その他デスクアクセサリー",
 ];
@@ -83,6 +84,7 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "デスクシェルフ・モニター台": "desk-shelf",
   "ケーブル": "cable",
   "配線整理グッズ": "cable-management",
+  "パームレスト": "palm-rest",
   "スマートホーム": "smart-home",
   "その他デスクアクセサリー": "other-accessories",
 };
@@ -302,6 +304,7 @@ export const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   // ディスプレイ・モニター
   "5K・6K": "5k-6k",
   "4K": "4k",
+  "WQHD": "wqhd",
   "フルHD": "full-hd",
   "ウルトラワイド": "ultrawide",
   // ヘッドホン・イヤホン

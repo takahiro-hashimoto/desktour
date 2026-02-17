@@ -134,6 +134,11 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
           amazonDetect: [{ keywords: ["4k"] }],
         },
         {
+          name: "WQHD",
+          detect: [{ keywords: ["wqhd", "2560x1440", "1440p", "2k"] }],
+          amazonDetect: [{ keywords: ["wqhd", "1440p"] }],
+        },
+        {
           name: "フルHD",
           detect: [{ keywords: ["1080p", "full hd", "フルhd", "1920"] }],
         },

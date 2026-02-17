@@ -19,6 +19,7 @@ export const CATEGORY_PRIORITY = [
   "デスクシェルフ・モニター台",
   "ケーブル",
   "配線整理グッズ",
+  "パームレスト",
   "その他デスクアクセサリー",
 ] as const;
 
@@ -38,6 +39,7 @@ const CATEGORY_ENGLISH_MAP: Record<string, string> = {
   "デスクシェルフ・モニター台": "DESK SHELVES",
   "ケーブル": "CABLES",
   "配線整理グッズ": "CABLE MANAGEMENT",
+  "パームレスト": "PALM RESTS",
   "その他デスクアクセサリー": "ACCESSORIES",
   "ヘッドホン・イヤホン": "HEADPHONES",
   "ウェブカメラ": "WEBCAMS",

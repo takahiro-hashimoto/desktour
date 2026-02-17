@@ -39,6 +39,7 @@ export {
   getProductDetail,
   getCoOccurrenceProducts,
   getSimilarProducts,
+  getBrandPopularProducts,
   getSiteStats,
   getTopProductImages,
   getTopProductByCategory,
@@ -52,4 +53,9 @@ export {
   getTopBrandsByProductCount,
   findBrandInDatabase,
   getLatestVideos,
+  getBrandBySlug,
+  getBrandSlugMap,
+  getBrands,
+  findBrandByName,
 } from "./supabase/queries";
+export type { Brand } from "./supabase/queries";

@@ -34,6 +34,7 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   "デスクシェルフ・モニター台": "fa-layer-group",
   "ケーブル": "fa-link",
   "配線整理グッズ": "fa-grip-lines",
+  "パームレスト": "fa-hand",
   "その他デスクアクセサリー": "fa-puzzle-piece",
 };
 

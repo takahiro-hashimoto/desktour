@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_BRAND_TAGS, cameraBrandToSlug, slugToCameraBrand, CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug, cameraProductUrl } from "@/lib/camera/constants";
+import { searchCameraProducts, getCameraSiteStats, findCameraBrandInDatabase } from "@/lib/supabase/queries-camera";
+import { CAMERA_PRODUCT_CATEGORIES, cameraCategoryToSlug, cameraProductUrl, inferCameraBrandFromSlug } from "@/lib/camera/constants";
+import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
@@ -18,14 +19,12 @@ interface PageProps {
   searchParams: Record<string, string>;
 }
 
-// ブランド名を取得
-function getBrandFromSlug(slug: string): string | null {
-  const brand = slugToCameraBrand(slug);
-  return brand && (CAMERA_BRAND_TAGS as readonly string[]).includes(brand) ? brand : null;
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const brand = getBrandFromSlug(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferCameraBrandFromSlug(params.slug);
+    return findCameraBrandInDatabase(inferred);
+  })();
   if (!brand) return { title: "ブランドが見つかりません" };
 
   const { total } = await searchCameraProducts({ brand, limit: 1 });
@@ -43,7 +42,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function BrandDetailPage({ params }: PageProps) {
-  const brand = getBrandFromSlug(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferCameraBrandFromSlug(params.slug);
+    return findCameraBrandInDatabase(inferred);
+  })();
   if (!brand) notFound();
 
   const stats = await getCameraSiteStats();

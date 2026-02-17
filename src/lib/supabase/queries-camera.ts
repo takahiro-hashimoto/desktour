@@ -59,6 +59,13 @@ export async function getCameraSimilarProducts(
   return unified.getSimilarProducts("camera", product, limit);
 }
 
+export async function getCameraBrandPopularProducts(
+  product: { id: string; brand?: string },
+  limit = 4,
+): Promise<SimilarProduct[]> {
+  return unified.getBrandPopularProducts("camera", product, limit);
+}
+
 export async function getCameraSiteStats(): Promise<SiteStats> {
   return unified.getSiteStats("camera");
 }
@@ -119,8 +126,8 @@ export async function getCameraBrandProductCounts(brands: string[]): Promise<Rec
   return unified.getBrandProductCounts("camera", brands);
 }
 
-export async function getCameraTopBrandsByProductCount(limit: number = 8) {
-  return unified.getTopBrandsByProductCount("camera", limit);
+export async function getCameraTopBrandsByProductCount(limit: number = 8, minCount: number = 1) {
+  return unified.getTopBrandsByProductCount("camera", limit, minCount);
 }
 
 export async function findCameraBrandInDatabase(brandName: string): Promise<string | null> {
@@ -130,3 +137,7 @@ export async function findCameraBrandInDatabase(brandName: string): Promise<stri
 export async function getCameraLatestVideos(limit: number = 3): Promise<CameraVideoWithProductCount[]> {
   return unified.getLatestVideos("camera", limit);
 }
+
+// brands テーブル関連 — queries-brands.ts に委譲
+export { getBrandBySlug, getBrandSlugMap, getBrands, findBrandByName } from "./queries-brands";
+export type { Brand } from "./queries-brands";

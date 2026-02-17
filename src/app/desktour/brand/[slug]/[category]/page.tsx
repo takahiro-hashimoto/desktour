@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSiteStats } from "@/lib/supabase";
-import { BRAND_TAGS, slugToBrand, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP } from "@/lib/constants";
+import { searchProducts, getSiteStats, findBrandInDatabase } from "@/lib/supabase";
+import { inferBrandFromSlug, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP } from "@/lib/constants";
+import { getBrandBySlug } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -26,10 +27,14 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const brand = slugToBrand(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(params.slug);
+    return findBrandInDatabase(inferred);
+  })();
   const category = slugToCategory(params.category);
 
-  if (!brand || !category || !(BRAND_TAGS as readonly string[]).includes(brand) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!brand || !category || !PRODUCT_CATEGORIES.includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
@@ -47,10 +52,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function BrandCategoryPage({ params, searchParams }: PageProps) {
-  const brand = slugToBrand(params.slug);
+  const brandRow = await getBrandBySlug(params.slug);
+  const brand = brandRow?.name ?? await (async () => {
+    const inferred = inferBrandFromSlug(params.slug);
+    return findBrandInDatabase(inferred);
+  })();
   const category = slugToCategory(params.category);
 
-  if (!brand || !category || !(BRAND_TAGS as readonly string[]).includes(brand) || !PRODUCT_CATEGORIES.includes(category)) {
+  if (!brand || !category || !PRODUCT_CATEGORIES.includes(category)) {
     notFound();
   }
 

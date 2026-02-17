@@ -56,6 +56,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "デスクシェルフ・モニター台": Layers,
   "ケーブル": Plug,
   "配線整理グッズ": Cable,
+  "パームレスト": Square,
   "その他デスクアクセサリー": Package,
 };
 

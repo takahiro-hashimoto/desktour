@@ -2,16 +2,18 @@ import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { cache } from "react";
-import { searchProducts, getSiteStats, getProductDetailBySlug, getCoOccurrenceProducts, getSimilarProducts } from "@/lib/supabase";
+import { searchProducts, getSiteStats, getProductDetailBySlug, getCoOccurrenceProducts, getSimilarProducts, getBrandPopularProducts } from "@/lib/supabase";
 import {
   PRODUCT_CATEGORIES,
   TYPE_TAGS,
   slugToCategory,
   categoryToSlug,
   desktourSubcategoryToSlug,
+  brandToSlug,
   STYLE_TAGS,
   productUrl,
 } from "@/lib/constants";
+import { getBrandSlugMap } from "@/lib/supabase/queries-brands";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
 import { ProductGrid } from "@/components/detail/ProductGrid";
@@ -239,7 +241,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
   const categoryTypeTags = TYPE_TAGS[product.category] || [];
   const productSubcategory = product.tags?.find((tag: string) => categoryTypeTags.includes(tag)) || null;
 
-  const [coUsedProducts, similarProducts, stats] = await Promise.all([
+  const [coUsedProducts, similarProducts, brandProducts, stats, brandSlugMap] = await Promise.all([
     getCoOccurrenceProducts(product.id, 4),
     getSimilarProducts({
       id: product.id,
@@ -248,7 +250,9 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
       brand: product.brand,
       price_range: product.price_range,
     }, 4),
+    getBrandPopularProducts({ id: product.id, brand: product.brand }, 4),
     getSiteStats(),
+    getBrandSlugMap(),
   ]);
 
   const totalOccupation = product.occupation_breakdown?.reduce((sum, s) => sum + s.count, 0) || 1;
@@ -274,6 +278,7 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
   const hasComments = product.all_comments && product.all_comments.length > 0;
   const hasCoUsedProducts = coUsedProducts.length > 0;
   const hasSimilarProducts = similarProducts.length > 0;
+  const hasBrandProducts = brandProducts.length > 0;
 
   const { amazonUrl, rakutenUrl } = getProductLinks({
     amazon_url: product.amazon_url,
@@ -544,6 +549,39 @@ async function ProductDetailPage({ params }: { params: { slug: string } }) {
                   </div>
                 </Link>
               ))}
+            </div>
+          </div>
+        )}
+
+        {hasBrandProducts && (
+          <div className="content-section product-reveal">
+            <div className="section-title">
+              <span className="section-number">{String(++sectionNum).padStart(2, "0")}</span>
+              <h2>{product.brand}の人気商品</h2>
+            </div>
+            <p className="section-summary">{product.brand}ブランドで人気のある他の商品を紹介します。</p>
+            <div className="related-grid">
+              {brandProducts.filter(p => p.slug).map((brandProduct) => (
+                <Link key={brandProduct.id} href={productUrl(brandProduct)} className="related-item">
+                  <div className="related-item-img">
+                    {brandProduct.amazon_image_url ? (
+                      <img src={brandProduct.amazon_image_url} alt={brandProduct.name} width={120} height={120} loading="lazy" />
+                    ) : (
+                      <i className={`fa-solid ${getCategoryIcon(brandProduct.category || "")}`}></i>
+                    )}
+                  </div>
+                  <div className="related-item-info">
+                    <div className="related-item-cat">{brandProduct.category || "PRODUCT"}</div>
+                    <div className="related-item-name">{brandProduct.name}</div>
+                    <div className="related-item-usage">{brandProduct.mention_count}回登場</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="related-more">
+              <Link href={`/desktour/brand/${brandSlugMap.get(product.brand!.toLowerCase()) || brandToSlug(product.brand!)}`} className="related-more-link">
+                {product.brand}の商品をすべて見る <i className="fa-solid fa-arrow-right"></i>
+              </Link>
             </div>
           </div>
         )}

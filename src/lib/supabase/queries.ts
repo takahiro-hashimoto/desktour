@@ -52,6 +52,13 @@ export async function getSimilarProducts(
   return unified.getSimilarProducts("desktour", product, limit);
 }
 
+export async function getBrandPopularProducts(
+  product: { id: string; brand?: string },
+  limit = 4,
+): Promise<SimilarProduct[]> {
+  return unified.getBrandPopularProducts("desktour", product, limit);
+}
+
 export async function getSiteStats(): Promise<SiteStats> {
   return unified.getSiteStats("desktour");
 }
@@ -108,8 +115,8 @@ export async function getBrandProductCounts(brands: string[]): Promise<Record<st
   return unified.getBrandProductCounts("desktour", brands);
 }
 
-export async function getTopBrandsByProductCount(limit: number = 8) {
-  return unified.getTopBrandsByProductCount("desktour", limit);
+export async function getTopBrandsByProductCount(limit: number = 8, minCount: number = 1) {
+  return unified.getTopBrandsByProductCount("desktour", limit, minCount);
 }
 
 export async function findBrandInDatabase(brandName: string): Promise<string | null> {
@@ -119,3 +126,7 @@ export async function findBrandInDatabase(brandName: string): Promise<string | n
 export async function getLatestVideos(limit: number = 3): Promise<VideoWithProductCount[]> {
   return unified.getLatestVideos("desktour", limit);
 }
+
+// brands テーブル関連 — queries-brands.ts に委譲
+export { getBrandBySlug, getBrandSlugMap, getBrands, findBrandByName } from "./queries-brands";
+export type { Brand } from "./queries-brands";
