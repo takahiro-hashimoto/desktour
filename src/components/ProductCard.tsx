@@ -27,6 +27,13 @@ export const ProductCard = memo(function ProductCard({
 
   // アフィリエイトリンク（amazon_urlがあればそれを使用）
   const affiliateUrl = product.amazon_url || "#";
+  const linkInfo = product.amazon_url
+    ? product.amazon_url.includes("amazon.co.jp") || product.amazon_url.includes("amazon.com")
+      ? { label: "Amazonで見る", color: "text-orange-600", rel: "noopener noreferrer sponsored" }
+      : product.amazon_url.includes("rakuten.co.jp") || product.amazon_url.includes("rakuten.com")
+        ? { label: "楽天で見る", color: "text-red-600", rel: "noopener noreferrer sponsored" }
+        : { label: "公式サイトで見る", color: "text-blue-600", rel: "noopener noreferrer" }
+    : null;
 
   // 表示するコメント
   const displayComments = product.comments && showComments
@@ -146,16 +153,16 @@ export const ProductCard = memo(function ProductCard({
             >
               詳細を見る
             </Link>
-            {product.amazon_url && (
+            {product.amazon_url && linkInfo && (
               <>
                 <span className="text-gray-300">|</span>
                 <a
                   href={product.amazon_url}
                   target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  className="text-xs text-orange-600 hover:underline"
+                  rel={linkInfo.rel}
+                  className={`text-xs hover:underline ${linkInfo.color}`}
                 >
-                  Amazonで見る
+                  {linkInfo.label}
                 </a>
               </>
             )}

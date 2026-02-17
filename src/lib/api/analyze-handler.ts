@@ -15,7 +15,6 @@ import {
   getTranscript,
 } from "@/lib/youtube";
 import { analyzeTranscript } from "@/lib/gemini";
-import { getPriceRange } from "@/lib/gemini";
 import { getProductsByAsins } from "@/lib/product-search";
 import {
   extractProductsFromDescription,
@@ -23,7 +22,6 @@ import {
 } from "@/lib/description-links";
 import { ProductInfo } from "@/lib/product-search";
 import { isExcludedBrand } from "@/lib/excluded-brands";
-import { isLowQualityFeatures } from "@/lib/featureQuality";
 import {
   buildCandidates,
   matchProductWithAmazon,
@@ -35,9 +33,7 @@ import {
   findExistingProducts,
   buildBrandNormalizationMap,
 } from "@/lib/supabase/queries-common";
-import * as mutations from "@/lib/supabase/mutations-unified";
 import { getDomainConfig, type DomainId } from "@/lib/domain";
-import type { FuzzyCategoryCache } from "@/lib/supabase/mutations-unified";
 
 // ────────────────────────────────────────────
 // Public config type
@@ -70,7 +66,7 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
 
   return async function POST(request: NextRequest) {
     try {
-      const { url, saveToDb = false } = await request.json();
+      const { url } = await request.json();
 
       if (!url) {
         return NextResponse.json(
@@ -88,22 +84,7 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
         );
       }
 
-      // 2. 既に解析済みかチェック（DB保存モードの場合のみ）
-      if (saveToDb) {
-        const alreadyAnalyzed = await mutations.isVideoAnalyzed(domain, videoId);
-        if (alreadyAnalyzed) {
-          return NextResponse.json(
-            {
-              error: "この動画は既に解析済みです",
-              alreadyAnalyzed: true,
-              videoId,
-            },
-            { status: 409 }
-          );
-        }
-      }
-
-      // 3. 動画情報を取得
+      // 2. 動画情報を取得
       const videoInfo = await getVideoInfo(videoId);
       if (!videoInfo) {
         return NextResponse.json(
@@ -426,144 +407,15 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
         }
       }
 
-      // 10. DBに保存（オプション）
-      if (saveToDb) {
-        console.log(`Saving to ${domain} database...`);
-        console.log(`[/api/${domain}/analyze] Gemini analysis result:`, {
-          influencerOccupation: analysisResult.influencerOccupation,
-          influencerOccupationTags: analysisResult.influencerOccupationTags,
-        });
-
-        // インフルエンサーを保存（職種情報を含む）
-        const savedInfluencer = await mutations.saveInfluencer(domain, {
-          channel_id: videoInfo.channelId,
-          channel_title: videoInfo.channelTitle,
-          subscriber_count: videoInfo.subscriberCount,
-          thumbnail_url: videoInfo.channelThumbnailUrl,
-          source_type: "youtube",
-          occupation: analysisResult.influencerOccupation || undefined,
-          occupation_tags: analysisResult.influencerOccupationTags,
-        });
-        console.log(`[/api/${domain}/analyze] saveInfluencer result:`, savedInfluencer ? {
-          id: savedInfluencer.id,
-          channel_id: savedInfluencer.channel_id,
-          occupation_tags: savedInfluencer.occupation_tags,
-        } : "NULL - FAILED TO SAVE");
-
-        // 動画を保存
-        const videoResult = await mutations.saveVideo(domain, {
-          video_id: videoInfo.videoId,
-          title: videoInfo.title,
-          channel_title: videoInfo.channelTitle,
-          channel_id: videoInfo.channelId,
-          subscriber_count: videoInfo.subscriberCount,
-          thumbnail_url: videoInfo.thumbnailUrl,
-          published_at: videoInfo.publishedAt,
-          summary: analysisResult.summary,
-          tags: analysisResult.tags,
-        });
-
-        if (!videoResult.data) {
-          console.error(`[/api/${domain}/analyze] saveVideo failed for video_id: ${videoInfo.videoId}`);
-          return NextResponse.json(
-            { error: "動画の保存に失敗しました。DBの制約に合わない可能性があります。" },
-            { status: 500 }
-          );
-        }
-
-        // 商品を保存（unified loop — both domains use mutations-unified）
-        const fuzzyCategoryCache: FuzzyCategoryCache = new Map();
-        for (const product of matchedProducts) {
-          console.log(
-            `[SaveProduct] ${product.name} | tags: ${product.tags?.join(", ") || "none"}`
-          );
-
-          // 段階1で既にマッチ済みの商品IDがあれば渡す（DB検索スキップ）
-          const preMatchedId = existingProductMap.get(product.name)?.id;
-
-          const saveResult = await mutations.saveProduct(domain, {
-            name: product.name,
-            brand: product.brand || undefined,
-            category: product.category,
-            ...(domainConfig.search.hasSubcategory && product.subcategory ? { subcategory: product.subcategory } : {}),
-            ...(domainConfig.search.hasLensTags && product.lensTags ? { lens_tags: product.lensTags } : {}),
-            ...(domainConfig.search.hasBodyTags && product.bodyTags ? { body_tags: product.bodyTags } : {}),
-            reason: product.reason,
-            confidence: product.confidence,
-            video_id: videoInfo.videoId,
-            source_type: "video",
-          }, fuzzyCategoryCache, preMatchedId);
-          const savedProduct = saveResult.product;
-
-          if (!savedProduct) {
-            console.error(`[SaveProduct] FAILED to save: "${product.name}" — saveProduct returned null`);
-            continue;
-          }
-
-          if (savedProduct && !savedProduct.asin && product.amazon) {
-            const priceRange = getPriceRange(product.amazon.price);
-
-            // Look up the full ProductInfo from candidates for detailed spec fields
-            const originalProduct = candidates.find(
-              (c) => c.asin === product.amazon?.asin
-            )?.product;
-
-            await mutations.updateProductWithAmazon(
-              domain,
-              savedProduct.id!,
-              {
-                asin: product.amazon.asin,
-                amazon_url: product.amazon.url,
-                amazon_image_url: product.amazon.imageUrl,
-                amazon_price: product.amazon.price,
-                amazon_title: product.amazon.title,
-                product_source: product.source,
-                rakuten_shop_name: originalProduct?.shopName,
-                amazon_manufacturer: originalProduct?.manufacturer,
-                amazon_brand: originalProduct?.brand,
-                amazon_model_number: originalProduct?.modelNumber,
-                amazon_color: originalProduct?.color,
-                amazon_size: originalProduct?.size,
-                amazon_weight: originalProduct?.weight,
-                amazon_release_date: originalProduct?.releaseDate,
-                amazon_features:
-                  originalProduct?.features &&
-                  !isLowQualityFeatures(originalProduct.features)
-                    ? originalProduct.features
-                    : undefined,
-                amazon_technical_info: originalProduct?.technicalInfo,
-              },
-              priceRange || undefined
-            );
-
-            // Camera enriched tags update (subcategory, lens_tags, body_tags from enrichment)
-            if (enrichTags && savedProduct.id) {
-              const enrichedUpdates: Record<string, unknown> = {};
-              if (product.subcategory) {
-                enrichedUpdates.subcategory = product.subcategory;
-              }
-              if (product.lensTags && product.lensTags.length > 0) {
-                enrichedUpdates.lens_tags = product.lensTags;
-              }
-              if (product.bodyTags && product.bodyTags.length > 0) {
-                enrichedUpdates.body_tags = product.bodyTags;
-              }
-              if (Object.keys(enrichedUpdates).length > 0) {
-                await mutations.updateProductEnrichedTags(domain, savedProduct.id, enrichedUpdates);
-              }
-            }
-          }
-        }
-      }
-
       // 既存商品チェック（プレビュー用）
+      // マッチング中にファジーマッチ等で isExisting: true が付いた商品はそのまま維持
       const existingMap = await checkExistingProducts(
-        matchedProducts.map(p => p.name),
+        matchedProducts.filter(p => !p.isExisting).map(p => p.name),
         productsTable
       );
       const productsWithExisting = matchedProducts.map(p => ({
         ...p,
-        isExisting: !!existingMap[p.name],
+        isExisting: p.isExisting || !!existingMap[p.name],
       }));
 
       return NextResponse.json({
@@ -575,7 +427,6 @@ export function createAnalyzeHandler(handlerConfig: AnalyzeHandlerConfig) {
           products: productsWithExisting,
         },
         transcriptLength: transcript.length,
-        savedToDb: saveToDb,
       });
     } catch (error) {
       console.error(`${domain} analysis error:`, error);

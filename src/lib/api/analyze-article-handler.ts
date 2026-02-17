@@ -12,14 +12,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getArticleInfo, isDeskTourArticle } from "@/lib/article";
-import { analyzeArticle, analyzeOfficialPage, getPriceRange } from "@/lib/gemini";
+import { analyzeArticle, analyzeOfficialPage } from "@/lib/gemini";
 import { getBrandFromDomain } from "@/lib/ogp";
 import { getProductsByAsins } from "@/lib/product-search";
 import { extractProductsFromDescription, type ExtractedProduct } from "@/lib/description-links";
 import type { ProductInfo } from "@/lib/product-search";
-import { isLowQualityFeatures } from "@/lib/featureQuality";
 import {
-  generateAuthorId,
   buildCandidates,
   matchProductWithAmazon,
   toAmazonField,
@@ -27,9 +25,7 @@ import {
   type MatchCandidate,
 } from "@/lib/product-matching";
 import { checkExistingProducts, findExistingProducts, buildBrandNormalizationMap } from "@/lib/supabase/queries-common";
-import * as mutations from "@/lib/supabase/mutations-unified";
 import { getDomainConfig, type DomainId } from "@/lib/domain";
-import type { FuzzyCategoryCache } from "@/lib/supabase/mutations-unified";
 
 // ============================================================
 // 設定型
@@ -89,7 +85,7 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
       const config = getDomainConfig(domain);
       const productsTable = config.tables.products as "products" | "products_camera";
 
-      const { url, saveToDb = false } = await request.json();
+      const { url } = await request.json();
 
       if (!url) {
         return NextResponse.json(
@@ -108,22 +104,7 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
         );
       }
 
-      // 1. 既に解析済みかチェック（DB保存モードの場合のみ）
-      if (saveToDb) {
-        const alreadyAnalyzed = await mutations.isArticleAnalyzed(domain, url);
-        if (alreadyAnalyzed) {
-          return NextResponse.json(
-            {
-              error: "この記事は既に解析済みです",
-              alreadyAnalyzed: true,
-              url,
-            },
-            { status: 409 }
-          );
-        }
-      }
-
-      // 2. 記事情報を取得
+      // 1. 記事情報を取得
       console.log(`Fetching article: ${url}`);
       const articleInfo = await getArticleInfo(url);
       if (!articleInfo) {
@@ -149,6 +130,13 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
       const articleLinks = await extractProductsFromDescription(productLinksText);
       console.log(`Found ${articleLinks.length} product links in article`);
 
+      // 4.5. 公式サイトリンクから取得した情報を収集
+      const officialLinks = articleLinks
+        .filter((link): link is ExtractedProduct & { officialInfo: NonNullable<ExtractedProduct["officialInfo"]> } =>
+          link.source === "official" && !!link.officialInfo
+        );
+      console.log(`Found ${officialLinks.length} official site links with OGP info`);
+
       // 5. 記事内のASINから商品情報を一括取得（Geminiへのヒント用 + マッチング用）
       const asinsFromArticle = articleLinks
         .filter((link): link is ExtractedProduct & { asin: string } => !!link.asin)
@@ -165,6 +153,12 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
       for (const [, productInfo] of asinProductMap) {
         if (productInfo?.title) {
           productHints.push(productInfo.title);
+        }
+      }
+      // 公式サイトの商品タイトルもヒントに追加
+      for (const official of officialLinks) {
+        if (official.officialInfo.title) {
+          productHints.push(official.officialInfo.title);
         }
       }
       if (productHints.length > 0) {
@@ -328,8 +322,36 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
               usedAsins,
             });
 
+            let { amazonInfo, matchReason } = result;
+
+            // API検索でも見つからない場合のみ公式サイトを使用（フォールバック）
+            if (!amazonInfo && officialLinks.length > 0) {
+              const normalizedProductName = product.name.toLowerCase();
+              for (const official of officialLinks) {
+                const officialTitle = (official.officialInfo.title || "").toLowerCase();
+                const productWords = normalizedProductName.split(/\s+/).filter(w => w.length > 2);
+                const matchedWords = productWords.filter(w => officialTitle.includes(w));
+                if (matchedWords.length >= Math.min(2, productWords.length)) {
+                  console.log(`  [Official Fallback] ${official.officialInfo.domain}: ${official.officialInfo.title}`);
+                  amazonInfo = {
+                    id: `official-${official.officialInfo.domain}`,
+                    title: official.officialInfo.title || product.name,
+                    url: official.officialInfo.url,
+                    imageUrl: official.officialInfo.image || "",
+                    source: "amazon" as const,
+                  };
+                  matchReason = `Official (fallback): ${official.officialInfo.domain}`;
+                  break;
+                }
+              }
+            }
+
+            // Camera tag enrichment (enrichTags が設定されている場合 + Amazon情報がある場合)
+            let enrichedSubcategory = product.subcategory;
+            let enrichedLensTags = product.lensTags;
+            let enrichedBodyTags = product.bodyTags;
+
             if (enrichTags && result.amazonInfo) {
-              // Camera: Amazon情報からタグを補強
               const enrichment = enrichTags({
                 category: product.category,
                 subcategory: product.subcategory,
@@ -337,53 +359,26 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
                 bodyTags: product.bodyTags,
                 amazonInfo: result.amazonInfo,
               });
-              matchedProducts.push({
-                name: product.name,
-                brand: product.brand,
-                category: product.category,
-                subcategory: enrichment.subcategory || product.subcategory,
-                lensTags: enrichment.lensTags.length > 0 ? enrichment.lensTags : product.lensTags,
-                bodyTags: enrichment.bodyTags.length > 0 ? enrichment.bodyTags : product.bodyTags,
-                reason: product.reason,
-                confidence: product.confidence,
-                tags: result.productTags,
-                amazon: toAmazonField(result.amazonInfo),
-                source: result.amazonInfo?.source,
-                matchScore: result.matchScore,
-                matchReason: result.matchReason,
-              });
-            } else if (enrichTags) {
-              // Camera: Amazon情報なし → Gemini結果をそのまま
-              matchedProducts.push({
-                name: product.name,
-                brand: product.brand,
-                category: product.category,
-                subcategory: product.subcategory,
-                lensTags: product.lensTags,
-                bodyTags: product.bodyTags,
-                reason: product.reason,
-                confidence: product.confidence,
-                tags: result.productTags,
-                amazon: toAmazonField(result.amazonInfo),
-                source: result.amazonInfo?.source,
-                matchScore: result.matchScore,
-                matchReason: result.matchReason,
-              });
-            } else {
-              // Desktour: 標準マッチング結果
-              matchedProducts.push({
-                name: product.name,
-                brand: product.brand,
-                category: product.category,
-                reason: product.reason,
-                confidence: product.confidence,
-                tags: result.productTags,
-                amazon: toAmazonField(result.amazonInfo),
-                source: result.amazonInfo?.source,
-                matchScore: result.matchScore,
-                matchReason: result.matchReason,
-              });
+              if (enrichment.lensTags.length > 0) enrichedLensTags = enrichment.lensTags;
+              if (enrichment.bodyTags.length > 0) enrichedBodyTags = enrichment.bodyTags;
+              if (enrichment.subcategory) enrichedSubcategory = enrichment.subcategory;
             }
+
+            matchedProducts.push({
+              name: product.name,
+              brand: product.brand,
+              category: product.category,
+              ...(config.search.hasSubcategory && { subcategory: enrichedSubcategory }),
+              ...(config.search.hasLensTags && { lensTags: enrichedLensTags }),
+              ...(config.search.hasBodyTags && { bodyTags: enrichedBodyTags }),
+              reason: product.reason,
+              confidence: product.confidence,
+              tags: result.productTags,
+              amazon: toAmazonField(amazonInfo),
+              source: amazonInfo?.source,
+              matchScore: result.matchScore,
+              matchReason,
+            });
           }
         } else {
           // low confidence — マッチングなし
@@ -400,130 +395,15 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
         }
       }
 
-      // 9. DBに保存（オプション）
-      if (saveToDb) {
-        console.log(`Saving to ${domain} database...`);
-
-        // 著者をインフルエンサーとして保存
-        const authorId = generateAuthorId(url, articleInfo.author);
-        await mutations.saveInfluencer(domain, {
-          author_id: authorId,
-          author_name: articleInfo.author || undefined,
-          source_type: "article",
-          thumbnail_url: articleInfo.thumbnailUrl || undefined,
-          occupation: analysisResult.influencerOccupation || undefined,
-          occupation_tags: analysisResult.influencerOccupationTags,
-        });
-
-        // 記事を保存
-        const articleResult = await mutations.saveArticle(domain, {
-          url: articleInfo.url,
-          title: articleInfo.title,
-          author: articleInfo.author,
-          author_url: articleInfo.authorUrl,
-          site_name: articleInfo.siteName,
-          source_type: articleInfo.sourceType,
-          thumbnail_url: articleInfo.thumbnailUrl,
-          published_at: articleInfo.publishedAt,
-          summary: analysisResult.summary,
-          tags: analysisResult.tags,
-        });
-
-        if (!articleResult.data) {
-          return NextResponse.json(
-            { error: "記事の保存に失敗しました。source_typeがDBの制約に合わない可能性があります。" },
-            { status: 500 }
-          );
-        }
-
-        // 商品を保存（統合ループ）
-        const fuzzyCategoryCache: FuzzyCategoryCache = new Map();
-        for (const product of matchedProducts) {
-          console.log(
-            `[SaveProduct][${domain}] ${product.name} | tags: ${product.tags?.join(", ") || "none"}`
-          );
-
-          // 段階1で既にマッチ済みの商品IDがあれば渡す（DB検索スキップ）
-          const preMatchedId = existingProductMap.get(product.name)?.id;
-
-          const saveResult = await mutations.saveProduct(domain, {
-            name: product.name,
-            brand: product.brand || undefined,
-            category: product.category,
-            ...(config.search.hasSubcategory && { subcategory: product.subcategory || undefined }),
-            ...(config.search.hasLensTags && { lens_tags: product.lensTags }),
-            ...(config.search.hasBodyTags && { body_tags: product.bodyTags }),
-            reason: product.reason,
-            confidence: product.confidence,
-            article_id: articleInfo.url,
-            source_type: "article",
-          }, fuzzyCategoryCache, preMatchedId);
-          const savedProduct = saveResult.product;
-
-          if (savedProduct && !savedProduct.asin && product.amazon) {
-            const priceRange = getPriceRange(product.amazon.price);
-
-            const originalProduct = candidates.find(
-              (c) => c.asin === product.amazon?.asin
-            )?.product;
-
-            await mutations.updateProductWithAmazon(
-              domain,
-              savedProduct.id!,
-              {
-                asin: product.amazon.asin,
-                amazon_url: product.amazon.url,
-                amazon_image_url: product.amazon.imageUrl,
-                amazon_price: product.amazon.price,
-                amazon_title: product.amazon.title,
-                product_source: product.source,
-                rakuten_shop_name: originalProduct?.shopName,
-                amazon_manufacturer: originalProduct?.manufacturer,
-                amazon_brand: originalProduct?.brand,
-                amazon_model_number: originalProduct?.modelNumber,
-                amazon_color: originalProduct?.color,
-                amazon_size: originalProduct?.size,
-                amazon_weight: originalProduct?.weight,
-                amazon_release_date: originalProduct?.releaseDate,
-                amazon_features:
-                  originalProduct?.features &&
-                  !isLowQualityFeatures(originalProduct.features)
-                    ? originalProduct.features
-                    : undefined,
-                amazon_technical_info: originalProduct?.technicalInfo,
-              },
-              priceRange || undefined
-            );
-
-            // Camera: enriched tags をDB更新
-            if (enrichTags && savedProduct.id && originalProduct) {
-              const enrichment = enrichTags({
-                category: product.category,
-                subcategory: product.subcategory,
-                lensTags: product.lensTags,
-                bodyTags: product.bodyTags,
-                amazonInfo: originalProduct,
-              });
-              const enrichedUpdates: Record<string, unknown> = {};
-              if (enrichment.subcategory) enrichedUpdates.subcategory = enrichment.subcategory;
-              if (enrichment.lensTags.length > 0) enrichedUpdates.lens_tags = enrichment.lensTags;
-              if (enrichment.bodyTags.length > 0) enrichedUpdates.body_tags = enrichment.bodyTags;
-              if (Object.keys(enrichedUpdates).length > 0) {
-                await mutations.updateProductEnrichedTags(domain, savedProduct.id, enrichedUpdates);
-              }
-            }
-          }
-        }
-      }
-
       // 既存商品チェック（プレビュー用）
+      // マッチング中にファジーマッチ等で isExisting: true が付いた商品はそのまま維持
       const existingMap = await checkExistingProducts(
-        matchedProducts.map(p => p.name),
+        matchedProducts.filter(p => !p.isExisting).map(p => p.name),
         productsTable
       );
       const productsWithExisting = matchedProducts.map(p => ({
         ...p,
-        isExisting: !!existingMap[p.name],
+        isExisting: p.isExisting || !!existingMap[p.name],
       }));
 
       return NextResponse.json({
@@ -546,7 +426,6 @@ export function createAnalyzeArticleHandler(handlerConfig: AnalyzeArticleHandler
           products: productsWithExisting,
         },
         isRelevant,
-        savedToDb: saveToDb,
       });
     } catch (error) {
       console.error(`${domain} article analysis error:`, error);

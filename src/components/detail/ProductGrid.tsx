@@ -12,6 +12,17 @@ interface ProductGridProps {
   domain?: "desktour" | "camera";
 }
 
+const isAmazonUrl = (url: string) =>
+  url.includes("amazon.co.jp") || url.includes("amazon.com");
+const isRakutenUrl = (url: string) =>
+  url.includes("rakuten.co.jp") || url.includes("rakuten.com");
+
+function getLinkInfo(url: string): { label: string; className: string; rel: string } {
+  if (isAmazonUrl(url)) return { label: "Amazonで見る", className: "amazon", rel: "noopener noreferrer sponsored" };
+  if (isRakutenUrl(url)) return { label: "楽天で見る", className: "rakuten", rel: "noopener noreferrer sponsored" };
+  return { label: "公式サイトで見る", className: "official", rel: "noopener noreferrer" };
+}
+
 export function ProductGrid({ products, domain = "desktour" }: ProductGridProps) {
   const gridRef = useRevealOnScroll<HTMLDivElement>();
 
@@ -79,16 +90,19 @@ export function ProductGrid({ products, domain = "desktour" }: ProductGridProps)
             )}
             {(product.amazon_url || product.rakuten_url) && (
               <div className="detail-product-links">
-                {product.amazon_url && (
-                  <a
-                    href={product.amazon_url}
-                    target="_blank"
-                    rel="noopener noreferrer sponsored"
-                    className="amazon"
-                  >
-                    Amazonで見る
-                  </a>
-                )}
+                {product.amazon_url && (() => {
+                  const info = getLinkInfo(product.amazon_url);
+                  return (
+                    <a
+                      href={product.amazon_url}
+                      target="_blank"
+                      rel={info.rel}
+                      className={info.className}
+                    >
+                      {info.label}
+                    </a>
+                  );
+                })()}
                 {product.rakuten_url && (
                   <a
                     href={product.rakuten_url}

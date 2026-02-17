@@ -378,6 +378,8 @@
 
 .detail-product-links .amazon:hover { color: #ff9900; }
 .detail-product-links .rakuten:hover { color: var(--accent-red); }
+.detail-product-links .official { color: var(--accent); }
+.detail-product-links .official:hover { color: var(--accent); opacity: 0.8; }
 
 /* ===== FAQ ===== */
 .detail-faq-section {

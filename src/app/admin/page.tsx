@@ -155,7 +155,7 @@ export default function AdminPage() {
     query: string;
     source: "amazon" | "rakuten";
     candidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }>;
-    dbCandidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; isExisting: true; mentionCount: number }>;
+    dbCandidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; source?: "amazon" | "rakuten" | "official"; isExisting: true; mentionCount: number }>;
     loading: boolean;
     selecting: boolean;
   } | null>(null);
@@ -659,7 +659,7 @@ export default function AdminPage() {
   };
 
   // 候補を選択 → フルデータ取得 + タグ再生成 → カード入れ替え
-  const selectAmazonCandidate = async (candidate: { id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }) => {
+  const selectAmazonCandidate = async (candidate: { id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string; source?: string; isExisting?: boolean }) => {
     if (!previewResult || !amazonSearchModal) return;
     const productIndex = amazonSearchModal.productIndex;
     const currentCategory = previewResult.products[productIndex].category;
@@ -668,9 +668,11 @@ export default function AdminPage() {
     setAmazonSearchModal((prev) => prev ? { ...prev, selecting: true } : null);
 
     try {
-      const postBody = isRakuten
-        ? { source: "rakuten", currentCategory, candidateData: { title: candidate.title, url: candidate.url, imageUrl: candidate.imageUrl, price: candidate.price, shopName: candidate.shopName } }
-        : { asin: candidate.id, currentCategory };
+      const postBody = candidate.isExisting
+        ? { isExisting: true, currentCategory, candidateData: { title: candidate.title, url: candidate.url, imageUrl: candidate.imageUrl, price: candidate.price, shopName: candidate.shopName } }
+        : isRakuten
+          ? { source: "rakuten", currentCategory, candidateData: { title: candidate.title, url: candidate.url, imageUrl: candidate.imageUrl, price: candidate.price, shopName: candidate.shopName } }
+          : { asin: candidate.id, currentCategory };
 
       const res = await fetch("/api/search-amazon", {
         method: "POST",
@@ -683,29 +685,42 @@ export default function AdminPage() {
       const oldKey = `${updatedProducts[productIndex].name}|${updatedProducts[productIndex].category}`;
 
       if (data.product) {
-        const newName = isRakuten
-          ? candidate.title.split(/[,（(【]/)[0]?.trim() || updatedProducts[productIndex].name
-          : data.product.title?.replace(/^.*?]\s*/, "").split(/[,（(]/)[0]?.trim()
-            || candidate.title.split(/[,（(]/)[0]?.trim()
-            || updatedProducts[productIndex].name;
-        const newBrand = data.product.brand || candidate.brand || updatedProducts[productIndex].brand;
+        // DB登録済み商品の場合はDB側の名前・ブランドを優先
+        const newName = candidate.isExisting
+          ? candidate.title || updatedProducts[productIndex].name
+          : isRakuten
+            ? candidate.title.split(/[,（(【]/)[0]?.trim() || updatedProducts[productIndex].name
+            : data.product.title?.replace(/^.*?]\s*/, "").split(/[,（(]/)[0]?.trim()
+              || candidate.title.split(/[,（(]/)[0]?.trim()
+              || updatedProducts[productIndex].name;
+        const newBrand = candidate.isExisting
+          ? candidate.brand || data.product.brand || updatedProducts[productIndex].brand
+          : data.product.brand || candidate.brand || updatedProducts[productIndex].brand;
+
+        const resolvedSource = candidate.isExisting && candidate.source
+          ? (candidate.source === "official" ? "amazon" : candidate.source) as "amazon" | "rakuten"
+          : isRakuten ? "rakuten" : "amazon";
 
         updatedProducts[productIndex] = {
           ...updatedProducts[productIndex],
           name: newName,
           brand: newBrand,
           amazon: {
-            asin: isRakuten ? candidate.id : candidate.id,
+            asin: candidate.id,
             title: data.product.title || candidate.title,
             url: data.product.url || candidate.url,
             imageUrl: data.product.imageUrl || candidate.imageUrl,
             price: data.product.price || candidate.price,
           },
-          source: isRakuten ? "rakuten" : "amazon",
-          matchReason: "手動選択",
+          source: resolvedSource,
+          matchReason: candidate.isExisting ? "DB既存（手動選択）" : "手動選択",
           tags: data.tags && data.tags.length > 0 ? data.tags : updatedProducts[productIndex].tags,
         };
       } else {
+        const resolvedSource = candidate.isExisting && candidate.source
+          ? (candidate.source === "official" ? "amazon" : candidate.source) as "amazon" | "rakuten"
+          : isRakuten ? "rakuten" : "amazon";
+
         updatedProducts[productIndex] = {
           ...updatedProducts[productIndex],
           amazon: {
@@ -715,8 +730,8 @@ export default function AdminPage() {
             imageUrl: candidate.imageUrl,
             price: candidate.price,
           },
-          source: isRakuten ? "rakuten" : "amazon",
-          matchReason: "手動選択",
+          source: resolvedSource,
+          matchReason: candidate.isExisting ? "DB既存（手動選択）" : "手動選択",
         };
       }
 

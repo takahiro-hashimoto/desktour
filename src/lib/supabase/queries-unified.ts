@@ -1,4 +1,5 @@
 import { supabase } from "./client";
+import { findBrandByName } from "./queries-brands";
 import type { ProductMention, VideoWithProductCount, ArticleWithProductCount, Video, Article } from "./types-unified";
 import type {
   ProductWithStats,
@@ -310,8 +311,13 @@ export async function searchProducts(domain: DomainId, params: SearchParams): Pr
       });
     }
 
+    // 文字数が多い順にソートして上位3件を取得
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const comments: ProductComment[] = mentions.slice(0, 3).map((m: any) => ({
+    const sortedMentions = [...mentions].sort((a: any, b: any) =>
+      (b.reason || "").length - (a.reason || "").length
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const comments: ProductComment[] = sortedMentions.slice(0, 3).map((m: any) => ({
       comment: m.reason || "",
       source_type: m.source_type || "video",
       source_id: m.video_id || m.article_id || undefined,
@@ -1003,6 +1009,59 @@ export async function getSimilarProducts(
       b.similarity_score - a.similarity_score ||
       b.mention_count - a.mention_count
     )
+    .slice(0, limit);
+}
+
+// 同じブランドの人気商品を取得（商品詳細ページ用）
+export async function getBrandPopularProducts(
+  domain: DomainId,
+  product: { id: string; brand?: string },
+  limit = 4,
+): Promise<SimilarProduct[]> {
+  if (!product.brand) return [];
+
+  const config = getDomainConfig(domain);
+
+  // 同ブランドの商品を取得（自分自身を除外、slug必須）
+  const { data: candidates, error } = await supabase
+    .from(config.tables.products)
+    .select("id, asin, slug, name, brand, category, amazon_image_url, amazon_price")
+    .ilike("brand", product.brand)
+    .neq("id", product.id)
+    .not("slug", "is", null);
+
+  if (error || !candidates || candidates.length === 0) return [];
+
+  // mention_count を一括取得
+  const candidateIds = candidates.map(c => c.id);
+  const { data: mentions } = await supabase
+    .from(config.tables.product_mentions)
+    .select("product_id")
+    .in("product_id", candidateIds)
+    .neq("confidence", "low");
+
+  const mentionCountMap: Record<string, number> = {};
+  for (const m of mentions || []) {
+    mentionCountMap[m.product_id] = (mentionCountMap[m.product_id] || 0) + 1;
+  }
+
+  // mention_count > 0 のみ、降順でソート
+  return candidates
+    .map((c) => ({
+      id: c.id,
+      asin: c.asin,
+      slug: c.slug,
+      name: c.name,
+      brand: c.brand,
+      category: c.category,
+      amazon_image_url: c.amazon_image_url,
+      amazon_price: c.amazon_price,
+      mention_count: mentionCountMap[c.id] || 0,
+      similarity_score: 0,
+      matched_tag_count: 0,
+    }))
+    .filter(p => p.mention_count > 0)
+    .sort((a, b) => b.mention_count - a.mention_count)
     .slice(0, limit);
 }
 
@@ -1762,11 +1821,14 @@ export async function getBrandProductCounts(domain: DomainId, brands: string[]):
 }
 
 // ブランド別商品数を取得し、上位N件を返す
+// brands マスターテーブルから slug / icon / description を取得
 export async function getTopBrandsByProductCount(
   domain: DomainId,
-  limit: number = 8
-): Promise<Array<{ brand: string; count: number; slug: string }>> {
+  limit: number = 8,
+  minCount: number = 1
+): Promise<Array<{ brand: string; count: number; slug: string; icon?: string; description?: string }>> {
   const config = getDomainConfig(domain);
+  const descField = domain === "camera" ? "description_camera" : "description_desktour";
 
   const { data } = await supabase
     .from(config.tables.products)
@@ -1781,19 +1843,51 @@ export async function getTopBrandsByProductCount(
     }
   });
 
-  // 上位N件をソートして返す
-  return Object.entries(brandCounts)
+  const topBrands = Object.entries(brandCounts)
+    .filter(([, count]) => count >= minCount)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([brand, count]) => ({
+    .slice(0, limit);
+
+  // brands マスターテーブルから slug/icon/description を一括取得
+  const brandNames = topBrands.map(([name]) => name);
+  const { data: brandsData } = await supabase
+    .from("brands")
+    .select(`name, slug, icon, ${descField}`)
+    .in("name", brandNames.length > 0 ? brandNames : ["__none__"]);
+
+  const brandLookup = new Map<string, { slug: string; icon?: string; description?: string }>();
+  for (const b of (brandsData || []) as { name: string; slug: string; icon: string | null; [key: string]: unknown }[]) {
+    brandLookup.set(b.name, {
+      slug: b.slug,
+      icon: b.icon || undefined,
+      description: (b[descField] as string) || undefined,
+    });
+  }
+
+  // フォールバック slug 生成（brands テーブル未登録ブランド用）
+  const fallbackSlug = (brand: string) =>
+    brand.replace(/[（(].+?[）)]/g, "").trim().toLowerCase().replace(/\s+/g, "-");
+
+  return topBrands.map(([brand, count]) => {
+    const info = brandLookup.get(brand);
+    return {
       brand,
       count,
-      slug: brand.toLowerCase().replace(/\s+/g, "-"),
-    }));
+      slug: info?.slug || fallbackSlug(brand),
+      icon: info?.icon,
+      description: info?.description,
+    };
+  });
 }
 
 // ブランドがDBに存在するか確認し、正確なブランド名を返す
+// brands マスターテーブルを最優先で検索し、fallback で products テーブルをスキャン
 export async function findBrandInDatabase(domain: DomainId, brandName: string): Promise<string | null> {
+  // 1. brands マスターテーブルで検索（name / aliases で解決）
+  const brandRow = await findBrandByName(brandName);
+  if (brandRow) return brandRow.name;
+
+  // 2. fallback: products テーブルで ilike 検索（brands テーブル未登録ブランド用）
   const config = getDomainConfig(domain);
 
   const { data } = await supabase
@@ -1802,7 +1896,21 @@ export async function findBrandInDatabase(domain: DomainId, brandName: string): 
     .ilike("brand", brandName)
     .limit(1);
 
-  return data && data.length > 0 ? data[0].brand : null;
+  if (data && data.length > 0) return data[0].brand;
+
+  // 3. ハイフン・スペースを相互変換して再検索
+  const normalized = brandName.replace(/[-\s]+/g, "%");
+  if (normalized !== brandName) {
+    const { data: data2 } = await supabase
+      .from(config.tables.products)
+      .select("brand")
+      .ilike("brand", normalized)
+      .limit(1);
+
+    if (data2 && data2.length > 0) return data2[0].brand;
+  }
+
+  return null;
 }
 
 // 最新のデスクツアー動画を取得（TOPページ用）
@@ -1871,6 +1979,7 @@ export async function searchExistingProducts(
   amazon_url: string | null;
   amazon_image_url: string | null;
   amazon_price: number | null;
+  product_source: string | null;
   mention_count: number;
 }>> {
   const config = getDomainConfig(domain);
@@ -1878,7 +1987,7 @@ export async function searchExistingProducts(
   // ilike でキーワード部分一致検索
   const { data, error } = await supabase
     .from(config.tables.products)
-    .select("id, name, brand, asin, amazon_url, amazon_image_url, amazon_price")
+    .select("id, name, brand, asin, amazon_url, amazon_image_url, amazon_price, product_source")
     .ilike("name", `%${keyword}%`)
     .order("name")
     .limit(limit);
@@ -1907,6 +2016,7 @@ export async function searchExistingProducts(
     amazon_url: p.amazon_url,
     amazon_image_url: p.amazon_image_url,
     amazon_price: p.amazon_price,
+    product_source: p.product_source,
     mention_count: countMap.get(p.id) || 0,
   }));
 }

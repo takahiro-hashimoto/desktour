@@ -32,6 +32,9 @@ export async function GET(request: NextRequest) {
         imageUrl: p.amazon_image_url || "",
         price: p.amazon_price || undefined,
         brand: p.brand || undefined,
+        source: p.asin?.startsWith("official-") ? "official" as const
+          : p.product_source === "rakuten" ? "rakuten" as const
+          : "amazon" as const,
         isExisting: true,
         mentionCount: p.mention_count,
       }));
@@ -60,7 +63,22 @@ export async function GET(request: NextRequest) {
 // POST: 商品詳細取得 + タグ再生成
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { asin, currentCategory, source, candidateData } = body;
+  const { asin, currentCategory, source, candidateData, isExisting } = body;
+
+  // DB既存商品の場合: candidateDataをそのまま返す（Amazon APIは呼ばない）
+  if (isExisting && candidateData) {
+    const tags = extractProductTags({
+      category: currentCategory || "",
+      title: candidateData.title || "",
+      features: [],
+      technicalInfo: {},
+    });
+
+    return NextResponse.json({
+      product: candidateData,
+      tags,
+    });
+  }
 
   // 楽天の場合: 候補データからタグだけ再生成
   if (source === "rakuten" && candidateData) {
