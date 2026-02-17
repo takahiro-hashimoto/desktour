@@ -30,6 +30,7 @@ interface Product {
   matchScore?: number;
   matchReason?: string;
   isExisting?: boolean;
+  mentionCount?: number; // DB上の登場回数
 }
 
 interface SuggestedVideo {
@@ -328,7 +329,11 @@ export default function AdminPage() {
           imageUrl: p.amazon_image_url || "",
           price: p.amazon_price || undefined,
         } : null,
+        mentionCount: p.mention_count || undefined,
       }));
+
+      // ページ最上部にスクロール
+      window.scrollTo({ top: 0, behavior: "smooth" });
 
       setPreviewResult({
         title: data.title || (type === "video" ? "動画" : "記事"),
@@ -659,7 +664,7 @@ export default function AdminPage() {
   };
 
   // 候補を選択 → フルデータ取得 + タグ再生成 → カード入れ替え
-  const selectAmazonCandidate = async (candidate: { id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string; source?: string; isExisting?: boolean }) => {
+  const selectAmazonCandidate = async (candidate: { id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string; source?: string; isExisting?: boolean; mentionCount?: number }) => {
     if (!previewResult || !amazonSearchModal) return;
     const productIndex = amazonSearchModal.productIndex;
     const currentCategory = previewResult.products[productIndex].category;
@@ -715,6 +720,7 @@ export default function AdminPage() {
           source: resolvedSource,
           matchReason: candidate.isExisting ? "DB既存（手動選択）" : "手動選択",
           tags: data.tags && data.tags.length > 0 ? data.tags : updatedProducts[productIndex].tags,
+          mentionCount: candidate.mentionCount || updatedProducts[productIndex].mentionCount,
         };
       } else {
         const resolvedSource = candidate.isExisting && candidate.source
@@ -732,6 +738,7 @@ export default function AdminPage() {
           },
           source: resolvedSource,
           matchReason: candidate.isExisting ? "DB既存（手動選択）" : "手動選択",
+          mentionCount: candidate.mentionCount || updatedProducts[productIndex].mentionCount,
         };
       }
 
@@ -1634,6 +1641,11 @@ export default function AdminPage() {
                       {product.isExisting && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300 font-medium flex-shrink-0">
                           既存商品
+                        </span>
+                      )}
+                      {product.mentionCount && product.mentionCount > 0 && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-300 font-medium flex-shrink-0">
+                          {product.mentionCount}件登場
                         </span>
                       )}
                       <span
