@@ -57,5 +57,6 @@ export {
   getBrandSlugMap,
   getBrands,
   findBrandByName,
+  matchArticleToAuthor,
 } from "./supabase/queries";
 export type { Brand } from "./supabase/queries";

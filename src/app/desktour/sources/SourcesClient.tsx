@@ -255,7 +255,10 @@ export function SourcesClient({
       <div className="sources-article-grid">
         {items.map((item) => {
           const isVideo = item.type === "video";
-          let sortedTags = item.tags || [];
+          // tags + occupation_tags をマージ（重複排除）
+          const baseTags = item.tags || [];
+          const occTags = item.occupation_tags || [];
+          let sortedTags = [...new Set([...occTags, ...baseTags])];
           if (activeFilter && sortedTags.includes(activeFilter)) {
             sortedTags = [activeFilter, ...sortedTags.filter(t => t !== activeFilter)];
           }

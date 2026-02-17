@@ -149,11 +149,11 @@ export default function AdminPage() {
   const [editableOccupationTags, setEditableOccupationTags] = useState<string[]>([]);
   const [newOccupationTagInput, setNewOccupationTagInput] = useState("");
 
-  // 商品検索モーダル（Amazon / 楽天）
+  // 商品検索モーダル（Amazon / 楽天 / DB検索）
   const [amazonSearchModal, setAmazonSearchModal] = useState<{
     productIndex: number;
     query: string;
-    source: "amazon" | "rakuten";
+    source: "amazon" | "rakuten" | "db";
     candidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; shopName?: string }>;
     dbCandidates: Array<{ id: string; title: string; url: string; imageUrl: string; price?: number; brand?: string; source?: "amazon" | "rakuten" | "official"; isExisting: true; mentionCount: number }>;
     loading: boolean;
@@ -632,7 +632,7 @@ export default function AdminPage() {
   };
 
   // 商品検索モーダルを開く
-  const openAmazonSearch = (productIndex: number, source: "amazon" | "rakuten" = "amazon") => {
+  const openAmazonSearch = (productIndex: number, source: "amazon" | "rakuten" | "db" = "amazon") => {
     if (!previewResult) return;
     const product = previewResult.products[productIndex];
     const query = product.brand
@@ -1835,6 +1835,13 @@ export default function AdminPage() {
                         )}
                         <div className="flex gap-1 flex-shrink-0">
                           <button
+                            onClick={() => openAmazonSearch(productIndex, "db")}
+                            className="text-[11px] px-2 py-1 rounded-md bg-green-50 text-green-600 hover:bg-green-100 font-medium transition-colors border border-green-200"
+                            type="button"
+                          >
+                            DB検索
+                          </button>
+                          <button
                             onClick={() => openAmazonSearch(productIndex, "amazon")}
                             className="text-[11px] px-2 py-1 rounded-md bg-orange-50 text-orange-600 hover:bg-orange-100 font-medium transition-colors border border-orange-200"
                             type="button"
@@ -2290,8 +2297,8 @@ export default function AdminPage() {
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
               <h3 className="text-base font-semibold text-gray-900">
-                <span className={amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}>
-                  {amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}
+                <span className={amazonSearchModal.source === "db" ? "text-green-600" : amazonSearchModal.source === "rakuten" ? "text-red-600" : "text-orange-600"}>
+                  {amazonSearchModal.source === "db" ? "DB登録済み" : amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}
                 </span>
                 {" "}商品検索
               </h3>
@@ -2315,7 +2322,7 @@ export default function AdminPage() {
                 <button
                   onClick={executeAmazonSearch}
                   disabled={amazonSearchModal.loading}
-                  className={`px-4 py-2 text-sm text-white rounded-lg disabled:bg-gray-300 transition-colors whitespace-nowrap ${amazonSearchModal.source === "rakuten" ? "bg-red-500 hover:bg-red-600" : "bg-orange-500 hover:bg-orange-600"}`}
+                  className={`px-4 py-2 text-sm text-white rounded-lg disabled:bg-gray-300 transition-colors whitespace-nowrap ${amazonSearchModal.source === "db" ? "bg-green-500 hover:bg-green-600" : amazonSearchModal.source === "rakuten" ? "bg-red-500 hover:bg-red-600" : "bg-orange-500 hover:bg-orange-600"}`}
                   type="button"
                 >
                   {amazonSearchModal.loading ? "検索中..." : "検索"}
@@ -2339,8 +2346,8 @@ export default function AdminPage() {
                 </div>
               ) : (amazonSearchModal.dbCandidates.length > 0 || amazonSearchModal.candidates.length > 0) ? (
                 <div className="space-y-3">
-                  {/* DB登録済み商品（優先表示） */}
-                  {amazonSearchModal.dbCandidates.length > 0 && (
+                  {/* DB登録済み商品（DB検索モード時のみ表示） */}
+                  {amazonSearchModal.source === "db" && amazonSearchModal.dbCandidates.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-green-700 mb-1.5 flex items-center gap-1">
                         <span className="w-2 h-2 bg-green-500 rounded-full" />
@@ -2369,6 +2376,12 @@ export default function AdminPage() {
                                 {candidate.brand && (
                                   <span className="text-xs text-gray-500">{candidate.brand}</span>
                                 )}
+                                {candidate.source === "official" && (
+                                  <span className="text-xs text-blue-600 font-medium">公式サイト</span>
+                                )}
+                                {candidate.source === "rakuten" && (
+                                  <span className="text-xs text-red-600 font-medium">楽天</span>
+                                )}
                                 <span className="text-xs text-green-600 font-medium">{candidate.mentionCount}件の紹介</span>
                               </div>
                             </div>
@@ -2377,14 +2390,9 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
-                  {/* API検索結果 */}
-                  {amazonSearchModal.candidates.length > 0 && (
+                  {/* API検索結果（Amazon/楽天モード時のみ表示） */}
+                  {amazonSearchModal.source !== "db" && amazonSearchModal.candidates.length > 0 && (
                     <div>
-                      {amazonSearchModal.dbCandidates.length > 0 && (
-                        <p className="text-xs font-medium text-gray-500 mb-1.5">
-                          {amazonSearchModal.source === "rakuten" ? "楽天" : "Amazon"}検索結果（{amazonSearchModal.candidates.length}件）
-                        </p>
-                      )}
                       <div className="space-y-2">
                         {amazonSearchModal.candidates.map((candidate) => (
                           <button

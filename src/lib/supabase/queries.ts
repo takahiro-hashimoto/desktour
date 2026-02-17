@@ -127,6 +127,9 @@ export async function getLatestVideos(limit: number = 3): Promise<VideoWithProdu
   return unified.getLatestVideos("desktour", limit);
 }
 
+// ユーティリティ（queries-unified.ts から再エクスポート）
+export { matchArticleToAuthor } from "./queries-unified";
+
 // brands テーブル関連 — queries-brands.ts に委譲
 export { getBrandBySlug, getBrandSlugMap, getBrands, findBrandByName } from "./queries-brands";
 export type { Brand } from "./queries-brands";

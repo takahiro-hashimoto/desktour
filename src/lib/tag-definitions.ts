@@ -265,6 +265,76 @@ export const TYPE_TAG_DEFS: Record<string, TypeTagAxisDef[]> = {
       ],
     },
   ],
+
+  // ======== デスク ========
+  "デスク": [
+    {
+      axis: "種類",
+      tags: [
+        { name: "昇降デスク", detect: [{ keywords: ["standing desk", "昇降", "電動昇降", "スタンディング", "sit-stand", "flexispot", "elevating"] }] },
+        { name: "L字デスク", detect: [{ keywords: ["l字", "l-shaped", "l型", "コーナーデスク"] }] },
+        { name: "ゲーミングデスク", detect: [{ keywords: ["gaming desk", "ゲーミングデスク"] }] },
+      ],
+    },
+  ],
+
+  // ======== ウェブカメラ ========
+  "ウェブカメラ": [
+    {
+      axis: "解像度",
+      tags: [
+        { name: "4Kウェブカメラ", detect: [{ keywords: ["4k", "uhd", "2160p"] }] },
+        { name: "フルHDウェブカメラ", detect: [{ keywords: ["1080p", "full hd", "フルhd"] }] },
+      ],
+    },
+  ],
+
+  // ======== ノートPCスタンド ========
+  "ノートPCスタンド": [
+    {
+      axis: "種類",
+      tags: [
+        { name: "縦置きスタンド", detect: [{ keywords: ["vertical", "縦置き", "クラムシェル"] }] },
+        { name: "折りたたみスタンド", detect: [{ keywords: ["折りたたみ", "foldable", "ポータブル", "持ち運び"] }] },
+        { name: "アーム型スタンド", detect: [{ keywords: ["アーム", "arm"] }] },
+      ],
+    },
+  ],
+
+  // ======== タブレット ========
+  "タブレット": [
+    {
+      axis: "種類",
+      tags: [
+        { name: "iPad", detect: [{ keywords: ["ipad"] }] },
+        { name: "Androidタブレット", detect: [{ keywords: ["android", "galaxy tab", "pixel tablet", "fire"] }] },
+      ],
+    },
+  ],
+
+  // ======== 充電器・電源タップ ========
+  "充電器・電源タップ": [
+    {
+      axis: "種類",
+      tags: [
+        { name: "USB充電器", detect: [{ keywords: ["usb充電", "usb-c充電", "gan", "pd充電", "usb charger", "急速充電"] }] },
+        { name: "ワイヤレス充電器", detect: [{ keywords: ["wireless charger", "ワイヤレス充電", "qi", "magsafe"] }] },
+        { name: "電源タップ", detect: [{ keywords: ["電源タップ", "power strip", "延長コード", "テーブルタップ"] }] },
+      ],
+    },
+  ],
+
+  // ======== HDD・SSD ========
+  "HDD・SSD": [
+    {
+      axis: "種類",
+      tags: [
+        { name: "外付けSSD", detect: [{ keywords: ["外付けssd", "ポータブルssd", "portable ssd"] }] },
+        { name: "内蔵SSD", detect: [{ keywords: ["内蔵ssd", "nvme", "m.2", "internal ssd"] }] },
+        { name: "外付けHDD", detect: [{ keywords: ["外付けhdd", "ポータブルhdd", "portable hdd"] }] },
+      ],
+    },
+  ],
 };
 
 // ============================================================

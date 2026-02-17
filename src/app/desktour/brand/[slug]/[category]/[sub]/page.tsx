@@ -109,7 +109,7 @@ export default async function BrandCategorySubPage({ params, searchParams }: Pag
         title={`デスクツアーで人気の${brand} ${subcategory}まとめ`}
         description={
           <>
-            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{brand}の{subcategory}を使用者のコメント付きで紹介。
+            {totalSources}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{brand}の{subcategory}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={subcategory}

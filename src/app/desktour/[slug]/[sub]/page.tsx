@@ -127,7 +127,7 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
         title={`デスクツアーで人気の${formatSubcategoryTitle(subcategory, category)}まとめ`}
         description={
           <>
-            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{subcategory}を使用者のコメント付きで紹介。
+            {totalSources}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{subcategory}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={subcategory}

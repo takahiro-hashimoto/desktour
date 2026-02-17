@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // DB登録済み商品を検索（優先表示用）
-    const dbProducts = await searchExistingProducts(domain, name, 5);
+    // DB登録済み商品を検索
+    const dbProducts = await searchExistingProducts(domain, name, source === "db" ? 20 : 5);
     const dbCandidates = dbProducts
-      .filter((p) => p.amazon_url || p.amazon_image_url)
+      .filter((p) => source === "db" ? true : (p.amazon_url || p.amazon_image_url))
       .map((p) => ({
         id: p.asin || p.id,
         title: p.name,
@@ -39,6 +39,14 @@ export async function GET(request: NextRequest) {
         mentionCount: p.mention_count,
       }));
 
+    // DB検索のみの場合はAPI検索をスキップ
+    if (source === "db") {
+      return NextResponse.json({
+        candidates: [],
+        dbCandidates,
+      });
+    }
+
     // API検索
     const apiCandidates = source === "rakuten"
       ? await searchRakutenCandidates(name, brand)
@@ -52,7 +60,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       candidates: filteredApiCandidates,
-      dbCandidates,
+      dbCandidates: [],
     });
   } catch (error) {
     console.error(`${source} search error:`, error);

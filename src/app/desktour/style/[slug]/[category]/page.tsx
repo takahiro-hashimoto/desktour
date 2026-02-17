@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
+import { searchProducts, getSetupTagCounts, getSiteStats } from "@/lib/supabase";
 import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
@@ -68,8 +68,9 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
     limit,
   });
 
-  const setupCounts = await getSetupTagCounts();
+  const [setupCounts, stats] = await Promise.all([getSetupTagCounts(), getSiteStats()]);
   const styleSourceCount = setupCounts[style] || 0;
+  const totalSources = stats.total_videos + stats.total_articles;
 
   const formattedProducts = products.map(formatProductForDisplay);
 
@@ -100,7 +101,7 @@ export default async function StyleCategoryPage({ params, searchParams }: PagePr
         title={`${style}スタイルのPCデスク環境で人気の${category}まとめ`}
         description={
           <>
-            {total}件の{style}スタイルの<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
+            {totalSources}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{style}スタイルの{category}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={category}

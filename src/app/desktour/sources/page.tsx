@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
-import { getVideos, getArticles, getSourceTagCounts, getSiteStats, supabase } from "@/lib/supabase";
+import { getVideos, getArticles, getSourceTagCounts, getSiteStats, supabase, matchArticleToAuthor } from "@/lib/supabase";
 import { STYLE_TAGS, ENVIRONMENT_TAGS, OCCUPATION_TAGS } from "@/lib/constants";
 import { SourcesClient } from "./SourcesClient";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
+import { generateBreadcrumbStructuredData } from "@/lib/structuredData";
 import "../../listing-styles.css";
 
 // 【最適化】ソースページのデータをキャッシュ（5分間）
@@ -171,9 +172,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
     let occupationTags: string[] = [];
     const matchedInfluencer = influencersList.find((inf) => {
       if (!inf.author_id) return false;
-      // author_idからドメイン部分を抽出（例: "ritalog0317.com:リタ" → "ritalog0317.com"）
-      const domain = inf.author_id.split(":")[0];
-      return a.url?.includes(domain);
+      return matchArticleToAuthor(a.url, null, inf.author_id);
     });
 
     if (matchedInfluencer?.occupation_tags) {
@@ -270,15 +269,13 @@ export default async function SourcesPage({ searchParams }: PageProps) {
         }
       }),
     },
-    "breadcrumb": {
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        { "@type": "ListItem", "position": 1, "name": "トップ", "item": baseUrl },
-        { "@type": "ListItem", "position": 2, "name": "PCデスク環境", "item": `${baseUrl}/desktour` },
-        { "@type": "ListItem", "position": 3, "name": "デスクツアー一覧", "item": `${baseUrl}/sources` },
-      ],
-    },
   };
+
+  const breadcrumbData = generateBreadcrumbStructuredData([
+    { name: "トップ", url: "/" },
+    { name: "PCデスク環境", url: "/desktour" },
+    { name: "デスクツアー一覧" },
+  ]);
 
   // DB登録数（動画 + 記事）
   const dbCount = siteStats.total_videos + siteStats.total_articles;
@@ -330,6 +327,10 @@ export default async function SourcesPage({ searchParams }: PageProps) {
   return (
     <>
       {/* JSON-LD 構造化データ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbData) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

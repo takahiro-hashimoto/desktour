@@ -51,6 +51,36 @@ function normalizeBrandToFilter(dbBrand: string): string | null {
   return null;
 }
 
+/**
+ * author_id（"ドメイン:著者名" or "note:ユーザー名"）から
+ * 記事URLとのマッチングパターンを返す。
+ *
+ * note.com の場合: author_id="note:username" → "note.com/username" でマッチ
+ * その他の場合:    author_id="example.com:author" → "example.com" でマッチ
+ */
+function getAuthorMatchPattern(authorId: string): string {
+  const parts = authorId.split(":");
+  const prefix = parts[0];
+  const identifier = parts[1];
+
+  // note.com の場合は "note.com/username" パターンでマッチ
+  if (prefix === "note" && identifier) {
+    return `note.com/${identifier}`;
+  }
+
+  return prefix;
+}
+
+/** 記事URLがインフルエンサーのauthor_idにマッチするか判定 */
+export function matchArticleToAuthor(
+  articleUrl: string | null | undefined,
+  articleAuthorUrl: string | null | undefined,
+  authorId: string
+): boolean {
+  const pattern = getAuthorMatchPattern(authorId);
+  return !!(articleAuthorUrl?.includes(pattern) || articleUrl?.includes(pattern));
+}
+
 // ランキング取得（言及回数でソート）
 export async function getProductRanking(domain: DomainId, limit = 20, category?: string) {
   const config = getDomainConfig(domain);
@@ -200,10 +230,9 @@ export async function searchProducts(domain: DomainId, params: SearchParams): Pr
         .select("url, author_url");
       const matchedUrls: string[] = [];
       for (const article of allArticles || []) {
-        const matched = authorIds.some((authorId) => {
-          const articleDomain = authorId.split(":")[0];
-          return article.author_url?.includes(articleDomain) || article.url?.includes(articleDomain);
-        });
+        const matched = authorIds.some((authorId) =>
+          matchArticleToAuthor(article.url, article.author_url, authorId)
+        );
         if (matched && article.url) matchedUrls.push(article.url);
       }
       validArticleIds = new Set(matchedUrls);
@@ -738,8 +767,7 @@ async function getOccupationBreakdownForProduct(domain: DomainId, mentions: Prod
       // author_urlまたはURL自体からマッチング
       const matchedInf = (authorInfluencers || []).find((inf) => {
         if (!inf.author_id) return false;
-        const infDomain = inf.author_id.split(":")[0];
-        return article.author_url?.includes(infDomain) || article.url?.includes(infDomain);
+        return matchArticleToAuthor(article.url, article.author_url, inf.author_id);
       });
 
       if (matchedInf && !countedInfluencerIds.has(matchedInf.id)) {
@@ -1238,7 +1266,7 @@ export async function getOccupationTagCounts(domain: DomainId): Promise<Record<s
   // 記事数をカウント
   for (const article of articles || []) {
     const matchedEntry = Array.from(authorToTag.entries()).find(
-      ([authorId]) => article.author_url?.includes(authorId.split(":")[0]) || article.url?.includes(authorId.split(":")[0])
+      ([authorId]) => matchArticleToAuthor(article.url, article.author_url, authorId)
     );
     if (matchedEntry && article.url) {
       const [, tag] = matchedEntry;
@@ -1509,9 +1537,7 @@ export async function getSourceDetail(
 
     const matchedInfluencer = influencersData?.find((inf) => {
       if (!inf.author_id) return false;
-      // author_idからドメイン部分を抽出（例: "ritalog0317.com:リタ" -> "ritalog0317.com"）
-      const infDomain = inf.author_id.split(":")[0];
-      return article.url?.includes(infDomain);
+      return matchArticleToAuthor(article.url, null, inf.author_id);
     });
     if (matchedInfluencer?.occupation_tags) {
       occupationTags = matchedInfluencer.occupation_tags;

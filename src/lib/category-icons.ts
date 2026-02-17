@@ -35,6 +35,8 @@ const CATEGORY_ICON_MAP: Record<string, string> = {
   "ケーブル": "fa-link",
   "配線整理グッズ": "fa-grip-lines",
   "パームレスト": "fa-hand",
+  "掃除グッズ": "fa-broom",
+  "文房具": "fa-pen",
   "その他デスクアクセサリー": "fa-puzzle-piece",
 };
 

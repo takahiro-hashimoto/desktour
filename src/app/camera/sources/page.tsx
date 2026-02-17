@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { getCameraVideos, getCameraArticles, getCameraSourceTagCounts, getCameraSiteStats, getCameraInfluencers, getCameraSourceBrands } from "@/lib/supabase/queries-camera";
+import { matchArticleToAuthor } from "@/lib/supabase/queries-unified";
 import { CAMERA_OCCUPATION_TAGS, CAMERA_SOURCE_BRAND_FILTERS, CAMERA_SUBJECT_TAGS, CAMERA_PURPOSE_TAGS } from "@/lib/camera/constants";
 import { SourcesClient } from "./SourcesClient";
 import "../../listing-styles.css";
@@ -157,9 +158,7 @@ export default async function SourcesPage({ searchParams }: PageProps) {
     let occupationTags: string[] = [];
     const matchedInfluencer = influencersList.find((inf: any) => {
       if (!inf.author_id) return false;
-      // author_idからドメイン部分を抽出（例: "ritalog0317.com:リタ" → "ritalog0317.com"）
-      const domain = inf.author_id.split(":")[0];
-      return a.url?.includes(domain);
+      return matchArticleToAuthor(a.url, null, inf.author_id);
     });
 
     if (matchedInfluencer?.occupation_tags) {

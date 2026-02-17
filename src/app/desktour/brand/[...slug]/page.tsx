@@ -83,6 +83,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
   }
 
   const stats = await getSiteStats();
+  const totalSources = stats.total_videos + stats.total_articles;
 
   // カテゴリが指定されている場合は従来のリストページ
   if (category) {
@@ -110,7 +111,7 @@ export default async function BrandPage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {total}件の<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{brand}の{category}を使用者のコメント付きで紹介。
+              {totalSources}件の<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{brand}の{category}を使用者のコメント付きで紹介。
             </>
           }
         />

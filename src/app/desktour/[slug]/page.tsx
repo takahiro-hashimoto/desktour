@@ -6,6 +6,7 @@ import { searchProducts, getSiteStats, getProductDetailBySlug, getCoOccurrencePr
 import {
   PRODUCT_CATEGORIES,
   TYPE_TAGS,
+  CATEGORY_FEATURE_TAGS,
   slugToCategory,
   categoryToSlug,
   desktourSubcategoryToSlug,
@@ -139,6 +140,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
   const typeTags = TYPE_TAGS[category] || [];
+  const featureTags = CATEGORY_FEATURE_TAGS[category] || [];
   const topProductName = sort === "mention" && page === 1 && products.length > 0 ? products[0].name : null;
 
   const breadcrumbItems = [
@@ -188,7 +190,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
         title={`デスクツアーで人気の${category}まとめ`}
         description={
           <>
-            {total}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
+            {totalSources}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={category}
@@ -196,7 +198,7 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
       />
 
       <div className="detail-container">
-        {typeTags.length > 0 && (
+        {(typeTags.length > 0 || featureTags.length > 0) && (
           <div className="detail-filter-section">
             <div className="detail-filter-box">
               <div className="detail-filter-label">
@@ -214,6 +216,25 @@ async function CategoryListPage({ params, searchParams }: PageProps) {
                   </Link>
                 ))}
               </div>
+              {featureTags.length > 0 && (
+                <>
+                  <div className="detail-filter-label" style={{ marginTop: 12 }}>
+                    <i className="fa-solid fa-ruler-combined"></i>
+                    スペック別に見る
+                  </div>
+                  <div className="detail-filter-tags">
+                    {featureTags.map((tag) => (
+                      <Link
+                        key={tag}
+                        href={`/desktour/${params.slug}/${desktourSubcategoryToSlug(tag)}`}
+                        className="detail-filter-tag"
+                      >
+                        {tag}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

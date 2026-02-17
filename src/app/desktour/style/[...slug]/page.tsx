@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchProducts, getSetupTagCounts } from "@/lib/supabase";
+import { searchProducts, getSetupTagCounts, getSiteStats } from "@/lib/supabase";
 import {
   slugToStyleTag,
   slugToCategory,
@@ -102,7 +102,8 @@ export default async function StylePage({ params, searchParams }: PageProps) {
     notFound();
   }
 
-  const setupCounts = await getSetupTagCounts();
+  const [setupCounts, stats] = await Promise.all([getSetupTagCounts(), getSiteStats()]);
+  const totalSources = stats.total_videos + stats.total_articles;
   const styleSourceCount = setupCounts[styleTag] || 0;
 
   // カテゴリが指定されている場合は従来のリストページ
@@ -131,7 +132,7 @@ export default async function StylePage({ params, searchParams }: PageProps) {
           title={pageTitle}
           subtitle={
             <>
-              {total}件の{styleTag}スタイルの<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{category}を使用者のコメント付きで紹介。
+              {totalSources}件の<Link href="/desktour/sources" className="text-blue-600 hover:underline">デスクツアー</Link>で実際に使用されている{styleTag}スタイルの{category}を使用者のコメント付きで紹介。
             </>
           }
         />

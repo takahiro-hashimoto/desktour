@@ -38,6 +38,8 @@ export const PRODUCT_CATEGORIES = [
   "配線整理グッズ",
   "パームレスト",
   "スマートホーム",
+  "掃除グッズ",
+  "文房具",
   "その他デスクアクセサリー",
 ];
 
@@ -86,6 +88,8 @@ const CATEGORY_SLUG_MAP: Record<string, string> = {
   "配線整理グッズ": "cable-management",
   "パームレスト": "palm-rest",
   "スマートホーム": "smart-home",
+  "掃除グッズ": "cleaning",
+  "文房具": "stationery",
   "その他デスクアクセサリー": "other-accessories",
 };
 
@@ -307,6 +311,10 @@ export const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "WQHD": "wqhd",
   "フルHD": "full-hd",
   "ウルトラワイド": "ultrawide",
+  "24インチ以下": "24-inch",
+  "27インチ": "27-inch",
+  "32インチ": "32-inch",
+  "34インチ以上": "34-inch-plus",
   // ヘッドホン・イヤホン
   "イヤホン": "earphone",
   "ヘッドホン": "headphone",
@@ -333,6 +341,28 @@ export const DESKTOUR_SUBCATEGORY_SLUG_MAP: Record<string, string> = {
   "ミニPC": "mini-pc",
   "ノートPC": "laptop",
   "デスクトップPC": "desktop-pc",
+  // デスク
+  "昇降デスク": "standing-desk",
+  "L字デスク": "l-shaped",
+  "ゲーミングデスク": "gaming-desk",
+  // ウェブカメラ
+  "4Kウェブカメラ": "4k-webcam",
+  "フルHDウェブカメラ": "fullhd-webcam",
+  // ノートPCスタンド
+  "縦置きスタンド": "vertical-stand",
+  "折りたたみスタンド": "foldable-stand",
+  "アーム型スタンド": "arm-stand",
+  // タブレット
+  "iPad": "ipad",
+  "Androidタブレット": "android-tablet",
+  // 充電器・電源タップ
+  "USB充電器": "usb-charger",
+  "ワイヤレス充電器": "wireless-charger",
+  "電源タップ": "power-strip",
+  // HDD・SSD
+  "外付けSSD": "external-ssd",
+  "内蔵SSD": "internal-ssd",
+  "外付けHDD": "external-hdd",
 };
 
 const _subcategoryConverter = createSlugConverter(DESKTOUR_SUBCATEGORY_SLUG_MAP);
@@ -444,6 +474,8 @@ export const COMPATIBLE_CATEGORIES: Record<string, string[]> = {
   "NAS": ["PC本体", "ドッキングステーション", "HDD・SSD"],
   "デスクシェルフ・モニター台": ["ディスプレイ・モニター", "デスク", "収納・整理", "キーボード"],
   "配線整理グッズ": ["デスク", "充電器・電源タップ", "収納・整理"],
+  "掃除グッズ": ["デスク", "デスクマット", "キーボード"],
+  "文房具": ["デスク", "収納・整理", "デスクマット"],
   "その他デスクアクセサリー": ["デスク", "収納・整理"],
 };
 
