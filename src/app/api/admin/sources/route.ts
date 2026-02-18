@@ -147,34 +147,51 @@ export async function PUT(request: NextRequest) {
       }
 
       // 3e. 更新: 既存商品（idあり）→ 統合チェック + メタデータ + reason更新
+      // DB上の既存商品データをマップ化（統合チェック時の差分比較用）
+      const existingProductMap = new Map<string, { name: string; asin?: string }>();
+      for (const ep of sourceDetail?.products || []) {
+        existingProductMap.set(ep.id, { name: ep.name, asin: ep.asin || undefined });
+      }
+
       const existingProducts = products.filter((p) => p.id);
       for (const p of existingProducts) {
-        // 統合チェック: 変更後の名前/ASINが別の既存商品と一致するか
-        const mergeTarget = await mutations.findExistingProductByAsinOrName(domainId, {
-          asin: p.asin,
-          name: p.name,
-          brand: p.brand || undefined,
-          excludeId: p.id!,
-        });
+        // 統合チェック: 名前またはASINが実際に変更された場合のみ実行
+        // （カテゴリ・タグのみの変更で意図しない統合が発動するのを防止）
+        const dbProduct = existingProductMap.get(p.id!);
+        const nameChanged = dbProduct && p.name !== dbProduct.name;
+        const asinChanged = dbProduct && (p.asin || undefined) !== dbProduct.asin;
 
-        if (mergeTarget) {
-          // 既存商品が見つかった → mentionを付け替え
-          console.log(`[PUT sources] Merging product ${p.id} → ${mergeTarget.id} (${mergeTarget.name})`);
-          const reassignResult = await mutations.reassignMention(
-            domainId, p.id!, mergeTarget.id, sourceType, sourceId, p.reason
-          );
-          if (!reassignResult.success) {
-            errors.push(`商品 ${p.name} の統合に失敗: ${reassignResult.error}`);
+        let merged = false;
+        if (nameChanged || asinChanged) {
+          const mergeTarget = await mutations.findExistingProductByAsinOrName(domainId, {
+            asin: p.asin,
+            name: p.name,
+            brand: p.brand || undefined,
+            excludeId: p.id!,
+          });
+
+          if (mergeTarget) {
+            // 既存商品が見つかった → mentionを付け替え
+            console.log(`[PUT sources] Merging product ${p.id} → ${mergeTarget.id} (${mergeTarget.name})`);
+            const reassignResult = await mutations.reassignMention(
+              domainId, p.id!, mergeTarget.id, sourceType, sourceId, p.reason
+            );
+            if (!reassignResult.success) {
+              errors.push(`商品 ${p.name} の統合に失敗: ${reassignResult.error}`);
+            }
+            // 付け替え先のAmazon情報も更新（新しい情報があれば）
+            if (p.asin) {
+              await mutations.updateProductMetadata(domainId, mergeTarget.id, {
+                asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
+                amazon_price: p.amazon_price, product_source: p.product_source,
+              });
+            }
+            merged = true;
           }
-          // 付け替え先のAmazon情報も更新（新しい情報があれば）
-          if (p.asin) {
-            await mutations.updateProductMetadata(domainId, mergeTarget.id, {
-              asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,
-              amazon_price: p.amazon_price, product_source: p.product_source,
-            });
-          }
-        } else {
-          // 一致する既存商品なし → 従来通りメタデータ更新
+        }
+
+        if (!merged) {
+          // 統合なし → 従来通りメタデータ更新
           const productOk = await mutations.updateProductMetadata(domainId, p.id!, {
             name: p.name, brand: p.brand, category: p.category, tags: p.tags,
             asin: p.asin, amazon_url: p.amazon_url, amazon_image_url: p.amazon_image_url,

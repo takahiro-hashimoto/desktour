@@ -141,7 +141,7 @@ export default async function SubcategoryPage({ params, searchParams }: PageProp
 
       <div className="detail-container">
         <ResultsBar total={total} currentSort={sort} />
-        <ProductGrid products={productsWithRank} headingLevel="h3" />
+        <ProductGrid products={productsWithRank} headingLevel="h2" />
         <FAQSection items={[...COMMON_FAQ_ITEMS]} />
       </div>
     </>

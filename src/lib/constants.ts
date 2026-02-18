@@ -108,7 +108,7 @@ export const TAG_GROUP_STYLE = [
   "ナチュラル",
   "インダストリアル",
   "かわいい",
-  "モノトーン",
+  "ダーク",
   "ホワイト",
   "ブラック",
 ] as const;
@@ -185,7 +185,7 @@ const STYLE_SLUG_MAP: Record<string, string> = {
   "ナチュラル": "natural",
   "インダストリアル": "industrial",
   "かわいい": "cute",
-  "モノトーン": "monotone",
+  "ダーク": "dark",
   "ホワイト": "white",
   "ブラック": "black",
 };

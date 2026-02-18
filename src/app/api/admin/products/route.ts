@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
       amazon_image_url: p.amazon_image_url || null,
       slug: p.slug || null,
       mention_count: mentionCountMap[p.id] || 0,
+      amazon_features: p.amazon_features || [],
     }));
 
     return NextResponse.json({ products: result, total: count || 0 });
@@ -93,7 +94,7 @@ export async function PUT(request: NextRequest) {
     const { domain, productId, data }: {
       domain?: DomainId;
       productId: string;
-      data: { name?: string; brand?: string; category?: string; tags?: string[] };
+      data: { name?: string; brand?: string; category?: string; tags?: string[]; amazon_features?: string[] };
     } = body;
 
     if (!productId) {
@@ -112,6 +113,7 @@ export async function PUT(request: NextRequest) {
     if (data.brand !== undefined) updateData.brand = data.brand;
     if (data.category !== undefined) updateData.category = data.category;
     if (data.tags !== undefined) updateData.tags = data.tags;
+    if (data.amazon_features !== undefined) updateData.amazon_features = data.amazon_features;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: true });

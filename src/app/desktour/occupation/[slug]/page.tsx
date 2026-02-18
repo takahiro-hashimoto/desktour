@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { searchProducts, getOccupationTagCounts } from "@/lib/supabase";
-import { OCCUPATION_TAGS, occupationToSlug, slugToOccupation, PRODUCT_CATEGORIES, productUrl } from "@/lib/constants";
+import { OCCUPATION_TAGS, occupationToSlug, slugToOccupation, PRODUCT_CATEGORIES, categoryToSlug, productUrl } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { ProductGrid } from "@/components/detail/ProductGrid";
 import { formatProductForDisplay, COMMON_FAQ_ITEMS } from "@/lib/format-utils";
@@ -58,7 +58,7 @@ export default async function OccupationDetailPage({ params }: PageProps) {
         category,
         occupationTag: occupation,
         sortBy: "mention_count",
-        limit: 100,
+        limit: 4,
       });
 
       return {
@@ -138,12 +138,15 @@ export default async function OccupationDetailPage({ params }: PageProps) {
         ) : (
           filteredCategories.map(({ category, products, total }) => (
           <div key={category} style={{ marginBottom: "60px" }}>
-            <div style={{ marginBottom: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
               <h2 style={{ fontSize: "20px", fontWeight: "700" }}>{category}</h2>
+              <Link
+                href={`/desktour/occupation/${params.slug}/${categoryToSlug(category)}`}
+                style={{ fontSize: "13px", fontWeight: "600", color: "var(--accent)", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                全て見る ({total}件) <i className="fa-solid fa-arrow-right" style={{ fontSize: "11px" }}></i>
+              </Link>
             </div>
-            <p style={{ fontSize: "13px", color: "#6e7a8a", marginBottom: "16px", lineHeight: "1.6" }}>
-              {occupation}の{category}ランキング（全{total}件）。{products[0] && `1位は${products[0].name}（${products[0].mention_count}件のデスクツアーに登場）。`}詳細ページではクリエイターのコメントや引用元の動画・記事がわかります。
-            </p>
             <ProductGrid products={products} headingLevel="h3" />
           </div>
           ))

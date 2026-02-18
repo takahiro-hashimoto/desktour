@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { searchCameraProducts, getCameraSiteStats } from "@/lib/supabase/queries-camera";
-import { CAMERA_SUBJECT_TAGS, slugToCameraSubject, slugToCameraCategory, CAMERA_PRODUCT_CATEGORIES, CAMERA_TYPE_TAGS, cameraProductUrl, CAMERA_SUBCATEGORY_SLUG_MAP, slugToCameraSubcategory } from "@/lib/camera/constants";
+import { searchProducts, getSetupTagCounts, getSiteStats } from "@/lib/supabase";
+import { STYLE_TAGS, slugToStyleTag, slugToCategory, PRODUCT_CATEGORIES, TYPE_TAGS, productUrl, DESKTOUR_SUBCATEGORY_SLUG_MAP, slugToDesktourSubcategory } from "@/lib/constants";
 import { PageHeaderSection } from "@/components/PageHeaderSection";
 import { FilterSection } from "@/components/detail/FilterSection";
 import { ResultsBar } from "@/components/detail/ResultsBar";
@@ -25,33 +25,33 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const subject = slugToCameraSubject(params.slug);
-  const category = slugToCameraCategory(params.category);
-  const subcategory = slugToCameraSubcategory(params.sub);
+  const style = slugToStyleTag(params.slug);
+  const category = slugToCategory(params.category);
+  const subcategory = slugToDesktourSubcategory(params.sub);
 
-  if (!subject || !category || !subcategory || !(CAMERA_SUBJECT_TAGS as readonly string[]).includes(subject) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!style || !category || !subcategory || !(STYLE_TAGS as readonly string[]).includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
     return { title: "ページが見つかりません" };
   }
 
-  const { total } = await searchCameraProducts({ category, setupTag: subject, typeTag: subcategory, limit: 1 });
+  const { total } = await searchProducts({ category, setupTag: style, typeTag: subcategory, limit: 1 });
 
-  const title = `${subject}撮影向け撮影機材紹介で人気の${subcategory}まとめ`;
-  const description = `${total}件のカバンの中身・撮影機材紹介で${subject}撮影に愛用されている${subcategory}をコメント付きで紹介。セットアップ事例も掲載。`;
+  const title = `${style}スタイルのPCデスク環境で人気の${subcategory}まとめ`;
+  const description = `${style}スタイルのデスク環境で実際に使われている${subcategory}を採用数順にランキング。使用者コメント付きで比較できます。【${total}件掲載】`;
 
   return {
     title,
     description,
-    alternates: { canonical: `/camera/subject/${params.slug}/${params.category}/${params.sub}` },
-    openGraph: { title, description, url: `/camera/subject/${params.slug}/${params.category}/${params.sub}` },
+    alternates: { canonical: `/desktour/style/${params.slug}/${params.category}/${params.sub}` },
+    openGraph: { title, description, url: `/desktour/style/${params.slug}/${params.category}/${params.sub}` },
   };
 }
 
-export default async function SubjectCategorySubPage({ params, searchParams }: PageProps) {
-  const subject = slugToCameraSubject(params.slug);
-  const category = slugToCameraCategory(params.category);
-  const subcategory = slugToCameraSubcategory(params.sub);
+export default async function StyleCategorySubPage({ params, searchParams }: PageProps) {
+  const style = slugToStyleTag(params.slug);
+  const category = slugToCategory(params.category);
+  const subcategory = slugToDesktourSubcategory(params.sub);
 
-  if (!subject || !category || !subcategory || !(CAMERA_SUBJECT_TAGS as readonly string[]).includes(subject) || !(CAMERA_PRODUCT_CATEGORIES as readonly string[]).includes(category)) {
+  if (!style || !category || !subcategory || !(STYLE_TAGS as readonly string[]).includes(style) || !PRODUCT_CATEGORIES.includes(category)) {
     notFound();
   }
 
@@ -59,16 +59,17 @@ export default async function SubjectCategorySubPage({ params, searchParams }: P
   const page = parseInt(searchParams.page || "1");
   const limit = 20;
 
-  const { products, total } = await searchCameraProducts({
+  const { products, total } = await searchProducts({
     category,
-    setupTag: subject,
+    setupTag: style,
     typeTag: subcategory,
     sortBy: sort === "price_asc" ? "price_asc" : sort === "price_desc" ? "price_desc" : "mention_count",
     page,
     limit,
   });
 
-  const stats = await getCameraSiteStats();
+  const [setupCounts, stats] = await Promise.all([getSetupTagCounts(), getSiteStats()]);
+  const styleSourceCount = setupCounts[style] || 0;
   const totalSources = stats.total_videos + stats.total_articles;
 
   const formattedProducts = products.map(formatProductForDisplay);
@@ -77,13 +78,13 @@ export default async function SubjectCategorySubPage({ params, searchParams }: P
     ? assignRanks(formattedProducts, { page, limit })
     : formattedProducts.map(p => ({ ...p, rank: undefined }));
 
-  const typeTags = CAMERA_TYPE_TAGS[category] || [];
+  const typeTags = TYPE_TAGS[category] || [];
 
   // ItemList構造化データ
   const itemListData = generateItemListStructuredData(
     formattedProducts.slice(0, 20).map((p, i) => ({
       name: p.name,
-      url: cameraProductUrl(p),
+      url: productUrl(p),
       image_url: p.image_url,
       position: i + 1,
     }))
@@ -96,20 +97,15 @@ export default async function SubjectCategorySubPage({ params, searchParams }: P
         dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListData) }}
       />
       <PageHeaderSection
-        domain="camera"
         label="Database Report"
-        title={`${subject}撮影向け撮影機材紹介で人気の${subcategory}まとめ`}
+        title={`${style}スタイルのPCデスク環境で人気の${subcategory}まとめ`}
         description={
           <>
-            {total}件の
-            <Link href="/camera/sources" className="link">
-              撮影機材紹介
-            </Link>
-            で{subject}撮影に愛用されている{subcategory}をコメント付きで紹介。セットアップ構成の参考にどうぞ。
+            {totalSources}件の<Link href="/desktour/sources" className="link">デスクツアー</Link>で実際に使用されている{style}スタイルの{subcategory}を使用者のコメント付きで紹介。
           </>
         }
         breadcrumbCurrent={subcategory}
-        breadcrumbMiddle={{ label: subject, href: `/camera/subject/${params.slug}` }}
+        breadcrumbMiddle={{ label: style, href: `/desktour/style/${params.slug}` }}
       />
 
       <div className="detail-container">
@@ -119,14 +115,14 @@ export default async function SubjectCategorySubPage({ params, searchParams }: P
             filterKey="type"
             tags={typeTags}
             currentFilter={subcategory}
-            basePath={`/camera/subject/${params.slug}/${params.category}`}
-            tagSlugMap={CAMERA_SUBCATEGORY_SLUG_MAP}
+            basePath={`/desktour/style/${params.slug}/${params.category}`}
+            tagSlugMap={DESKTOUR_SUBCATEGORY_SLUG_MAP}
           />
         )}
 
         <ResultsBar total={total} currentSort={sort} />
 
-        <ProductGrid products={productsWithRank} domain="camera" headingLevel="h2" />
+        <ProductGrid products={productsWithRank} headingLevel="h3" />
 
         <FAQSection items={[...COMMON_FAQ_ITEMS]} />
       </div>

@@ -56,31 +56,3 @@ export function isExcludedBrand(productName: string): ExcludedBrand | null {
   return null;
 }
 
-/**
- * URLが除外ブランドの公式サイトかチェック
- */
-export function isExcludedBrandDomain(url: string): ExcludedBrand | null {
-  try {
-    const parsedUrl = new URL(url);
-    const hostname = parsedUrl.hostname.replace(/^www\./, "");
-
-    for (const brand of EXCLUDED_BRANDS) {
-      for (const domain of brand.domains) {
-        if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-          return brand;
-        }
-      }
-    }
-  } catch {
-    // URLパースエラーは無視
-  }
-
-  return null;
-}
-
-/**
- * 除外ブランド名のリストを取得
- */
-export function getExcludedBrandNames(): string[] {
-  return EXCLUDED_BRANDS.map(brand => brand.name);
-}

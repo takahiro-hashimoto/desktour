@@ -135,7 +135,7 @@ export default async function BrandCategorySubPage({ params, searchParams }: Pag
 
         <ResultsBar total={total} currentSort={sort} />
 
-        <ProductGrid products={productsWithRank} domain="camera" headingLevel="h3" />
+        <ProductGrid products={productsWithRank} domain="camera" headingLevel="h2" />
 
         <FAQSection items={[...COMMON_FAQ_ITEMS]} />
       </div>

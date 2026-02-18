@@ -122,6 +122,12 @@
   cursor: default;
   pointer-events: none;
 }
+.top-landing__card--coming-soon {
+  opacity: 0.5;
+}
+.top-landing__card--coming-soon:hover {
+  transform: none;
+}
 
 /* ===== HOME HERO - DARK ===== */
 .home-hero {

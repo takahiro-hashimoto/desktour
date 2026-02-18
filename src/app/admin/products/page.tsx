@@ -14,6 +14,7 @@ interface AdminProduct {
   amazon_image_url: string | null;
   slug: string | null;
   mention_count: number;
+  amazon_features: string[];
 }
 
 interface EditForm {
@@ -21,6 +22,7 @@ interface EditForm {
   brand: string;
   category: string;
   tags: string[];
+  amazon_features: string[];
 }
 
 const DOMAIN = "desktour";
@@ -94,6 +96,7 @@ export default function AdminProductsPage() {
       brand: product.brand || "",
       category: product.category,
       tags: [...(product.tags || [])],
+      amazon_features: [...(product.amazon_features || [])],
     });
     setMessage(null);
   };
@@ -146,6 +149,7 @@ export default function AdminProductsPage() {
             brand: editForm.brand || null,
             category: editForm.category,
             tags: editForm.tags,
+            amazon_features: editForm.amazon_features.filter(f => f.trim() !== ""),
           },
         }),
       });
@@ -342,6 +346,48 @@ export default function AdminProductsPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* 商品の特徴（amazon_features） */}
+                  <div className="mb-3">
+                    <label className="text-xs text-gray-500 mb-1 block">商品の特徴（feature-card）</label>
+                    {editForm.amazon_features.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {editForm.amazon_features.map((feature, idx) => (
+                          <div key={idx} className="flex gap-1.5 items-start">
+                            <input
+                              type="text"
+                              value={feature}
+                              onChange={(e) => {
+                                const newFeatures = [...editForm.amazon_features];
+                                newFeatures[idx] = e.target.value;
+                                setEditForm({ ...editForm, amazon_features: newFeatures });
+                              }}
+                              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="特徴を入力..."
+                            />
+                            <button
+                              onClick={() => {
+                                const newFeatures = editForm.amazon_features.filter((_, i) => i !== idx);
+                                setEditForm({ ...editForm, amazon_features: newFeatures });
+                              }}
+                              className="px-2 py-1.5 text-red-400 hover:text-red-600 text-sm flex-shrink-0"
+                              title="削除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 mb-1">特徴が未登録です</p>
+                    )}
+                    <button
+                      onClick={() => setEditForm({ ...editForm, amazon_features: [...editForm.amazon_features, ""] })}
+                      className="mt-1.5 px-3 py-1 text-xs text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      + 特徴を追加
+                    </button>
+                  </div>
 
                   {/* 操作ボタン */}
                   <div className="flex gap-2 justify-end">

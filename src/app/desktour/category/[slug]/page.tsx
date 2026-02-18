@@ -190,7 +190,7 @@ export default async function CategorySlugPage({ params, searchParams }: PagePro
 
         <ResultsBar total={total} currentSort={sort} />
 
-        <ProductGrid products={productsWithRank} headingLevel="h3" />
+        <ProductGrid products={productsWithRank} headingLevel="h2" />
 
         <FAQSection items={allFaqItems} />
       </div>

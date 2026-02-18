@@ -21,8 +21,8 @@ export default function TopPage() {
           </Link>
         </div>
 
-        {/* Creator Clip - 撮影機材 */}
-        <div className="top-landing__card">
+        {/* Creator Clip - 撮影機材（準備中） */}
+        <div className="top-landing__card top-landing__card--coming-soon">
           <div className="top-landing__icon">
             <i className="fa-solid fa-camera"></i>
           </div>
@@ -32,10 +32,9 @@ export default function TopPage() {
             <br />
             本当に使われている機材をデータで探す。
           </p>
-          <Link href="/camera" className="top-landing__link">
-            <span>撮影機材を見る</span>
-            <i className="fa-solid fa-arrow-right"></i>
-          </Link>
+          <span className="top-landing__link top-landing__link--disabled">
+            <span>準備中</span>
+          </span>
         </div>
       </div>
     </div>
